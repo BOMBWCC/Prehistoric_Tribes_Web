@@ -67,9 +67,13 @@ export function stepLegacyCameraLetterbox(
 ): LegacyCameraFrameLetterboxOutput | undefined {
   if (!state.letterboxFlag) return undefined;
 
-  const q = Math.max(state.mapPixelExtentG - state.viewportOriginI, state.scrollY);
+  // Offsets 7..40 / 58..91: `G - I > y ? y : G - I`, the box's left (top) edge is the smaller of
+  // the anchor and the cursor. CORRECTED 2026-10-15 (found while adding touch box select): this
+  // took the larger, so a box dragged right or down started at the cursor and selected the wrong
+  // tiles.
+  const q = Math.min(state.mapPixelExtentG - state.viewportOriginI, state.scrollY);
   const b = q + state.viewportOriginI - 1;
-  const r = Math.max(state.mapPixelExtentH - state.viewportOriginK, state.scrollA);
+  const r = Math.min(state.mapPixelExtentH - state.viewportOriginK, state.scrollA);
   const c = r + state.viewportOriginK - 1;
 
   const qPixels = q * 22;

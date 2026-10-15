@@ -45,13 +45,27 @@ function mockGraphics() {
   // result is an object literal constructed inside the vm sandbox realm, so
   // compare via spread into the outer realm rather than assert.deepEqual
   // directly (which also checks prototype identity across realms).
-  assert.deepEqual({ ...result }, { b: 99, c: 79, d: 71, e: 61 });
+  // The left/top edge is the smaller of anchor and cursor (G - I = 90 vs y = 20 -> 20; H - K = 75
+  // vs A = 15 -> 15), so b = 20 + 10 - 1, c = 15 + 5 - 1.
+  assert.deepEqual({ ...result }, { b: 29, c: 19, d: 71, e: 61 });
   assert.deepEqual(graphics.calls, [
     ["setColor", 0],
-    ["drawRect", 1992, 1209, 1562, 976],
+    ["drawRect", 452, 249, 1562, 976],
     ["setColor", 0x10dee4],
-    ["drawRect", 1991, 1208, 1562, 976],
+    ["drawRect", 451, 248, 1562, 976],
   ]);
+}
+
+// Anchor left of / above the cursor: the anchor is the edge (G - I = 2 < y = 6).
+{
+  const graphics = mockGraphics();
+  const result = stepLegacyCameraLetterbox({
+    letterboxFlag: true,
+    mapPixelExtentG: 3, mapPixelExtentH: 4,
+    viewportOriginI: 1, viewportOriginK: 1,
+    scrollY: 6, scrollA: 7,
+  }, graphics);
+  assert.deepEqual({ ...result }, { b: 2, c: 3, d: 5, e: 5 });
 }
 
 // private static byte b(int) classifier, bytecode offsets 28941..28960.

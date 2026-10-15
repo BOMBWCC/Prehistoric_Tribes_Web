@@ -18,16 +18,73 @@ body {
   overflow: hidden;
 }
 
+/* No page scroll, zoom, text selection or long-press menu anywhere: the whole page is the game. */
+html,
+body,
 #app {
-  display: grid;
-  place-items: center;
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  --bar-h: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
 }
 
 canvas {
-  width: min(75vw, 60vh);
+  width: min(100vw, calc((100vh - var(--bar-h) - 16px) * 0.75), 720px);
+  width: min(100vw, calc((100dvh - var(--bar-h) - 16px) * 0.75), 720px);
   height: auto;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+/* The virtual buttons under the screen (temporary touch/mouse scheme). */
+.buttons {
+  display: flex;
+  gap: 6px;
+  width: min(100vw, 720px);
+  height: var(--bar-h);
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.buttons button {
+  flex: 1;
+  min-width: 0;
+  border: 2px solid #5b4a2a;
+  border-radius: 6px;
+  background: #c8b46a;
+  color: #2b1d0e;
+  padding: 0;
+  font: bold 16px/1 sans-serif;
+  white-space: nowrap;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.buttons button[data-down],
+.buttons button:active {
+  background: #a8944a;
+}
+
+.buttons button[aria-pressed="true"] {
+  background: #f5f400;
+  border-color: #2b1d0e;
+}
+
+.buttons button:focus-visible {
+  outline: 2px solid #f5f400;
+  outline-offset: 2px;
 }

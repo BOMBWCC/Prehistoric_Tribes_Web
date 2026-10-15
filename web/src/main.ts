@@ -7,6 +7,7 @@ import { FixedLoop } from "./j2me/FixedLoop";
 import { attachOriginalKeyboard, KeyState } from "./j2me/Input";
 import { LegacyRuntimeState } from "./j2me/LegacyRuntimeState";
 import { stepLegacyPaintScreen } from "./j2me/LegacyPaintScreen";
+import { attachTouchControls } from "./TouchControls";
 // The Chinese strings; docs/translation-zh-CN.json is their single source.
 import zhTranslation from "../../docs/translation-zh-CN.json";
 
@@ -51,6 +52,26 @@ const keys = new KeyState();
 const detachKeyboard = attachOriginalKeyboard(window, keys);
 window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
+// Touch and mouse (temporary first version, user 2026-10-15): taps and drags on the screen plus a
+// row of virtual buttons under it, shown on every device.
+const buttonBar = document.createElement("div");
+buttonBar.className = "buttons";
+buttonBar.innerHTML = [
+  '<button type="button" data-box aria-pressed="false">框选</button>',
+  '<button type="button" data-key="LEFT" aria-label="左">◀</button>',
+  '<button type="button" data-key="RIGHT" aria-label="右">▶</button>',
+  '<button type="button" data-key="DIGIT_7">7</button>',
+  '<button type="button" data-key="DIGIT_9">9</button>',
+  '<button type="button" data-key="DIGIT_3">地图</button>',
+  '<button type="button" data-key="DIGIT_1">警告</button>',
+].join("");
+app.append(buttonBar);
+const touch = attachTouchControls(canvas.element, buttonBar, runtime, keys);
+// Pinch and double-tap zoom on iOS Safari, which ignores the viewport's user-scalable=no.
+for (const type of ["gesturestart", "gesturechange", "dblclick"]) {
+  document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+}
+
 // Set by debugBootWithoutSplash(): the normal boot() stops at its next await
 // instead of painting the rest of the splash over the game and re-running
 // initializeOriginalLoop() on the runtime the debug boot is already driving.
@@ -84,6 +105,7 @@ async function showSplash(): Promise<void> {
 function tick(): void {
   // Keep the original fixed-tick ordering: project DOM key edges, run the
   // bytecode-backed state machine, then dispatch the frame handler.
+  touch.step();
   for (const key of originalKeys) {
     if (keys.wasPressed(key)) runtime.input.press(key);
     if (keys.wasReleased(key)) runtime.input.release(key);

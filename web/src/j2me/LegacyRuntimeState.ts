@@ -434,6 +434,12 @@ export class LegacyRuntimeState {
   readonly framePrimitives: Array<readonly [number, number, number]> = [];
   readonly frameProjections: Array<readonly [number, number, number, number]> = [];
   readonly frameHelperCalls: Array<Readonly<Record<string, number | string>>> = [];
+  /**
+   * Not in the original: the rows f.c(III) last laid out (offscreen y of each, the Q they were drawn
+   * for), so touch input (src/TouchControls.ts) can map a tap to a row of a vertical menu.
+   */
+  readonly touchMenuRows: number[] = [];
+  touchMenuQ = -1;
   readonly offscreenTargets = typeof document === "undefined" ? undefined : new LegacyOffscreenTargets();
   /**
    * f.an() (Back key) fields, live since 2026-09-27. Only Q/R/H/vInt used to
@@ -8129,6 +8135,8 @@ export class LegacyRuntimeState {
               // f.c() stores the section length in int field ab;
               // f.aC() uses it as the selector wrap bound.
               this.game.ab = rowCount;
+              this.touchMenuRows.length = 0;
+              this.touchMenuQ = this.game.Q;
             },
             onPacked: (packedRecord, packedX, packedY) => {
               this.frameHelperCalls.push({ kind: "frame-1137-packed", record: packedRecord, x: packedX, y: packedY });
@@ -8139,9 +8147,11 @@ export class LegacyRuntimeState {
             },
             // Q14 (the language list) gets a sixth row, 中文, when the Chinese strings are loaded.
             onExtraRow: this.game.Q === 14 && this.zhStrings ? (rowX, rowY) => {
+              this.touchMenuRows.push(rowY);
               this.geometry.queueZhLabel(rowX, rowY, 1, Array.from(ZH_LANGUAGE_NAME, (text) => ({ text })), 0);
             } : undefined,
             onGeometry: (geometryX, mode, width, geometryRecord, value) => {
+              this.touchMenuRows.push(mode);
               this.geometry.decodeRecord(geometryX, mode, width, geometryRecord, value);
               this.frameHelperCalls.push({ kind: "frame-1137-geometry", record: geometryRecord, x: geometryX, y: mode, width, value, active: this.geometry.activeRows });
             },
