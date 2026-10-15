@@ -8132,7 +8132,10 @@ export class LegacyRuntimeState {
             },
             onPacked: (packedRecord, packedX, packedY) => {
               this.frameHelperCalls.push({ kind: "frame-1137-packed", record: packedRecord, x: packedX, y: packedY });
-              packed.drawComposite(packedRecord, packedX, packedY);
+              // f.c(III) offset 153 is b(III) (#535), one sprite: the row's background fill, which erases
+              // last frame's cursor. CORRECTED 2026-10-15 (docs/bugs.md BUG-002): this drew a composite
+              // (1766 has none), so every row the cursor had visited kept its triangles.
+              packed.drawSprite(packedRecord, packedX, packedY);
             },
             // Q14 (the language list) gets a sixth row, 中文, when the Chinese strings are loaded.
             onExtraRow: this.game.Q === 14 && this.zhStrings ? (rowX, rowY) => {
