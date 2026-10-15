@@ -165,6 +165,9 @@ async function boot(): Promise<void> {
     .initializeOriginalLoop();
   bootStatus = "running";
   refreshDebugOverlay();
+  // Keys pressed during the splash and loading never reached the original's canvas; dropping them
+  // keeps a press meant to skip the logos from confirming Q14's first language (2026-10-15).
+  keys.endTick();
   loop.start();
 }
 
