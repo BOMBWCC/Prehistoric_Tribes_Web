@@ -115,6 +115,11 @@ export function stepLegacyMapMarkerDetail(
   callbacks: LegacyMapMarkerDetailCallbacks = {},
 ): void {
   const phase = state.phase;
+  // local10 (offset 7): f:I once per call, then carried across records -- local8===6 adds to it and
+  // local8===4 overwrites it, and every later record's draw sees that value. CORRECTED 2026-10-15
+  // (pixel comparison, play26 frame 22500): it was recomputed from f:I per record, so a building's
+  // second and third smoke puffs ran in the wrong phase.
+  let local10 = phase;
   let U = 0;
   let recordN = state.N;
 
@@ -141,7 +146,7 @@ export function stepLegacyMapMarkerDetail(
         if ((local8 === 2 || local8 === 4 || local8 === 6) && arg2 !== 2) {
           ranBranch3 = true;
           if (P === 0 || P <= local7) {
-            stepBranch3(local8, pipIndex, local3, recordShortBase, X, recordN, phase, state, x1, y1, local10In, local11In, familyShift, callbacks);
+            local10 = stepBranch3(local8, pipIndex, local3, recordShortBase, X, recordN, phase, local10, state, x1, y1, local10In, local11In, familyShift, callbacks);
           }
           // P>local7 (and P!==0): no-op, matches bytecode's direct skip.
         }
@@ -220,6 +225,7 @@ function stepBranch3(
   X: number,
   recordN: number,
   phase: number,
+  carried: number,
   state: LegacyMapMarkerDetailState,
   x1: number,
   y1: number,
@@ -227,13 +233,13 @@ function stepBranch3(
   local11In: number,
   familyShift: number,
   callbacks: LegacyMapMarkerDetailCallbacks,
-): void {
+): number {
   let local12 = 0;
-  let local10 = 0;
+  let local10 = carried;
   let drawRecord = recordShortBase;
 
   if (local8 === 6) {
-    let pos = phase + state.originRow + state.ai + recordN * 2;
+    let pos = local10 + state.originRow + state.ai + recordN * 2;
     while (pos >= 120) pos -= 120;
     local10 = pos;
     let reachedInc = false;
@@ -286,6 +292,7 @@ function stepBranch3(
   if (local12 !== 0) {
     callbacks.onSpriteDraw?.(drawRecord, x1, y1, local10);
   }
+  return local10;
 }
 
 /** Reached when local8 in {3,5,7}, or local8===0/2/4/6's own gate didn't match -- bytecode offsets 1205..1518. */

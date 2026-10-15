@@ -96,7 +96,9 @@ export class LegacyPackedSpriteRenderer {
       if (an === 0 && type === 5) { type = 0; remapped = true; }
       else if (an === 4 && type === 14) { type = 4; remapped = true; }
       else if (an === 4 && type === 15) { type = 5; remapped = true; }
-      else if (an === 9 && type === 9) { type = 9; remapped = true; }
+      // offsets 108..121: any other `an` turns piece type 9 (the hair) into Image[1][an]. CORRECTED
+      // 2026-10-15 (pixel comparison, play26 frame 75000): this read `an === 9`, so all hair was black.
+      else if (an !== 0 && an !== 4 && type === 9) { type = an; remapped = true; }
     }
 
     const sx = unsigned(this.j[21]?.[index] ?? 0) & 127;

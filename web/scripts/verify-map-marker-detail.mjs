@@ -255,6 +255,21 @@ function baseState(overrides = {}) {
   assert.equal(calls.length, 1);
 }
 
+// Test 14b: local10 is carried across records -- f:I=50, K=3, ai=2: record 0 (N=0) gets
+// (50+3+2+0)%120 = 55, record 1 (N=1) gets (55+3+2+2)%120 = 62, and a following local8===2 record
+// draws with that 62, not 0.
+{
+  const state = baseState({ phase: 50, originRow: 3, ai: 2, O: 3 });
+  state.byteTables[3][0] = packFlags3(0, 1, 6);
+  state.byteTables[3][1] = packFlags3(0, 1, 6);
+  state.byteTables[3][2] = packFlags3(0, 0, 2);
+  const calls = [];
+  stepLegacyMapMarkerDetail(4, 99, 0, 0, 0, 1, state, {
+    onSpriteDraw: (...a) => calls.push(a[3]),
+  });
+  assert.deepEqual(calls, [55, 62, 62]);
+}
+
 // Test 15: qByte/local3/pipIndex shortcut (local8===4) with recordShort===116
 // -> draws with local10=0.
 {

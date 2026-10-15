@@ -25,14 +25,21 @@ tables.smallOffsets[1] = 3;
 tables.smallBytes.set([31, 126, 97], 0);
 const callbacks = [];
 const decoder = new LegacyGeometryDecoder(new Int8Array(17638), new Int16Array(312), tables, {
-  onByte97: (...args) => callbacks.push(args),
+  onRecord97: (...args) => callbacks.push(args),
 });
 decoder.setTableByte(0);
 decoder.decodeRecord(10, 0, 0, 0, 0);
 if (tables.geometryC[0][0] !== 1 || tables.geometryB[0][0] !== 1) throw new Error("31 quotient/remainder mismatch");
 if (tables.geometryC[0][1] !== 126) throw new Error("126 marker mismatch");
 if (tables.geometryC[0][2] !== 3 || tables.geometryB[0][2] !== 7) throw new Error("97 quotient/remainder mismatch");
-if (callbacks.length !== 1 || callbacks[0].join(",") !== "1041,26,1047,211,-2") throw new Error("97 callback mismatch");
+// Offsets 452..487 test the record argument (local 4), not the bytes: a 97 byte draws nothing...
+if (callbacks.length !== 0) throw new Error("byte 97 must not draw the emblems");
+// ...record 97 draws composites 1041 at x 26 and 1047 at x 211, at y - 2.
+tables.smallOffsets[97] = 0;
+tables.smallOffsets[98] = 1;
+decoder.setTableByte(0);
+decoder.decodeRecord(10, 40, 0, 97, 0);
+if (callbacks.length !== 1 || callbacks[0].join(",") !== "1041,26,1047,211,38") throw new Error("record 97 callback mismatch");
 
 // c.a(int,int,int,int,int) offsets 163..449: total width d[h] for centring.
 // Glyph widths come from a[a_s[281 + value] + q*21 + r + 1] - a[... + r].

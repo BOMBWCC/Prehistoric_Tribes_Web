@@ -2,7 +2,8 @@ import { LegacyResourceTables } from "./LegacyResourceTables";
 import type { ZhToken } from "./LegacyZhText";
 
 export type GeometryDecoderHooks = {
-  readonly onByte97?: (firstOffset: number, firstValue: number, secondOffset: number, secondValue: number, row: number) => void;
+  /** c.a(IIIII) offsets 452..487: record 97 (the score title) also draws f.a(III) composites 1041 and 1047. */
+  readonly onRecord97?: (firstRecord: number, firstX: number, secondRecord: number, secondX: number, y: number) => void;
 };
 
 /** Direct storage-level port of c.a(int,int,int,int,int). */
@@ -95,8 +96,11 @@ export class LegacyGeometryDecoder {
         const glyphWidth = (this.readPacked(glyphOffset + 1) & 0xff) - (this.readPacked(glyphOffset) & 0xff);
         this.tables.rowDShort[row] = signedShort(this.tables.rowDShort[row] + glyphWidth);
       }
-      if (raw === 97) this.hooks.onByte97?.(1041, 26, 1047, 211, mode - 2);
     }
+    // Offsets 452..487 test the record argument after the loop. CORRECTED 2026-10-15 (pixel
+    // comparison, play26 frame 72500): this tested each byte for 97 and was never wired, so the score
+    // screen lacked the two tribe emblems beside SCORE.
+    if (record === 97) this.hooks.onRecord97?.(1041, 26, 1047, 211, mode - 2);
 
     if (row < 13) {
       // Chinese: the row draws its tokens instead of glyphs and lays out (centring, the segment

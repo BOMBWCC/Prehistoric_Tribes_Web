@@ -499,7 +499,21 @@ export class LegacyRuntimeState {
   // f's buffers aliased by b.a(f); sizes are established by e/f bytecode.
   readonly packedBytes = new Int8Array(17638);
   readonly packedOffsets = new Int16Array(312);
-  readonly geometry = new LegacyGeometryDecoder(this.packedBytes, this.packedOffsets, this.resourceTables);
+  readonly geometry = new LegacyGeometryDecoder(this.packedBytes, this.packedOffsets, this.resourceTables, {
+    // c.a(IIIII) for record 97 calls f.a(III) (#439) twice: the tribe emblems beside SCORE.
+    onRecord97: (firstRecord, firstX, secondRecord, secondX, y) => {
+      if (!this.offscreenTargets || !this.packedData) return;
+      const packed = new LegacyPackedSpriteRenderer({
+        shortTables: this.packedData.shortTables,
+        byteTables: this.packedData.byteTables,
+        imageGroups: this.imageGroups,
+        graphics: this.offscreenTargets.graphics[this.frameDispatchState.N as 0 | 1 | 2 | 3],
+        an: this.game.anInt,
+      });
+      packed.drawComposite(firstRecord, firstX, y);
+      packed.drawComposite(secondRecord, secondX, y);
+    },
+  });
   readonly geometryRenderer = new LegacyGeometryRenderer(
     this.packedBytes,
     this.packedOffsets,
@@ -10831,7 +10845,9 @@ export class LegacyRuntimeState {
           packedOffsets: this.packedOffsets,
         };
         stepLegacySecondaryCellChain(headId, secondaryState, {
-          onPackedPrimitive: packed ? (record, x, y) => packed.drawSprite(record, x, y) : undefined,
+          // f.i(int) offset 264 is a(III) (#439), a composite. CORRECTED 2026-10-15 (pixel comparison,
+          // play26 frame 95000): this drew a single b(III) sprite, so thrown spears were bare lines.
+          onPackedPrimitive: packed ? (record, x, y) => packed.drawComposite(record, x, y) : undefined,
         });
       },
       onUnhandledCellBody: (columnTile, rowTile, columnPixelX, occupancyClass, gridCValue, gridBValue, rowPixelBase) => {
