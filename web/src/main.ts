@@ -60,6 +60,7 @@ buttonBar.innerHTML = [
   '<button type="button" data-box aria-pressed="false">框选</button>',
   '<button type="button" data-key="LEFT" aria-label="左">◀</button>',
   '<button type="button" data-key="RIGHT" aria-label="右">▶</button>',
+  '<button type="button" data-key="FIRE">确定</button>',
   '<button type="button" data-key="DIGIT_7">7</button>',
   '<button type="button" data-key="DIGIT_9">9</button>',
   '<button type="button" data-key="DIGIT_3">地图</button>',
