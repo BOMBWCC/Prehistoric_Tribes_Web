@@ -1,0 +1,2728 @@
+{
+ "_notes": {
+  "source": "web/public/assets/lang/0/{s,t,d0} (English). Records are separated by '|' (0x7C); 'i' is the 0-based record index = the index the game code uses.",
+  "scope": "s: UI labels/names (92-96 language names and 107-227 person names deliberately left as original; 104-106 chief/shaman/cannibal translated). t: tooltips/hints/status. d0: story/tutorial dialogue + help/about pages.",
+  "keep_exactly": [
+   "'&' is a line break in d0 records 231/233/234 -- keep the same count and positions.",
+   "Control bytes (0x00-0x1c except where written as text) inside d0 231 and 234 are inline icon glyph codes; JSON shows them as \\u00xx. Keep identical codes in the same order/positions.",
+   "0x1f (\\u001f) in d0 233 is the version-number placeholder; keep it.",
+   "'~' in d0 233 is the copyright sign glyph in the original font; keep it.",
+   "Empty records (zh == '') are speaker-switch/blank pages the code relies on; do not drop or merge them, indices must not shift.",
+   "s 42/43 (' is born') and s 44/45 (' is dead') are appended after a name: the original has a leading space, the zh text deliberately has none. 42/43 and 44/45 are the male/female pairs and are identical in Chinese."
+  ],
+  "rendering_caveat": "The original draws text with a bitmap font from the JAR (Latin only). Chinese glyphs need a different rendering path, and the word-wrap logic (breaks at spaces / width limit) will need a CJK-aware variant. This file only provides the text, not the rendering solution.",
+  "terminology": {
+   "chief": "族长",
+   "shaman": "萨满",
+   "tribe": "部落",
+   "villager": "村民",
+   "hut": "小屋",
+   "store": "仓库",
+   "armoury": "军械库",
+   "gym": "健身房",
+   "range": "靶场",
+   "sanctuary": "圣所",
+   "nursery": "托儿所",
+   "tower": "哨塔",
+   "pia": "PIA / 史前情报局",
+   "lsk/rsk": "左软键/右软键",
+   "tribe name Avnotaklu and all person names": "kept in Latin letters"
+  },
+  "open_questions": [
+   "d0 85/148/165/166/203/211 are narration pages; tone kept humorous like the English.",
+   "s 82 'outside' (mission title) translated as 走出洞穴 for the first mission; confirm against the mission context if it looks wrong.",
+   "t 7 'tigerilla' (a drink pun) translated as 虎龙酒 (tequila pun)."
+  ]
+ },
+ "s": [
+  {
+   "i": 0,
+   "en": "armoury",
+   "zh": "军械库"
+  },
+  {
+   "i": 1,
+   "en": "gym",
+   "zh": "健身房"
+  },
+  {
+   "i": 2,
+   "en": "hut",
+   "zh": "小屋"
+  },
+  {
+   "i": 3,
+   "en": "chief's hut",
+   "zh": "族长小屋"
+  },
+  {
+   "i": 4,
+   "en": "kitchen",
+   "zh": "厨房"
+  },
+  {
+   "i": 5,
+   "en": "range",
+   "zh": "靶场"
+  },
+  {
+   "i": 6,
+   "en": "store",
+   "zh": "仓库"
+  },
+  {
+   "i": 7,
+   "en": "disco",
+   "zh": "迪厅"
+  },
+  {
+   "i": 8,
+   "en": "sanctuary",
+   "zh": "圣所"
+  },
+  {
+   "i": 9,
+   "en": "pia center",
+   "zh": "PIA中心"
+  },
+  {
+   "i": 10,
+   "en": "nursery",
+   "zh": "托儿所"
+  },
+  {
+   "i": 11,
+   "en": "tower",
+   "zh": "哨塔"
+  },
+  {
+   "i": 12,
+   "en": "club",
+   "zh": "木棍"
+  },
+  {
+   "i": 13,
+   "en": "stone",
+   "zh": "石头"
+  },
+  {
+   "i": 14,
+   "en": "spear",
+   "zh": "长矛"
+  },
+  {
+   "i": 15,
+   "en": "stone axe",
+   "zh": "石斧"
+  },
+  {
+   "i": 16,
+   "en": "bone mace",
+   "zh": "骨锤"
+  },
+  {
+   "i": 17,
+   "en": "tomahawk",
+   "zh": "战斧"
+  },
+  {
+   "i": 18,
+   "en": "net trap",
+   "zh": "网陷阱"
+  },
+  {
+   "i": 19,
+   "en": "spring trap",
+   "zh": "弹簧陷阱"
+  },
+  {
+   "i": 20,
+   "en": "pit trap",
+   "zh": "坑陷阱"
+  },
+  {
+   "i": 21,
+   "en": "build",
+   "zh": "建造"
+  },
+  {
+   "i": 22,
+   "en": "form up!",
+   "zh": "集结!"
+  },
+  {
+   "i": 23,
+   "en": "call to arms!",
+   "zh": "全员备战!"
+  },
+  {
+   "i": 24,
+   "en": "villagers",
+   "zh": "村民"
+  },
+  {
+   "i": 25,
+   "en": "dismiss",
+   "zh": "解散"
+  },
+  {
+   "i": 26,
+   "en": "back to work",
+   "zh": "回去干活"
+  },
+  {
+   "i": 27,
+   "en": "upgrade",
+   "zh": "升级"
+  },
+  {
+   "i": 28,
+   "en": "demolish",
+   "zh": "拆除"
+  },
+  {
+   "i": 29,
+   "en": "get out!",
+   "zh": "出来!"
+  },
+  {
+   "i": 30,
+   "en": "healing",
+   "zh": "治疗"
+  },
+  {
+   "i": 31,
+   "en": "defence",
+   "zh": "防御"
+  },
+  {
+   "i": 32,
+   "en": "love potion",
+   "zh": "爱情药水"
+  },
+  {
+   "i": 33,
+   "en": "disease",
+   "zh": "疾病"
+  },
+  {
+   "i": 34,
+   "en": "info: all",
+   "zh": "信息:全部"
+  },
+  {
+   "i": 35,
+   "en": "info: selected",
+   "zh": "信息:选中"
+  },
+  {
+   "i": 36,
+   "en": "info: none",
+   "zh": "信息:无"
+  },
+  {
+   "i": 37,
+   "en": "repair",
+   "zh": "修理"
+  },
+  {
+   "i": 38,
+   "en": "cancel upgrade",
+   "zh": "取消升级"
+  },
+  {
+   "i": 39,
+   "en": "cancel repair",
+   "zh": "取消修理"
+  },
+  {
+   "i": 40,
+   "en": "unload",
+   "zh": "卸货"
+  },
+  {
+   "i": 41,
+   "en": "select a chief",
+   "zh": "选择族长"
+  },
+  {
+   "i": 42,
+   "en": " is born",
+   "zh": "出生了"
+  },
+  {
+   "i": 43,
+   "en": " is born",
+   "zh": "出生了"
+  },
+  {
+   "i": 44,
+   "en": " is dead",
+   "zh": "死亡"
+  },
+  {
+   "i": 45,
+   "en": " is dead",
+   "zh": "死亡"
+  },
+  {
+   "i": 46,
+   "en": "building is ready.",
+   "zh": "建筑完工了。"
+  },
+  {
+   "i": 47,
+   "en": "enemy sighted!",
+   "zh": "发现敌人!"
+  },
+  {
+   "i": 48,
+   "en": "we're under attack!",
+   "zh": "我们遭到攻击!"
+  },
+  {
+   "i": 49,
+   "en": "building is lost!",
+   "zh": "建筑被毁!"
+  },
+  {
+   "i": 50,
+   "en": "need resources!",
+   "zh": "资源不足!"
+  },
+  {
+   "i": 51,
+   "en": "max buildings",
+   "zh": "建筑已达上限"
+  },
+  {
+   "i": 52,
+   "en": "max villagers",
+   "zh": "村民已达上限"
+  },
+  {
+   "i": 53,
+   "en": "we need a cook.",
+   "zh": "我们需要厨师。"
+  },
+  {
+   "i": 54,
+   "en": "we need a shaman.",
+   "zh": "我们需要萨满。"
+  },
+  {
+   "i": 55,
+   "en": "we need an armourer.",
+   "zh": "我们需要军械师。"
+  },
+  {
+   "i": 56,
+   "en": "we need a dj.",
+   "zh": "我们需要DJ。"
+  },
+  {
+   "i": 57,
+   "en": "play",
+   "zh": "开始游戏"
+  },
+  {
+   "i": 58,
+   "en": "help",
+   "zh": "帮助"
+  },
+  {
+   "i": 59,
+   "en": "options",
+   "zh": "选项"
+  },
+  {
+   "i": 60,
+   "en": "about",
+   "zh": "关于"
+  },
+  {
+   "i": 61,
+   "en": "more games",
+   "zh": "更多游戏"
+  },
+  {
+   "i": 62,
+   "en": "exit",
+   "zh": "退出"
+  },
+  {
+   "i": 63,
+   "en": "resume",
+   "zh": "继续"
+  },
+  {
+   "i": 64,
+   "en": "save",
+   "zh": "保存"
+  },
+  {
+   "i": 65,
+   "en": "load",
+   "zh": "读取"
+  },
+  {
+   "i": 66,
+   "en": "quit",
+   "zh": "退出"
+  },
+  {
+   "i": 67,
+   "en": "new game",
+   "zh": "新游戏"
+  },
+  {
+   "i": 68,
+   "en": "continue",
+   "zh": "继续"
+  },
+  {
+   "i": 69,
+   "en": "campaign",
+   "zh": "战役"
+  },
+  {
+   "i": 70,
+   "en": "custom game",
+   "zh": "自定义游戏"
+  },
+  {
+   "i": 71,
+   "en": "tutorial",
+   "zh": "教程"
+  },
+  {
+   "i": 72,
+   "en": "music",
+   "zh": "音乐"
+  },
+  {
+   "i": 73,
+   "en": "hints",
+   "zh": "提示"
+  },
+  {
+   "i": 74,
+   "en": "off",
+   "zh": "关"
+  },
+  {
+   "i": 75,
+   "en": "on",
+   "zh": "开"
+  },
+  {
+   "i": 76,
+   "en": "difficulty",
+   "zh": "难度"
+  },
+  {
+   "i": 77,
+   "en": "easy",
+   "zh": "简单"
+  },
+  {
+   "i": 78,
+   "en": "hard",
+   "zh": "困难"
+  },
+  {
+   "i": 79,
+   "en": "warning!",
+   "zh": "警告!"
+  },
+  {
+   "i": 80,
+   "en": "main menu",
+   "zh": "主菜单"
+  },
+  {
+   "i": 81,
+   "en": "pause menu",
+   "zh": "暂停菜单"
+  },
+  {
+   "i": 82,
+   "en": "outside",
+   "zh": "走出洞穴"
+  },
+  {
+   "i": 83,
+   "en": "revenge",
+   "zh": "复仇"
+  },
+  {
+   "i": 84,
+   "en": "escape",
+   "zh": "逃脱"
+  },
+  {
+   "i": 85,
+   "en": "wastelands",
+   "zh": "荒原"
+  },
+  {
+   "i": 86,
+   "en": "a new home",
+   "zh": "新家园"
+  },
+  {
+   "i": 87,
+   "en": "great lake",
+   "zh": "大湖"
+  },
+  {
+   "i": 88,
+   "en": "desert pass",
+   "zh": "沙漠隘口"
+  },
+  {
+   "i": 89,
+   "en": "forest belt",
+   "zh": "森林带"
+  },
+  {
+   "i": 90,
+   "en": "slaughter",
+   "zh": "屠杀"
+  },
+  {
+   "i": 91,
+   "en": "plot of land",
+   "zh": "一块地"
+  },
+  {
+   "i": 92,
+   "en": "english",
+   "zh": "english"
+  },
+  {
+   "i": 93,
+   "en": "franc[ais",
+   "zh": "franc[ais"
+  },
+  {
+   "i": 94,
+   "en": "italiano",
+   "zh": "italiano"
+  },
+  {
+   "i": 95,
+   "en": "deutsch",
+   "zh": "deutsch"
+  },
+  {
+   "i": 96,
+   "en": "espan_ol",
+   "zh": "espan_ol"
+  },
+  {
+   "i": 97,
+   "en": "score",
+   "zh": "得分"
+  },
+  {
+   "i": 98,
+   "en": "about",
+   "zh": "关于"
+  },
+  {
+   "i": 99,
+   "en": "controls",
+   "zh": "操作"
+  },
+  {
+   "i": 100,
+   "en": "game play",
+   "zh": "游戏玩法"
+  },
+  {
+   "i": 101,
+   "en": "villagers",
+   "zh": "村民"
+  },
+  {
+   "i": 102,
+   "en": "tutorial",
+   "zh": "教程"
+  },
+  {
+   "i": 103,
+   "en": "the end",
+   "zh": "完"
+  },
+  {
+   "i": 104,
+   "en": "chief",
+   "zh": "族长"
+  },
+  {
+   "i": 105,
+   "en": "shaman",
+   "zh": "萨满"
+  },
+  {
+   "i": 106,
+   "en": "cannibal",
+   "zh": "食人族"
+  },
+  {
+   "i": 107,
+   "en": "jafar",
+   "zh": "jafar"
+  },
+  {
+   "i": 108,
+   "en": "jumbo",
+   "zh": "jumbo"
+  },
+  {
+   "i": 109,
+   "en": "juju",
+   "zh": "juju"
+  },
+  {
+   "i": 110,
+   "en": "mumbo",
+   "zh": "mumbo"
+  },
+  {
+   "i": 111,
+   "en": "freaky",
+   "zh": "freaky"
+  },
+  {
+   "i": 112,
+   "en": "ludo",
+   "zh": "ludo"
+  },
+  {
+   "i": 113,
+   "en": "konan",
+   "zh": "konan"
+  },
+  {
+   "i": 114,
+   "en": "rumbo",
+   "zh": "rumbo"
+  },
+  {
+   "i": 115,
+   "en": "milo",
+   "zh": "milo"
+  },
+  {
+   "i": 116,
+   "en": "kipp",
+   "zh": "kipp"
+  },
+  {
+   "i": 117,
+   "en": "errrbo",
+   "zh": "errrbo"
+  },
+  {
+   "i": 118,
+   "en": "gumbo",
+   "zh": "gumbo"
+  },
+  {
+   "i": 119,
+   "en": "edwood",
+   "zh": "edwood"
+  },
+  {
+   "i": 120,
+   "en": "arnni",
+   "zh": "arnni"
+  },
+  {
+   "i": 121,
+   "en": "erk",
+   "zh": "erk"
+  },
+  {
+   "i": 122,
+   "en": "daymo",
+   "zh": "daymo"
+  },
+  {
+   "i": 123,
+   "en": "bookah",
+   "zh": "bookah"
+  },
+  {
+   "i": 124,
+   "en": "erbby",
+   "zh": "erbby"
+  },
+  {
+   "i": 125,
+   "en": "ukkko",
+   "zh": "ukkko"
+  },
+  {
+   "i": 126,
+   "en": "ukmol",
+   "zh": "ukmol"
+  },
+  {
+   "i": 127,
+   "en": "pard",
+   "zh": "pard"
+  },
+  {
+   "i": 128,
+   "en": "rayvon",
+   "zh": "rayvon"
+  },
+  {
+   "i": 129,
+   "en": "narik",
+   "zh": "narik"
+  },
+  {
+   "i": 130,
+   "en": "derger",
+   "zh": "derger"
+  },
+  {
+   "i": 131,
+   "en": "rychi",
+   "zh": "rychi"
+  },
+  {
+   "i": 132,
+   "en": "mylo",
+   "zh": "mylo"
+  },
+  {
+   "i": 133,
+   "en": "rilo",
+   "zh": "rilo"
+  },
+  {
+   "i": 134,
+   "en": "babon",
+   "zh": "babon"
+  },
+  {
+   "i": 135,
+   "en": "harpo",
+   "zh": "harpo"
+  },
+  {
+   "i": 136,
+   "en": "seppo",
+   "zh": "seppo"
+  },
+  {
+   "i": 137,
+   "en": "chico",
+   "zh": "chico"
+  },
+  {
+   "i": 138,
+   "en": "taran",
+   "zh": "taran"
+  },
+  {
+   "i": 139,
+   "en": "tone",
+   "zh": "tone"
+  },
+  {
+   "i": 140,
+   "en": "derp",
+   "zh": "derp"
+  },
+  {
+   "i": 141,
+   "en": "tupik",
+   "zh": "tupik"
+  },
+  {
+   "i": 142,
+   "en": "makka",
+   "zh": "makka"
+  },
+  {
+   "i": 143,
+   "en": "gooon",
+   "zh": "gooon"
+  },
+  {
+   "i": 144,
+   "en": "dooon",
+   "zh": "dooon"
+  },
+  {
+   "i": 145,
+   "en": "tooon",
+   "zh": "tooon"
+  },
+  {
+   "i": 146,
+   "en": "deano",
+   "zh": "deano"
+  },
+  {
+   "i": 147,
+   "en": "fred",
+   "zh": "fred"
+  },
+  {
+   "i": 148,
+   "en": "barney",
+   "zh": "barney"
+  },
+  {
+   "i": 149,
+   "en": "siggy",
+   "zh": "siggy"
+  },
+  {
+   "i": 150,
+   "en": "gizzz",
+   "zh": "gizzz"
+  },
+  {
+   "i": 151,
+   "en": "smoki",
+   "zh": "smoki"
+  },
+  {
+   "i": 152,
+   "en": "noggin",
+   "zh": "noggin"
+  },
+  {
+   "i": 153,
+   "en": "rryyan",
+   "zh": "rryyan"
+  },
+  {
+   "i": 154,
+   "en": "jimbly",
+   "zh": "jimbly"
+  },
+  {
+   "i": 155,
+   "en": "brooce",
+   "zh": "brooce"
+  },
+  {
+   "i": 156,
+   "en": "ernest",
+   "zh": "ernest"
+  },
+  {
+   "i": 157,
+   "en": "addam",
+   "zh": "addam"
+  },
+  {
+   "i": 158,
+   "en": "bibby",
+   "zh": "bibby"
+  },
+  {
+   "i": 159,
+   "en": "dave",
+   "zh": "dave"
+  },
+  {
+   "i": 160,
+   "en": "rowie",
+   "zh": "rowie"
+  },
+  {
+   "i": 161,
+   "en": "fuzzy",
+   "zh": "fuzzy"
+  },
+  {
+   "i": 162,
+   "en": "furlog",
+   "zh": "furlog"
+  },
+  {
+   "i": 163,
+   "en": "cral",
+   "zh": "cral"
+  },
+  {
+   "i": 164,
+   "en": "jonno",
+   "zh": "jonno"
+  },
+  {
+   "i": 165,
+   "en": "beehag",
+   "zh": "beehag"
+  },
+  {
+   "i": 166,
+   "en": "hazza",
+   "zh": "hazza"
+  },
+  {
+   "i": 167,
+   "en": "pard",
+   "zh": "pard"
+  },
+  {
+   "i": 168,
+   "en": "kazza",
+   "zh": "kazza"
+  },
+  {
+   "i": 169,
+   "en": "tazza",
+   "zh": "tazza"
+  },
+  {
+   "i": 170,
+   "en": "loula",
+   "zh": "loula"
+  },
+  {
+   "i": 171,
+   "en": "treena",
+   "zh": "treena"
+  },
+  {
+   "i": 172,
+   "en": "dorris",
+   "zh": "dorris"
+  },
+  {
+   "i": 173,
+   "en": "ethel",
+   "zh": "ethel"
+  },
+  {
+   "i": 174,
+   "en": "tessa",
+   "zh": "tessa"
+  },
+  {
+   "i": 175,
+   "en": "nora",
+   "zh": "nora"
+  },
+  {
+   "i": 176,
+   "en": "flora",
+   "zh": "flora"
+  },
+  {
+   "i": 177,
+   "en": "fauna",
+   "zh": "fauna"
+  },
+  {
+   "i": 178,
+   "en": "mila",
+   "zh": "mila"
+  },
+  {
+   "i": 179,
+   "en": "daisi",
+   "zh": "daisi"
+  },
+  {
+   "i": 180,
+   "en": "myrtle",
+   "zh": "myrtle"
+  },
+  {
+   "i": 181,
+   "en": "margo",
+   "zh": "margo"
+  },
+  {
+   "i": 182,
+   "en": "audrey",
+   "zh": "audrey"
+  },
+  {
+   "i": 183,
+   "en": "irene",
+   "zh": "irene"
+  },
+  {
+   "i": 184,
+   "en": "hurdy",
+   "zh": "hurdy"
+  },
+  {
+   "i": 185,
+   "en": "gurdy",
+   "zh": "gurdy"
+  },
+  {
+   "i": 186,
+   "en": "murli",
+   "zh": "murli"
+  },
+  {
+   "i": 187,
+   "en": "mousi",
+   "zh": "mousi"
+  },
+  {
+   "i": 188,
+   "en": "irma",
+   "zh": "irma"
+  },
+  {
+   "i": 189,
+   "en": "urna",
+   "zh": "urna"
+  },
+  {
+   "i": 190,
+   "en": "purga",
+   "zh": "purga"
+  },
+  {
+   "i": 191,
+   "en": "grami",
+   "zh": "grami"
+  },
+  {
+   "i": 192,
+   "en": "urrki",
+   "zh": "urrki"
+  },
+  {
+   "i": 193,
+   "en": "lavka",
+   "zh": "lavka"
+  },
+  {
+   "i": 194,
+   "en": "manka",
+   "zh": "manka"
+  },
+  {
+   "i": 195,
+   "en": "banka",
+   "zh": "banka"
+  },
+  {
+   "i": 196,
+   "en": "bunki",
+   "zh": "bunki"
+  },
+  {
+   "i": 197,
+   "en": "gretel",
+   "zh": "gretel"
+  },
+  {
+   "i": 198,
+   "en": "spiki",
+   "zh": "spiki"
+  },
+  {
+   "i": 199,
+   "en": "arida",
+   "zh": "arida"
+  },
+  {
+   "i": 200,
+   "en": "ronda",
+   "zh": "ronda"
+  },
+  {
+   "i": 201,
+   "en": "mayka",
+   "zh": "mayka"
+  },
+  {
+   "i": 202,
+   "en": "vanni",
+   "zh": "vanni"
+  },
+  {
+   "i": 203,
+   "en": "buffi",
+   "zh": "buffi"
+  },
+  {
+   "i": 204,
+   "en": "aromi",
+   "zh": "aromi"
+  },
+  {
+   "i": 205,
+   "en": "mitte",
+   "zh": "mitte"
+  },
+  {
+   "i": 206,
+   "en": "ritte",
+   "zh": "ritte"
+  },
+  {
+   "i": 207,
+   "en": "banne",
+   "zh": "banne"
+  },
+  {
+   "i": 208,
+   "en": "polka",
+   "zh": "polka"
+  },
+  {
+   "i": 209,
+   "en": "dolka",
+   "zh": "dolka"
+  },
+  {
+   "i": 210,
+   "en": "korka",
+   "zh": "korka"
+  },
+  {
+   "i": 211,
+   "en": "zorka",
+   "zh": "zorka"
+  },
+  {
+   "i": 212,
+   "en": "palka",
+   "zh": "palka"
+  },
+  {
+   "i": 213,
+   "en": "milka",
+   "zh": "milka"
+  },
+  {
+   "i": 214,
+   "en": "aarka",
+   "zh": "aarka"
+  },
+  {
+   "i": 215,
+   "en": "uurka",
+   "zh": "uurka"
+  },
+  {
+   "i": 216,
+   "en": "erikka",
+   "zh": "erikka"
+  },
+  {
+   "i": 217,
+   "en": "kikka",
+   "zh": "kikka"
+  },
+  {
+   "i": 218,
+   "en": "umka",
+   "zh": "umka"
+  },
+  {
+   "i": 219,
+   "en": "arka",
+   "zh": "arka"
+  },
+  {
+   "i": 220,
+   "en": "jarka",
+   "zh": "jarka"
+  },
+  {
+   "i": 221,
+   "en": "bulka",
+   "zh": "bulka"
+  },
+  {
+   "i": 222,
+   "en": "klura",
+   "zh": "klura"
+  },
+  {
+   "i": 223,
+   "en": "onaka",
+   "zh": "onaka"
+  },
+  {
+   "i": 224,
+   "en": "bilma",
+   "zh": "bilma"
+  },
+  {
+   "i": 225,
+   "en": "zuyka",
+   "zh": "zuyka"
+  },
+  {
+   "i": 226,
+   "en": "alika",
+   "zh": "alika"
+  },
+  {
+   "i": 227,
+   "en": "ubika",
+   "zh": "ubika"
+  },
+  {
+   "i": 228,
+   "en": "",
+   "zh": ""
+  }
+ ],
+ "t": [
+  {
+   "i": 0,
+   "en": "an armourer produces weapons here.",
+   "zh": "军械师在这里制造武器。"
+  },
+  {
+   "i": 1,
+   "en": "warriors improve melee skills here.",
+   "zh": "战士在这里提升近战技能。"
+  },
+  {
+   "i": 2,
+   "en": "villagers rest and reproduce here, one hut houses four tribesmen.",
+   "zh": "村民在这里休息和繁衍,一座小屋可住四人。"
+  },
+  {
+   "i": 3,
+   "en": "the chief lives here and the elders meet here to solve the tribes' problems.",
+   "zh": "族长住在这里,长老们也在这里开会,解决部落的难题。"
+  },
+  {
+   "i": 4,
+   "en": "people eat here, a cook is needed to cook meals.",
+   "zh": "人们在这里吃饭,需要厨师来做饭。"
+  },
+  {
+   "i": 5,
+   "en": "warriors improve throwing skills here.",
+   "zh": "战士在这里提升投掷技能。"
+  },
+  {
+   "i": 6,
+   "en": "all available resources and weapons are stored here.",
+   "zh": "所有可用的资源和武器都存放在这里。"
+  },
+  {
+   "i": 7,
+   "en": "people come here to raise their spirits: rest, dance, drink a shot of tigerilla. a dj is needed to get the party started.",
+   "zh": "人们来这里振奋精神:休息、跳舞、喝一杯虎龙酒。需要DJ来带动气氛。"
+  },
+  {
+   "i": 8,
+   "en": "the shaman communes with the gods here. he can heal people and conjure spells.",
+   "zh": "萨满在这里与神明沟通,他能治疗伤者并施展法术。"
+  },
+  {
+   "i": 9,
+   "en": "the prehistoric intelligence agency centre trains scouts. they can see further and hide from the enemy.",
+   "zh": "史前情报局中心负责培训侦察兵。他们看得更远,还能躲避敌人。"
+  },
+  {
+   "i": 10,
+   "en": "small children will play here instead of roaming around the map. it's kind of like a pen.",
+   "zh": "小孩子会在这里玩耍,不会满地图乱跑。有点像围栏。"
+  },
+  {
+   "i": 11,
+   "en": "guards can see further and attack the enemy with throwing weapons from a tower.",
+   "zh": "守卫在塔上看得更远,还能用投掷武器攻击敌人。"
+  },
+  {
+   "i": 12,
+   "en": "our tribe is starving! we need a kitchen!",
+   "zh": "部落快饿死了!我们需要厨房!"
+  },
+  {
+   "i": 13,
+   "en": "not enough living space! build more huts.",
+   "zh": "居住空间不足!多盖几座小屋。"
+  },
+  {
+   "i": 14,
+   "en": "our tribe is depressed! a disco will help to lighten the mood.",
+   "zh": "部落情绪低落!迪厅能让气氛轻松些。"
+  },
+  {
+   "i": 15,
+   "en": "we need a shaman to heal villagers!",
+   "zh": "我们需要萨满来治疗村民!"
+  },
+  {
+   "i": 16,
+   "en": "aaaaaaaah! the enemy is here! would you like to meet him?",
+   "zh": "啊啊啊啊!敌人来了!想不想去会会他?"
+  },
+  {
+   "i": 17,
+   "en": "argh! i'm being eaten! please come and help me!",
+   "zh": "啊!我要被吃了!快来救我!"
+  },
+  {
+   "i": 18,
+   "en": "i need a close combat weapon for this.",
+   "zh": "这个我得用近战武器才行。"
+  },
+  {
+   "i": 19,
+   "en": "i need a throwing weapon for this.",
+   "zh": "这个我得用投掷武器才行。"
+  },
+  {
+   "i": 20,
+   "en": "how am i supposed to fish without a spear, genius?",
+   "zh": "没有长矛我怎么钓鱼,天才?"
+  },
+  {
+   "i": 21,
+   "en": "do i look like a child?",
+   "zh": "我看起来像小孩吗?"
+  },
+  {
+   "i": 22,
+   "en": "i would but the chief will hit me!",
+   "zh": "我倒是想,可族长会揍我的!"
+  },
+  {
+   "i": 23,
+   "en": "don't you know child labour is immoral?",
+   "zh": "你不知道使用童工是不道德的吗?"
+  },
+  {
+   "i": 24,
+   "en": "leave me alone, tyrant! i'm depressed.",
+   "zh": "别烦我,暴君!我心情不好。"
+  },
+  {
+   "i": 25,
+   "en": "some privacy in here please! pervert.",
+   "zh": "这里请给点隐私!变态!"
+  },
+  {
+   "i": 26,
+   "en": "what did your last slave die of, hunger? please let me get something to eat!",
+   "zh": "你上一个奴隶是怎么死的,饿死的?让我去弄点吃的吧!"
+  },
+  {
+   "i": 27,
+   "en": "can i take a rest please? i'll be your best friend!",
+   "zh": "我能歇一会儿吗?我会成为你最好的朋友的!"
+  },
+  {
+   "i": 28,
+   "en": "animals have eaten a child! we need a nursery to keep our kids safe!",
+   "zh": "野兽吃掉了一个孩子!我们需要托儿所来保护孩子的安全!"
+  },
+  {
+   "i": 29,
+   "en": "the enemy has stolen a child! we need a nursery to keep our kids safe!",
+   "zh": "敌人偷走了一个孩子!我们需要托儿所来保护孩子的安全!"
+  },
+  {
+   "i": 30,
+   "en": "the chief is dead! oh well, you'd better choose a new one.",
+   "zh": "族长死了!唉,你最好再选一个新的。"
+  },
+  {
+   "i": 31,
+   "en": "i've started talking to myself because it's the only way i can be sure of an intelligent conversation... we're not schitzophrenic!",
+   "zh": "我开始自言自语了,因为这是我确保对话有智慧的唯一办法……我们可没有精神分裂!"
+  },
+  {
+   "i": 32,
+   "en": "has anyone seen the cartographer...? don't say he's lost again!",
+   "zh": "有人看见制图师了吗……?别告诉我他又迷路了!"
+  },
+  {
+   "i": 33,
+   "en": "place the building.",
+   "zh": "放置建筑。"
+  },
+  {
+   "i": 34,
+   "en": "select a villager.",
+   "zh": "选择一名村民。"
+  },
+  {
+   "i": 35,
+   "en": "select a place.",
+   "zh": "选择一个地点。"
+  },
+  {
+   "i": 36,
+   "en": "demolish? are you sure?",
+   "zh": "要拆除吗?确定吗?"
+  },
+  {
+   "i": 37,
+   "en": "nothing to do here",
+   "zh": "这里没什么可做的"
+  },
+  {
+   "i": 38,
+   "en": "population",
+   "zh": "人口"
+  },
+  {
+   "i": 39,
+   "en": "living space",
+   "zh": "居住空间"
+  },
+  {
+   "i": 40,
+   "en": "food",
+   "zh": "食物"
+  },
+  {
+   "i": 41,
+   "en": "wood",
+   "zh": "木材"
+  },
+  {
+   "i": 42,
+   "en": "stones",
+   "zh": "石头"
+  },
+  {
+   "i": 43,
+   "en": "bones",
+   "zh": "骨头"
+  },
+  {
+   "i": 44,
+   "en": "gender",
+   "zh": "性别"
+  },
+  {
+   "i": 45,
+   "en": "age",
+   "zh": "年龄"
+  },
+  {
+   "i": 46,
+   "en": "happiness",
+   "zh": "幸福度"
+  },
+  {
+   "i": 47,
+   "en": "lifebar with max hitpoints",
+   "zh": "生命条(含最大生命值)"
+  },
+  {
+   "i": 48,
+   "en": "hunger",
+   "zh": "饥饿"
+  },
+  {
+   "i": 49,
+   "en": "tiredness",
+   "zh": "疲劳"
+  },
+  {
+   "i": 50,
+   "en": "weapon",
+   "zh": "武器"
+  },
+  {
+   "i": 51,
+   "en": "best combat skill",
+   "zh": "最强战斗技能"
+  },
+  {
+   "i": 52,
+   "en": "speed",
+   "zh": "速度"
+  },
+  {
+   "i": 53,
+   "en": "cargo",
+   "zh": "携带物"
+  },
+  {
+   "i": 54,
+   "en": "current task",
+   "zh": "当前任务"
+  },
+  {
+   "i": 55,
+   "en": "best civil skill",
+   "zh": "最强民用技能"
+  },
+  {
+   "i": 56,
+   "en": "you have lost!",
+   "zh": "你输了!"
+  },
+  {
+   "i": 57,
+   "en": "hurrah! you've won!",
+   "zh": "万岁!你赢了!"
+  },
+  {
+   "i": 58,
+   "en": "play again?",
+   "zh": "再玩一次?"
+  },
+  {
+   "i": 59,
+   "en": "play music?",
+   "zh": "播放音乐?"
+  },
+  {
+   "i": 60,
+   "en": "enable tutorial?",
+   "zh": "启用教程?"
+  },
+  {
+   "i": 61,
+   "en": "game paused",
+   "zh": "游戏暂停"
+  },
+  {
+   "i": 62,
+   "en": "all campaign saves will be lost! continue?",
+   "zh": "所有战役存档都将丢失!继续吗?"
+  },
+  {
+   "i": 63,
+   "en": "current game data will be lost! continue?",
+   "zh": "当前游戏数据将丢失!继续吗?"
+  },
+  {
+   "i": 64,
+   "en": "previous save data will be lost! continue?",
+   "zh": "之前的存档数据将丢失!继续吗?"
+  },
+  {
+   "i": 65,
+   "en": "any unsaved data will be lost! quit anyway?",
+   "zh": "所有未保存的数据都将丢失!仍要退出吗?"
+  },
+  {
+   "i": 66,
+   "en": "not enough memory to save game.",
+   "zh": "内存不足,无法保存游戏。"
+  },
+  {
+   "i": 67,
+   "en": "game saved.",
+   "zh": "游戏已保存。"
+  },
+  {
+   "i": 68,
+   "en": "exit game now?",
+   "zh": "现在退出游戏吗?"
+  },
+  {
+   "i": 69,
+   "en": "please wait",
+   "zh": "请稍候"
+  },
+  {
+   "i": 70,
+   "en": "pass the tutorial first!",
+   "zh": "请先通过教程!"
+  },
+  {
+   "i": 71,
+   "en": "",
+   "zh": ""
+  }
+ ],
+ "d0": [
+  {
+   "i": 0,
+   "en": "long ago these lands were a verdant wonderland. giant mammoths roamed the forests, huge birds eclipsed the sun with their mighty wings and beasts of unimaginable size and power swam the lakes and rivers. there was no place for man in this wild world...",
+   "zh": "很久很久以前,这片土地是一片郁郁葱葱的乐园。巨大的猛犸象在森林里漫步,巨鸟展开宽大的翅膀遮住了太阳,体型和力量都难以想象的巨兽在湖泊河流中游弋。在这个狂野的世界里,没有人类的容身之地……"
+  },
+  {
+   "i": 1,
+   "en": "then the ice age began and killed everything.",
+   "zh": "后来冰河时代降临,毁灭了一切。"
+  },
+  {
+   "i": 2,
+   "en": "well, almost everything... i mean you wouldn't be here reading this if everything had died... anyway, among the few creatures that survived was primitive man. eking out a meagre and extremely chilly existence, huddled around fires in dismal caves. so it was with one tribe in particular, the avnotaklu tribe, until one day... ",
+   "zh": "嗯,几乎是一切……我是说,要是真的全死光了,你现在也没法在这儿读这段话了……总之,幸存下来的少数生物里,就有原始人。他们蜷缩在阴森的洞穴里围着篝火,艰难地熬着少得可怜、冷得要命的日子。有一个部落尤其如此,就是Avnotaklu部落,直到有一天……"
+  },
+  {
+   "i": 3,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 4,
+   "en": "chief! chiieeef! you have to come and see this!",
+   "zh": "族长!族——长——!你快来看看这个!"
+  },
+  {
+   "i": 5,
+   "en": "mumbo! you buffoon! what's all this fuss?!?",
+   "zh": "Mumbo!你这个蠢货!吵吵嚷嚷的干什么?!"
+  },
+  {
+   "i": 6,
+   "en": "the-the-the-the-the ice! i-i-it's gone! th-th-the ice age is o-over! the s-s-sun is sh-shining, the birds are s-s-singing... it's beautiful!",
+   "zh": "冰、冰、冰、冰、冰!它、它没了!冰、冰河时代、结、结束了!太、太阳出来了,鸟、鸟儿在唱歌……真美啊!"
+  },
+  {
+   "i": 7,
+   "en": "what are you gibbering about? i didn't know you had a stutter?!?",
+   "zh": "你在胡言乱语什么?我怎么不知道你结巴?!"
+  },
+  {
+   "i": 8,
+   "en": "i d-d-don't chief, it's cold out there that's all! you don't understand, we can go outside again!",
+   "zh": "我、我没有啊族长,就是外面太冷了而已!你不明白,我们又可以到外面去了!"
+  },
+  {
+   "i": 9,
+   "en": "what?!? outside?!? i always knew you were a mammoth short of a herd mumba, but this takes the cake!",
+   "zh": "什么?!外面?!我早就知道你少根筋,Mumba,可这回你真是把蛋糕都端走了!"
+  },
+  {
+   "i": 10,
+   "en": "what's a cake? oh never mind that now, come and see for yourself!",
+   "zh": "蛋糕是什么?哦,先别管这个了,快来亲眼看看!"
+  },
+  {
+   "i": 11,
+   "en": "by all that's unwashed and hairy, he's right! i always knew you were a clever one mumba! triiiiiiibe! listen up!",
+   "zh": "天哪,他说得对!我早就知道你聪明,Mumba!全——体——族——人!都听好了!"
+  },
+  {
+   "i": 12,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 13,
+   "en": "the time has come to leave this cave and venture forth! get your behinds out there!",
+   "zh": "是时候离开这个山洞,出去闯一闯了!都给我滚出去!"
+  },
+  {
+   "i": 14,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 15,
+   "en": "it... it's been so long since we saw the sunlight playing on the water, the animals gamboling on the lush green grass, the trees swaying gently in the breeze... ",
+   "zh": "这……已经好久好久没见过阳光洒在水面上,动物们在鲜绿的草地上蹦跳,树木在微风中轻轻摇摆了……"
+  },
+  {
+   "i": 16,
+   "en": "i'm hungry! and it's cold! go and find me some shelter... and get me something to eat while you're at it! what do you think this is, a poetry workshop? jump to it you slack-jawed simpletons!",
+   "zh": "我饿了!还冷!去给我找个住处……顺便弄点吃的来!你以为这是什么,诗歌研讨会吗?快去,你们这群张着嘴的傻瓜!"
+  },
+  {
+   "i": 17,
+   "en": "thousands of years in a cave and all he can think about is his stomach... well, better get building... let's start with some huts, a store and a kitchen, we'll need to gather materials to build with... let's get to work!",
+   "zh": "在山洞里待了几千年,他满脑子想的还是他的肚子……唉,还是赶紧动手建设吧……先盖几座小屋、一个仓库和一个厨房,我们得先收集建材……开工吧!"
+  },
+  {
+   "i": 18,
+   "en": "hi there, they say that i could talk the hind legs off a mammoth, so i've been chosen to teach you how to get things done around here.",
+   "zh": "你好呀,听说我能把猛犸象的后腿都说下来,所以大家选我来教你怎么在这里把事情办好。"
+  },
+  {
+   "i": 19,
+   "en": "at the top of the screen you can see the current population of our tribe, the amount of living space and the amount of recources we have stored.",
+   "zh": "在屏幕顶部,你可以看到部落当前的人口、居住空间,以及我们储存的资源数量。"
+  },
+  {
+   "i": 20,
+   "en": "the building in front of me is the hub of our village, the chief's hut. this is where our cultured, sensitive... well this is where our chief lives anyway. first-rate chap, by the way, if a little unhinged. sometimes the elders gather here to sleep- errr, i mean discuss vital issues!",
+   "zh": "我面前这座建筑是我们村子的中枢,族长小屋。这里住着我们那位有修养、有品位的……嗯,反正是我们的族长。人挺不错的,就是有点神神叨叨。长老们有时会聚在这里睡——呃,我是说,商讨大事!"
+  },
+  {
+   "i": 21,
+   "en": "first of all let's build a store for the things we gather. open the game menu with the lsk and select the 'building' option. highlight the store, notice you can see it's resource cost in the upper left corner of the screen. now press the lsk to select it, and find a free space on the map to place it. if a '!' appears on the building you cannot place it there. once you have found a suitable space, press the lsk again to place the building.",
+   "zh": "首先,我们来建一个仓库存放收集的东西。用左软键打开游戏菜单,选择“建造”。选中仓库,注意屏幕左上角能看到它的资源造价。现在按左软键选定它,在地图上找一块空地放置。如果建筑上出现“!”,就说明不能放在那里。找到合适的位置后,再按一次左软键放下建筑。"
+  },
+  {
+   "i": 22,
+   "en": "good! now we must send a villager to the building site. move the cursor to any villager and press 'select' to select them.",
+   "zh": "很好!现在我们要派一名村民去工地。把光标移到任意一名村民身上,按“选择”键选中他。"
+  },
+  {
+   "i": 23,
+   "en": "once selected, an information panel will appear in the upper left corner of the screen, see? you can access help on this panel by pressing 0. take a look around, i'll wait here... don't worry, i'm not in any hurry... i mean, it's not as if i have my own things to be getting on with...",
+   "zh": "选中之后,屏幕左上角会出现一个信息面板,看到了吗?在这个面板上按0可以查看帮助。随便看看吧,我在这儿等着……别担心,我不着急……我是说,我又不是没有自己的事要忙……"
+  },
+  {
+   "i": 24,
+   "en": "each person has a set of skills. when they're young, their skills are very basic. as a villager performs a task their skill in that task gets higher. the higher the skill, the better and faster the task is performed.",
+   "zh": "每个人都有一套技能。年纪小的时候,技能都很基础。村民每做一次某项任务,这项技能就会提高。技能越高,完成任务就越好、越快。"
+  },
+  {
+   "i": 25,
+   "en": "select a villager with a high building skill. now move the cursor over the building site. notice a green arrow appears near the cursor. press 'select' to send the villager to build the store. notice how his building skill improves as he builds it.",
+   "zh": "选一名建造技能高的村民,然后把光标移到工地上,你会发现光标附近出现一个绿色箭头。按“选择”键,派这名村民去建造仓库。注意看,他建造时建造技能是怎么提高的。"
+  },
+  {
+   "i": 26,
+   "en": "if you're in a hurry, or just pure impatient, you can send an additional worker to the yard to help build it faster.",
+   "zh": "如果你赶时间,或者纯粹没耐心,也可以多派一个人去工地帮忙,建得更快。"
+  },
+  {
+   "i": 27,
+   "en": "let's gather some wood and stones to build with. select a villager. now move the cursor to a tree, notice how the cursor changes. now press 'select' to send the villager to harvest wood.",
+   "zh": "我们来收集一些木材和石头当建材。选一名村民,把光标移到一棵树上,注意光标的变化。然后按“选择”键,派这名村民去砍树。"
+  },
+  {
+   "i": 28,
+   "en": "now do the same, but select stones instead of a tree, there's plenty of them around, after all, this is the stone age! i can't believe i just said that...",
+   "zh": "再来一遍,但这次选石头而不是树,周围多的是,毕竟这是石器时代嘛!真不敢相信我居然说了这种话……"
+  },
+  {
+   "i": 29,
+   "en": "why don't we try and build some huts and a kitchen while we're waiting for the store to be built. gadzooks, was that a bear?!? oh, it was just the chiefs stomach rumbling. we'd better hurry up and gather some food. that bush next to the chiefs hut is covered with berries, let's try that.",
+   "zh": "趁着仓库还在建,我们来试着盖几座小屋和一个厨房。天哪,那是熊吗?!哦,原来是族长的肚子在咕咕叫。我们最好抓紧去弄点吃的。族长小屋旁边那丛灌木上结满了浆果,就从那儿开始吧。"
+  },
+  {
+   "i": 30,
+   "en": "huts are needed for resting and... errrr... privacy, if you take my meaning. you don't? oh... well, when a caveman and a cavewoman love each other very much they may decide to make a little caveperson... that's why you need huts. try and make sure everyone in the village has somewhere to sleep or they get cranky.",
+   "zh": "小屋是用来休息和……呃……保留隐私的,你懂我的意思吧。不懂?哦……好吧,当一个原始男人和一个原始女人非常相爱的时候,他们可能会决定生一个小原始人……所以你才需要小屋。要确保村里每个人都有地方睡觉,否则他们会发脾气的。"
+  },
+  {
+   "i": 31,
+   "en": "now let's try ordering some people about. after all, what's the point in having all this power if you can't abuse it? hold down 'select' until a green frame appears under the cursor, then release it. now stretch the frame by moving the cursor so that it covers some villagers. then press 'select' to select them as a group.",
+   "zh": "现在我们来试试指挥人。毕竟,有权不滥用,要权力有什么用?按住“选择”键,直到光标下出现一个绿色方框,然后松开。接着移动光标拉伸方框,把几名村民框进去,再按“选择”键,把他们选为一组。"
+  },
+  {
+   "i": 32,
+   "en": "you can assign the selected group to a hotkey holding either the '7' or '9' keys. if you have a group saved to a key, it will show in the bar at the bottom of the screen. pressing '7' or '9' at any time will select the saved group. double-pressing '7' or '9' will jump to the saved group on the map.",
+   "zh": "你可以按住“7”或“9”键,把选中的小组分配给这个快捷键。如果某个键上保存了小组,它会显示在屏幕底部的栏里。任何时候按“7”或“9”,都会选中保存的小组;连按两次“7”或“9”,则会跳转到该小组在地图上的位置。"
+  },
+  {
+   "i": 33,
+   "en": "let me show you another useful thing, that will help you to find your villagers quickly. select the 'villagers' button in the game menu and a list of villagers will appear. full information about the current villager is shown at the top of the screen. press 'select' to move to the highlighted villager on the map. press 'select' again to select them and exit the list.",
+   "zh": "再教你一招有用的,能帮你快速找到村民。在游戏菜单里选择“村民”按钮,会出现一份村民名单。当前村民的完整信息显示在屏幕顶部。按“选择”键,地图会移到高亮的村民身上;再按一次“选择”键,就会选中他并退出名单。"
+  },
+  {
+   "i": 34,
+   "en": "ah good, the kitchen is finished... notice the exclamation mark on it? that means we need to find someone to cook for us. select a villager and click on the kitchen to give the order.",
+   "zh": "啊,太好了,厨房建好了……注意到上面的感叹号了吗?意思是我们得找个人来给我们做饭。选一名村民,点击厨房下达命令。"
+  },
+  {
+   "i": 35,
+   "en": "good job! i'm going to grab some food, i'll be back a bit later. in the meantime you can practice what you've learnt, there's still much to do!",
+   "zh": "干得好!我去拿点吃的,待会儿回来。在这期间你可以练习刚学的东西,要做的事情还多着呢!"
+  },
+  {
+   "i": 36,
+   "en": "chief! some strange feral looking men are running towards the camp very quickly, what should we do?",
+   "zh": "族长!有些长相凶悍的野人正朝营地飞快地跑过来,我们该怎么办?"
+  },
+  {
+   "i": 37,
+   "en": "ah, it's probably just our new neighbours coming to congratulate us on our fine new village! or maybe they're door to door salesmen?",
+   "zh": "啊,大概只是新邻居来祝贺我们的新村子吧!或者是挨家挨户上门推销的?"
+  },
+  {
+   "i": 38,
+   "en": "ermmm... they look very angry... and they seem to be brandishing clubs in a threatening manner...",
+   "zh": "呃……他们看起来很生气……而且好像还举着棍子,一副威胁的样子……"
+  },
+  {
+   "i": 39,
+   "en": "nonsense! who on earth would want to harm us? now go and welcome them! that's an order!",
+   "zh": "胡说!谁会想伤害我们?快去欢迎他们!这是命令!"
+  },
+  {
+   "i": 40,
+   "en": "y-y-yes chief... *gulp*",
+   "zh": "是、是,族长……*咽口水*"
+  },
+  {
+   "i": 41,
+   "en": "what is it with people and stutters around here?",
+   "zh": "这儿的人怎么都爱结巴?"
+  },
+  {
+   "i": 42,
+   "en": "arrrgh! that hurts! ouch! why? oh god why!",
+   "zh": "啊啊啊!好疼!哎哟!为什么?天哪为什么!"
+  },
+  {
+   "i": 43,
+   "en": "oh my... i guess they're not friendly after all... we'd probably better stop them...",
+   "zh": "哎呀……看来他们并不友好……我们最好拦住他们……"
+  },
+  {
+   "i": 44,
+   "en": "me again! now seems like the perfect opportunity to teach you the 'call to arms' command! this command will order all of your villagers to grab whatever weapons are available and assemble at a location. open the game menu and select 'call to arms!' then select a point on the map.",
+   "zh": "又是我!现在正好教你“全员备战”命令!这个命令会让你所有的村民拿起手边能找到的武器,在指定地点集合。打开游戏菜单,选择“全员备战!”,然后在地图上选一个点。"
+  },
+  {
+   "i": 45,
+   "en": "scary aren't they? i wouldn't want to mess with them... to send them back to work, open the game menu and select 'back to work'!",
+   "zh": "吓人吧?我可不想惹他们……想让他们回去干活,打开游戏菜单,选择“回去干活”就行!"
+  },
+  {
+   "i": 46,
+   "en": "well that was a close call, we could have been toast then!",
+   "zh": "好险啊,刚才我们差点就成了烤肉!"
+  },
+  {
+   "i": 47,
+   "en": "what's toast? lucky i noticed their violent intentions, otherwise someone could've gotten hurt! well... someone else could've gotten hurt. it seems that our neighbours may have different dietary requirements to us... one of them bit me!",
+   "zh": "烤肉是什么?幸亏我留意到了他们的杀气,不然就有人要受伤了!嗯……其实是别人要受伤了。看来我们的邻居口味和我们不太一样……其中一个还咬了我一口!"
+  },
+  {
+   "i": 48,
+   "en": "you don't mean that they're...",
+   "zh": "你该不会是说他们是……"
+  },
+  {
+   "i": 49,
+   "en": "yes! zombies! it's probably only a matter of time before i turn! save me!",
+   "zh": "没错!僵尸!我变成僵尸大概只是时间问题了!救救我!"
+  },
+  {
+   "i": 50,
+   "en": "i was actually thinking cannibals chief... but your explanation is far more plausible. either way, we'd better start thinking about protecting ourselves unless we want to spend our last minutes smothered in ketchup with wooden stakes up our...",
+   "zh": "其实我想的是食人族,族长……不过你的解释要合理得多。不管怎样,我们最好考虑保护自己,除非我们想在最后时刻浑身涂满番茄酱,屁股里还插着木桩……"
+  },
+  {
+   "i": 51,
+   "en": "you're right! i know let's build ourselves a gym, with a spar and a juice bar and a flirty receptionist named 'kim'!",
+   "zh": "你说得对!我们来给自己盖一个健身房吧,里面有陪练、有果汁吧,还有一位名叫“Kim”的爱撒娇的前台小姐!"
+  },
+  {
+   "i": 52,
+   "en": "yes! well, no! but yes to the gym! and we can make ourselves new and better weapons! fists and stones are no match for spears and clubs! let's build ourselves an armoury too!",
+   "zh": "对!哦,不,不是!但健身房要盖!而且我们还能造更好的新武器!拳头和石头可打不过长矛和木棍!我们再盖一个军械库!"
+  },
+  {
+   "i": 53,
+   "en": "we should also build some kind of range where we can improve our throwing skills...",
+   "zh": "我们还应该建一个可以练习投掷技能的场地……"
+  },
+  {
+   "i": 54,
+   "en": "you mean like a throwing range?",
+   "zh": "你是说投掷靶场?"
+  },
+  {
+   "i": 55,
+   "en": "exactly! egads i'm clever, no wonder i'm chief! so then, i hereby decree that we must build a gym, an armoury and a throwing range! we'll be ready if those zombies come after us again! ",
+   "zh": "没错!天哪我真聪明,难怪我是族长!那么,我在此下令:我们必须建造一个健身房、一个军械库和一个投掷靶场!这样如果那些僵尸再来,我们就有准备了!"
+  },
+  {
+   "i": 56,
+   "en": "and don't forget to keep an eye out! we never know when our cannibalistic counterparts will come sniffing around here again! we must keep our people safe... especially me!",
+   "zh": "还有别忘了保持警惕!我们不知道我们那些食人的老对手什么时候又会来这里探头探脑!我们必须保证族人的安全……尤其是我!"
+  },
+  {
+   "i": 57,
+   "en": "what the chief wants, the chief gets. to train warriors we'll need weapons. after all, what's a warrior without a weapon? let's build an armoury, to make weapons and a gym and a range for our warriors to learn how to use them.",
+   "zh": "族长要什么,族长就得到什么。要训练战士,我们需要武器。毕竟没有武器的战士算什么战士呢?我们来盖一个军械库制造武器,再盖一个健身房和一个靶场,让战士们学习怎么使用它们。"
+  },
+  {
+   "i": 58,
+   "en": "i ought to mention a bit about the chief. being chief is a big deal around here, everyone looks to them for guidance and support. whoever is chief gives a bonus to themselves and everyone around them in whatever task they are doing. for example, warriors will fight harder if the chief is around. look busy, the boss is coming!",
+   "zh": "我得稍微讲讲族长。当族长在这里可是件大事,所有人都指望他的指引和支持。无论谁当族长,他自己和周围的所有人在做任何任务时都会获得加成。比如,族长在场时,战士会战斗得更加英勇。都装得忙一点,老板来了!"
+  },
+  {
+   "i": 59,
+   "en": "while those are building, let's talk about happiness. are you happy? i hope so! in the tribe, happiness determines how willing people are to reproduce and work. unhappy people will mope about and ignore your commands. rest, food and 'tent-time' raise their spirits. enemy attacks, death, especially the chief's death, hunger, tiredness and a lack of living space will depress your villagers.",
+   "zh": "趁着那些建筑在施工,我们来聊聊幸福度。你开心吗?希望如此!在部落里,幸福度决定了人们繁衍和工作的积极性。不开心的人会无精打采,无视你的命令。休息、食物和“帐篷时间”能提振他们的精神。敌人的攻击、死亡(尤其是族长的死亡)、饥饿、疲劳和居住空间不足,都会让你的村民情绪低落。"
+  },
+  {
+   "i": 60,
+   "en": "keep an eye out for what people are thinking, people's wants and needs appear as thoughts above their heads. this will help you to understand how to make them happy.",
+   "zh": "留意人们在想什么,他们的愿望和需求会以思想气泡的形式出现在头顶。这能帮助你了解怎样让他们开心。"
+  },
+  {
+   "i": 61,
+   "en": "let's see if we can't put some smiles on these faces! we can upgrade huts so that people recuperate faster in them, plus they make for a more romantic environment. i mean which would you choose? a hovel or a 5 star hotel?",
+   "zh": "我们看看能不能让这些脸上多点笑容!我们可以升级小屋,让人们在里面恢复得更快,而且环境也更浪漫。我是说,你会选哪个?破草棚,还是五星级酒店?"
+  },
+  {
+   "i": 62,
+   "en": "to upgrade the hut, select it and choose the 'upgrade' button from the menu. you'll need to get a builder in to actually finish the task.",
+   "zh": "要升级小屋,选中它,然后在菜单里选择“升级”按钮。你还得叫一名建筑工来真正完成这项任务。"
+  },
+  {
+   "i": 63,
+   "en": "repairing works in a similar way to upgrading. if a building is damaged the repair button will appear when you select it.",
+   "zh": "修理的方式和升级类似。如果建筑受损,选中它时就会出现修理按钮。"
+  },
+  {
+   "i": 64,
+   "en": "ah the armoury is ready, it's time to lock and load! first of all we need to find someone to man it. select someone and then click on the armoury. now, click on the armoury again to select it, you can see which weapons you can make here. the weapons cost and power are shown in the upper left corner. select the weapon and the amount you want to produce. the armourer will then spring into action!",
+   "zh": "啊,军械库建好了,该荷枪实弹了!首先我们得找个人来管它。选一个人,然后点击军械库。接着再点一次军械库选中它,你就能看到这里能制造哪些武器。武器的造价和威力显示在屏幕左上角。选好武器和你想要生产的数量,军械师就会立刻忙起来!"
+  },
+  {
+   "i": 65,
+   "en": "when the armourer finishes making a weapon he will bring it to the store for your villagers to collect. let's arm a villager. select one then click on the store, there you can see what's been made and how many. now click on a weapon. there we go. careful! you'll have someone's eye out with that! ",
+   "zh": "军械师造好武器后,会把它送到仓库,供你的村民领取。我们来武装一名村民。先选一个人,然后点击仓库,在那里你能看到已经造好了什么、有多少。现在点击一件武器。好了!小心点!别把谁的眼睛戳瞎了!"
+  },
+  {
+   "i": 66,
+   "en": "you can arm multiple villagers by clicking on the store and selecting a weapon, then clicking on each tribe member that you would like to arm with it on the map.",
+   "zh": "你可以同时武装多名村民:点击仓库并选中一件武器,然后在地图上点击每一位你想用它武装的族人。"
+  },
+  {
+   "i": 67,
+   "en": "now you can send the armed villagers to train, by selecting them and clicking on the gym. just remember that they must have a weapon to train. when their skill reaches maximum they will leave the gym of their own accord.",
+   "zh": "现在你可以派武装好的村民去训练了:选中他们,然后点击健身房。记住,他们必须有武器才能训练。当他们的技能达到最高时,会自己离开健身房。"
+  },
+  {
+   "i": 68,
+   "en": "hail chief, here are our finest and most ferocious warriors!",
+   "zh": "族长万岁,这是我们最优秀、最凶猛的战士!"
+  },
+  {
+   "i": 69,
+   "en": "good, good, they look like they could give those zombies a good pummeling! now let's go and see what sort of decrepit hovels those man-eating psychopaths call home... who knows, maybe we'll be able to reason with them?",
+   "zh": "好,好,看起来他们能把那些僵尸狠狠揍一顿!现在我们去看看那些吃人的疯子管什么叫家吧……说不定,我们能跟他们讲讲道理呢?"
+  },
+  {
+   "i": 70,
+   "en": "not bad but we can do better! let's have a think about how we can improve it. don't worry though, real warriors are tempered in the fray!",
+   "zh": "还不错,但我们可以做得更好!想想怎么才能改进。不过别担心,真正的战士都是在战火中磨砺出来的!"
+  },
+  {
+   "i": 71,
+   "en": "it's time to go and take on the world! select the 'form up!' command from the game menu and then select a point on the map. this will gather all of your available warriors at the appointed spot. you can also use 'dismiss' to dismiss them.",
+   "zh": "是时候去闯荡世界了!在游戏菜单里选择“集结!”命令,然后在地图上选一个点。这会把你所有能用的战士召集到指定地点。你也可以用“解散”来让他们散开。"
+  },
+  {
+   "i": 72,
+   "en": "dear man-eating psychopaths, we....",
+   "zh": "亲爱的吃人的疯子们,我们……"
+  },
+  {
+   "i": 73,
+   "en": "grrrrr! rwwaaooorrrr! grrrrr!",
+   "zh": "咕噜噜噜!哇啊啊啊啊!咕噜噜噜!"
+  },
+  {
+   "i": 74,
+   "en": "we come in peace!",
+   "zh": "我们是来求和的!"
+  },
+  {
+   "i": 75,
+   "en": "grrrr! woof! woof! grrrrrrrrrrr!",
+   "zh": "咕噜噜!汪!汪!咕噜噜噜噜噜噜!"
+  },
+  {
+   "i": 76,
+   "en": "we'd better get out of here now if we want to leave in peace, one piece that is! leg it!",
+   "zh": "如果我们想和平离开、完整离开,最好现在就走!快溜!"
+  },
+  {
+   "i": 77,
+   "en": "we found them and it appears that they're not interested in being our friends... in fact i think they want to kill and eat us all. and there are lots of them... ",
+   "zh": "我们找到他们了,看来他们对做我们的朋友不感兴趣……事实上,我觉得他们想把我们全杀了吃掉。而且他们人很多……"
+  },
+  {
+   "i": 78,
+   "en": "nonsense! our men are worth three of theirs!",
+   "zh": "胡说!我们一个人抵他们三个!"
+  },
+  {
+   "i": 79,
+   "en": "even if that were true, they'd still outnumber us ten to one!",
+   "zh": "就算真是这样,他们的人数也是我们的十倍!"
+  },
+  {
+   "i": 80,
+   "en": "i see... that's a lot of slavering, blood-crazed maniacs... maybe we should wait until our numbers have grown before we pick a fight...",
+   "zh": "我明白了……那是一大群口水直流、杀红了眼的疯子……也许我们该等人口壮大了再动手……"
+  },
+  {
+   "i": 81,
+   "en": "now that we are armed to the teeth, we can fish or hunt to get food. hunting gives not only food but also bones, which are needed to make better weapons and upgrade buildings.",
+   "zh": "现在我们武装到了牙齿,可以钓鱼或打猎来获取食物了。打猎不仅能得到食物,还能得到骨头,骨头是制造更好的武器和升级建筑所必需的。"
+  },
+  {
+   "i": 82,
+   "en": "to fish, select a tribesman with a spear and click on where the fish splash in the water.",
+   "zh": "要钓鱼,选一名持矛的族人,点击水中溅起水花的地方。"
+  },
+  {
+   "i": 83,
+   "en": "hunting can be dangerous, wild animals will attack your hunters so they must be well trained and armed.",
+   "zh": "打猎可能很危险,野兽会攻击你的猎人,所以他们必须训练有素、装备精良。"
+  },
+  {
+   "i": 84,
+   "en": "ok, now you should know everything you need to survive. but keep your wits about you, because your tribe doesn't have any of their own!",
+   "zh": "好了,现在你应该已经掌握生存所需的一切了。不过要保持头脑清醒,因为你的部落可没有自己的头脑!"
+  },
+  {
+   "i": 85,
+   "en": "thus the avnotaklu tribe chased it's hostile neighbours from the land. they liked the look of their enemies village, particularly what they had done with the curtains. so they decided to move in. they found the land bounteous, with animals roaming free and fruit in abundance. and so the elders met to discuss the tribes' fate and how to get the smell of cooked caveman out of the carpet...",
+   "zh": "就这样,Avnotaklu部落把敌对的邻居赶出了这片土地。他们很喜欢敌人村子的样子,尤其是敌人挂的窗帘,于是决定搬进去住。他们发现这片土地物产丰饶,动物自由奔跑,水果漫山遍野。于是长老们聚在一起,商讨部落的命运,以及怎样才能把地毯上煮熟的原始人的味道弄掉……"
+  },
+  {
+   "i": 86,
+   "en": "our enemy could be anywhere... he may even be amongst us right now! is it you? or you? hmmm?",
+   "zh": "敌人可能在任何地方……他甚至可能就在我们中间!是你吗?还是你?嗯?"
+  },
+  {
+   "i": 87,
+   "en": "they're cannibals not chameleons chief... besides, our builders have learnt to craft watch towers, so that we can see further and defend from range. we should build some around the village and post sentries.",
+   "zh": "他们是食人族,不是变色龙,族长……另外,我们的建筑工已经学会建造哨塔了,这样我们能看得更远,并且从远处防守。我们应该在村子周围建一些,并派岗哨守着。"
+  },
+  {
+   "i": 88,
+   "en": "we lost many people in the last fight... if we have another head on confrontation like that there'll be none of us left... we should build a place where we can study the art of stealth and misdirection, so that we can take our foes by surprise.",
+   "zh": "上一仗我们损失了很多人……如果再来一次这样的正面冲突,我们就一个不剩了……我们应该建一个地方,研究潜行和声东击西的技艺,这样才能出其不意地对付敌人。"
+  },
+  {
+   "i": 89,
+   "en": "i like it! we could call them the pia! the prehistoric intelligence agency! we'll need to give them badges...",
+   "zh": "我喜欢!我们可以管他们叫PIA!史前情报局!我们得给他们配上徽章……"
+  },
+  {
+   "i": 90,
+   "en": "ooooookay, on a slightly less whimsical note, our armourer says that he can produce better weapons and traps to keep the savage crazies at bay.",
+   "zh": "好——吧,说点不那么异想天开的,我们的军械师说他能造出更好的武器和陷阱,把那些野蛮的疯子挡在外面。"
+  },
+  {
+   "i": 91,
+   "en": "you know guys... i've been thinking... maybe the gods are angry with us?",
+   "zh": "你们知道吗……我一直在想……会不会是神明对我们生气了?"
+  },
+  {
+   "i": 92,
+   "en": "what gods?",
+   "zh": "什么神明?"
+  },
+  {
+   "i": 93,
+   "en": "you know, the gods... the ones that make it rain and stuff!",
+   "zh": "你知道的,神明……就是那些让天下雨什么的神!"
+  },
+  {
+   "i": 94,
+   "en": "isn't that a bit of an assumption? i mean, maybe it's water vapour gathering in the skies and forming clouds, which then burst and release the water back onto the earth?",
+   "zh": "这不是有点想当然吗?我是说,也许只是水蒸气聚集在天上形成云,然后云破了,把水又落回地面?"
+  },
+  {
+   "i": 95,
+   "en": "pffffftt, listen to yourself and your 'watery ghost clouds'! you're crazy you are! besides, now is not the time for a theological debate! let us honour the gods with a sanctuary... just in case.",
+   "zh": "噗——听听你自己,还“水汽幽灵云”呢!你疯了!再说,现在可不是争论神学的时候!让我们建一座圣所来敬奉神明……以防万一。"
+  },
+  {
+   "i": 96,
+   "en": "i want to see towers, a pia centre and a sanctuary  to the gods built by sunrise!",
+   "zh": "我要在日出之前看到哨塔、PIA中心和敬奉神明的圣所建好!"
+  },
+  {
+   "i": 97,
+   "en": "we here speak!",
+   "zh": "我们这里说话!"
+  },
+  {
+   "i": 98,
+   "en": "haha! look, he's trying to speak! haha!",
+   "zh": "哈哈!看,他想说话!哈哈!"
+  },
+  {
+   "i": 99,
+   "en": "you take we land! we take land back!",
+   "zh": "你们拿我们地!我们拿回地!"
+  },
+  {
+   "i": 100,
+   "en": "our land now! you go or we kill! you illiterate... err... no-speak-no-good person!",
+   "zh": "现在是我们的地!你们走,不然我们杀!你们这些没文化的……呃……不会说话不好的人!"
+  },
+  {
+   "i": 101,
+   "en": "well i say! there's no need to be rude! right! that's it! no more mister nice-savage!",
+   "zh": "我说啊!没必要这么没礼貌吧!好了!够了!不再对你们这些野人客气了!"
+  },
+  {
+   "i": 102,
+   "en": "are we gonna take this lying down? i say we give these ragamuffins a damn good hiding!",
+   "zh": "难道我们要忍气吞声吗?我说咱们狠狠教训教训这帮乞丐!"
+  },
+  {
+   "i": 103,
+   "en": "oh wise and venerable shaman, what do the gods say?",
+   "zh": "哦,睿智可敬的萨满,神明怎么说?"
+  },
+  {
+   "i": 104,
+   "en": "hang on a mo... uh-huh.. yup.. yeah, they say do it.",
+   "zh": "稍等一下……嗯哼……对……对,他们说干吧。"
+  },
+  {
+   "i": 105,
+   "en": "well, if the gods say we go, that's good enough for me! are you sure that's what they said?",
+   "zh": "好,既然神明说去,那我就没意见了!你确定他们是这么说的?"
+  },
+  {
+   "i": 106,
+   "en": "of course i'm sure, would i lie to you?",
+   "zh": "当然确定,我会骗你吗?"
+  },
+  {
+   "i": 107,
+   "en": "oh, right, yes.. then let's show these savages what it means to trifle with the avnotaklu!",
+   "zh": "哦,对,是的……那就让我们让这些野蛮人看看,招惹Avnotaklu是什么下场!"
+  },
+  {
+   "i": 108,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 109,
+   "en": "i say, that's shown them! these helpless women and children look delectable!",
+   "zh": "我说啊,这下教训他们了!这些无助的妇女和孩子看起来真是美味啊!"
+  },
+  {
+   "i": 110,
+   "en": "you thought you'd won, but we tricked you! muaha-ahaha-ahem... yes, very clever.",
+   "zh": "你们以为你们赢了,其实我们骗了你们!哈哈哈哈——咳……是的,真聪明。"
+  },
+  {
+   "i": 111,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 112,
+   "en": "they've nicked all our women and kids!",
+   "zh": "他们抢走了我们所有的女人和孩子!"
+  },
+  {
+   "i": 113,
+   "en": "woohoo! we're free! free from the yolk of female oppression!",
+   "zh": "呜呼!我们自由了!终于从女人的压迫中解脱了!"
+  },
+  {
+   "i": 114,
+   "en": "what are you so happy about genius?!? don't you know the first thing about reproduction? who's going to have our babies! we're done for!",
+   "zh": "你有什么好高兴的,天才?!你难道连繁衍的基本常识都不懂吗?以后谁给我们生孩子?我们完蛋了!"
+  },
+  {
+   "i": 115,
+   "en": "come men! let us go and save our people from the cooking pot! ",
+   "zh": "兄弟们!我们去把族人从汤锅里救出来!"
+  },
+  {
+   "i": 116,
+   "en": "and so it was that the avnotaklu separated and went in search of their families... they searched high and low, near and far and farther still, higher and lower and... well you get the idea...",
+   "zh": "于是Avnotaklu部落兵分几路,去寻找他们的家人……他们上天入地,走遍远近,再往更远处找,往更高更低处找……好吧,你懂的……"
+  },
+  {
+   "i": 117,
+   "en": "mmmmm, do you smell that? it smells delicious! i'm starving, what do you think they're cooking?",
+   "zh": "嗯——你闻到了吗?好香啊!我饿死了,你觉得他们在煮什么?"
+  },
+  {
+   "i": 118,
+   "en": "your family idiot! we must find our way to them as soon as we can! there is no time to lose!",
+   "zh": "你的家人,白痴!我们必须尽快找到去那里的路!一刻也不能耽搁!"
+  },
+  {
+   "i": 119,
+   "en": "crikey! that's a lot of big sharp pointy teeth! we'd better sneak around them... you go first!",
+   "zh": "天哪!好多又大又尖的牙齿!我们最好悄悄绕过去……你先走!"
+  },
+  {
+   "i": 120,
+   "en": "why me? ",
+   "zh": "为什么是我?"
+  },
+  {
+   "i": 121,
+   "en": "age... before beauty...?",
+   "zh": "年长者……先于美貌……?"
+  },
+  {
+   "i": 122,
+   "en": "oh never mind!",
+   "zh": "哦,算了!"
+  },
+  {
+   "i": 123,
+   "en": "ssssssshhh! i think that's their settlement... let's see if we can't get closer...",
+   "zh": "嘘——!我想那就是他们的聚居地……看看能不能再靠近一点……"
+  },
+  {
+   "i": 124,
+   "en": "okay good luck!",
+   "zh": "好的,祝你好运!"
+  },
+  {
+   "i": 125,
+   "en": "i was actually thinking of sending the scout we have next to us...",
+   "zh": "我其实是想派我们旁边这位侦察兵去的……"
+  },
+  {
+   "i": 126,
+   "en": "oh right! yes, of course... are you sure you don't want me to go? because i would go... only i've got this cough...",
+   "zh": "哦,对!是的,当然……你确定不要我去吗?我是愿意去的……只是我有点咳嗽……"
+  },
+  {
+   "i": 127,
+   "en": "i'll just go then shall i? fine.",
+   "zh": "那我去就是了,行了吧?好。"
+  },
+  {
+   "i": 128,
+   "en": "i've found them! the guards are old and weak and all the others are busy dancing round a fire... stupid primitives! i say we rush in, kill them all and leave as heroes! ",
+   "zh": "我找到他们了!守卫又老又弱,其他人都忙着围着火堆跳舞……一群蠢原始人!我说我们冲进去,把他们全杀光,然后以英雄的身份离开!"
+  },
+  {
+   "i": 129,
+   "en": "...or we could build this giant wooden mammoth, then we wait til sundown and...",
+   "zh": "……或者我们可以造一个巨大的木头猛犸象,然后等到日落,再……"
+  },
+  {
+   "i": 130,
+   "en": "are you mad?!? i don't want to get eaten! do you want to get eaten! all covered in gravy... no wait, onion gravy... a fine wine...",
+   "zh": "你疯了吗?!我可不想被吃掉!你想被吃掉吗!浑身淋满肉汁……不对,是洋葱肉汁……配上一杯好酒……"
+  },
+  {
+   "i": 131,
+   "en": "shut up bonehead! we need a plan!",
+   "zh": "闭嘴,笨蛋!我们需要一个计划!"
+  },
+  {
+   "i": 132,
+   "en": "oh yeah? well i have a plan! ",
+   "zh": "哦是吗?我有个计划!"
+  },
+  {
+   "i": 133,
+   "en": "oh yeah? what plan's that then?",
+   "zh": "哦是吗?那是什么计划?"
+  },
+  {
+   "i": 134,
+   "en": "we could lead a pack of ravenous blood thirsty tigers into their camp and let them do our dirty work for us?",
+   "zh": "我们可以引一群饥肠辘辘、嗜血的老虎闯进他们的营地,让它们替我们干脏活?"
+  },
+  {
+   "i": 135,
+   "en": "where are we going to get a large pack of ravenous blood thirsty tigers at a time like this!?!",
+   "zh": "这种时候我们上哪儿去找一大群饥肠辘辘、嗜血的老虎?!"
+  },
+  {
+   "i": 136,
+   "en": "sometimes i look at you and i fear for the future of our race...",
+   "zh": "有时候我看着你,真为我们种族的未来担忧……"
+  },
+  {
+   "i": 137,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 138,
+   "en": "here kitty kitty! who's a vicious little killer then, eh?",
+   "zh": "来呀,猫咪猫咪!谁是凶狠的小杀手呀,嗯?"
+  },
+  {
+   "i": 139,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 140,
+   "en": "you can't catch me nyah nyah!",
+   "zh": "你抓不到我,略略略!"
+  },
+  {
+   "i": 141,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 142,
+   "en": "eeep! time to leave!",
+   "zh": "咿!该走了!"
+  },
+  {
+   "i": 143,
+   "en": "it looks like they've had their fill, we'd better find the women and kids before they get hungry again!",
+   "zh": "看起来它们吃饱了,我们最好在它们又饿之前找到女人和孩子!"
+  },
+  {
+   "i": 144,
+   "en": "they're in this hut... hmm the doors locked... i think we're gonna have to break it down...",
+   "zh": "他们在这间屋子里……嗯,门锁着……看来我们得把它撞开……"
+  },
+  {
+   "i": 145,
+   "en": "you saved us, our big strong, muscular heroes!",
+   "zh": "你们救了我们,我们高大强壮、肌肉发达的英雄!"
+  },
+  {
+   "i": 146,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 147,
+   "en": "where's there a hut around here when you need one!",
+   "zh": "需要的时候,哪儿有间小屋啊!"
+  },
+  {
+   "i": 148,
+   "en": "and so the men and women of the avnotaklu tribe made their way back home, i won't bore you with the details, it's not very interesting anyway... but their joy at returning home was to be short lived... ",
+   "zh": "于是Avnotaklu部落的男男女女踏上了回家的路,我就不细说了,反正也没什么意思……不过他们回到家的喜悦注定是短暂的……"
+  },
+  {
+   "i": 149,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 150,
+   "en": "our village seems somewhat flatter than when we left it. who's that curious looking chap over there? what day is it today? what's my name?",
+   "zh": "我们的村子好像比我们离开时平整了不少。那边那个长相古怪的家伙是谁?今天几号?我叫什么名字?"
+  },
+  {
+   "i": 151,
+   "en": "i'll go talk to him...",
+   "zh": "我去跟他谈谈……"
+  },
+  {
+   "i": 152,
+   "en": "hail stranger, we are the avnotaklu! what brings you to our village? well what's left of it anyway...",
+   "zh": "你好,陌生人,我们是Avnotaklu!你来我们村子做什么?好吧,这里剩下的这点东西……"
+  },
+  {
+   "i": 153,
+   "en": "my name is jafar and i have come to lead you to the promised land! ",
+   "zh": "我叫Jafar,我是来带你们去应许之地的!"
+  },
+  {
+   "i": 154,
+   "en": "promised land?",
+   "zh": "应许之地?"
+  },
+  {
+   "i": 155,
+   "en": "yes, where the sun shines all year round, the trees are ripe with the sweetest fruit and the women are beautiful and have huge...",
+   "zh": "是的,那里阳光终年普照,树上结满最甜的果实,女人们美丽动人,还有一对巨大的……"
+  },
+  {
+   "i": 156,
+   "en": "where is this land?!? we're going there. immediately.",
+   "zh": "这片土地在哪儿?!我们这就去。马上。"
+  },
+  {
+   "i": 157,
+   "en": "aha my friend! my land lies far under the setting sun, where the women dance naked in the moonlight, shaking their...",
+   "zh": "啊哈,我的朋友!我的土地远在落日之下,那里的女人在月光下裸身起舞,摇晃着她们的……"
+  },
+  {
+   "i": 158,
+   "en": "right, come on, theres nothing for us here now except maybe zombies, off we go!",
+   "zh": "好了,走吧,这里现在除了僵尸大概什么也没有了,出发!"
+  },
+  {
+   "i": 159,
+   "en": "aren't you even curious about what happened to our village? he didn't even tell us where this land is supposed to be? ",
+   "zh": "你们就不好奇我们的村子发生了什么吗?他连这片土地在哪儿都没告诉我们啊?"
+  },
+  {
+   "i": 160,
+   "en": "you must head south until the moon turns itself around. errrrr, then go left. then go straight on past the mountain, take another left and it should be right in front of you...dancing... naked...",
+   "zh": "你们得一直往南走,直到月亮转个身。呃……然后向左拐。接着一直走过那座山,再向左拐,它就应该在你们面前了……跳着舞……裸着身子……"
+  },
+  {
+   "i": 161,
+   "en": "come on, we've wasted enough time! let's go!",
+   "zh": "走吧,我们浪费的时间够多了!出发!"
+  },
+  {
+   "i": 162,
+   "en": "but what about the elders?",
+   "zh": "可长老们怎么办?"
+  },
+  {
+   "i": 163,
+   "en": "they agree. look see, all agreeing. now move!",
+   "zh": "他们同意了。你看,都同意了。现在快走!"
+  },
+  {
+   "i": 164,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 165,
+   "en": "and so it was that the avnotaklu once again left their homes. you'd think they'd have learnt really, after everything they'd been through, but nooooo, they just had to go gallivanting off...",
+   "zh": "于是Avnotaklu部落再一次离开了家园。经历了那么多事,你本以为他们会长点记性,可是没有,他们偏要出去闲逛……"
+  },
+  {
+   "i": 166,
+   "en": "after many days a mountain loomed on the horizon and at it's feet there stood an oasis. the tribesmen decided to build a camp to rest before continuing with their journey...",
+   "zh": "许多天后,一座山出现在地平线上,山脚下有一片绿洲。族人们决定扎营休整,再继续旅程……"
+  },
+  {
+   "i": 167,
+   "en": "let's stop here and rest a while. we have water, food and there are no zombies as far as i can see.",
+   "zh": "我们在这儿停下歇一会儿吧。这里有水有食物,而且据我所见没有僵尸。"
+  },
+  {
+   "i": 168,
+   "en": "chief, the tribe are miserable, they don't want to go any further, can't we just go home?",
+   "zh": "族长,族人们都很沮丧,他们不想再往前走了,我们就不能回家吗?"
+  },
+  {
+   "i": 169,
+   "en": "no! we must carry on! there's nothing but zombies for us back home! we cannot give up on this naked dancing! paradise! i mean paradise!",
+   "zh": "不行!我们必须继续前进!回家只有僵尸等着我们!我们绝不能放弃裸体跳舞!乐园!我是说乐园!"
+  },
+  {
+   "i": 170,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 171,
+   "en": "you guys aren't gonna like this... i've just had a chat with the guys upstairs and they say they're not happy with us...",
+   "zh": "你们不会喜欢这个消息的……我刚和楼上那些家伙聊了聊,他们说对我们不满意……"
+  },
+  {
+   "i": 172,
+   "en": "behold! they have blocked the way back, tis a sign! we must go on!",
+   "zh": "看哪!他们堵住了回去的路,这是个征兆!我们必须继续前进!"
+  },
+  {
+   "i": 173,
+   "en": "it's a sign alright chief, a sign that we're stuffed! i had this dream, yeah and we were all walking through the desert and we were attacked by barbarians. everyone ran away except the chief who turned and fought, but they killed him...",
+   "zh": "确实是个征兆,族长,征兆说明我们完蛋了!我做了个梦,我们大家走在沙漠里,遭到了野蛮人的袭击。所有人都跑了,只有族长转身迎战,但他们杀了他……"
+  },
+  {
+   "i": 174,
+   "en": "have you been eating those cactii again? ",
+   "zh": "你又吃那些仙人掌了?"
+  },
+  {
+   "i": 175,
+   "en": "well... yeah... but that's not the point. the gods are angry at us for betraying our leader. so unless you all want to end up dead or enslaved by barbarians you'd better do as i say and protect the chief.",
+   "zh": "嗯……是的……但这不是重点。神明因为我们背叛领袖而生我们的气。所以除非你们都想死掉或者被野蛮人抓去当奴隶,否则最好照我说的做,保护好族长。"
+  },
+  {
+   "i": 176,
+   "en": "do we actually have any proof that you can talk to the gods?",
+   "zh": "我们真的有证据证明你能和神明说话吗?"
+  },
+  {
+   "i": 177,
+   "en": "the gods say you're an idiot and they're gonna smite you to pieces if you're not careful.",
+   "zh": "神明说你是个白痴,如果你不小心点,他们就要把你劈成碎片。"
+  },
+  {
+   "i": 178,
+   "en": "oooooh, i'm scared!",
+   "zh": "哦——我好怕!"
+  },
+  {
+   "i": 179,
+   "en": "silence! i think you're missing the point here, i'm going to die! dead! no naked dancing, just death! and all you can think about is whether or not any of what he just said is actually true!",
+   "zh": "安静!我觉得你们没抓住重点,我要死了!死了!没有裸体跳舞,只有死亡!而你们能想到的只是他说的话到底是不是真的!"
+  },
+  {
+   "i": 180,
+   "en": "you make a good case... alright, let's try and keep him in one piece!",
+   "zh": "你说得有道理……好吧,我们尽量保住他的小命!"
+  },
+  {
+   "i": 181,
+   "en": "chief! we've found a cave!",
+   "zh": "族长!我们发现了一个山洞!"
+  },
+  {
+   "i": 182,
+   "en": "it looks deep, maybe it leads through the mountain? shall we investigate?",
+   "zh": "看起来很深,也许能穿过这座山?我们要不要进去查看一下?"
+  },
+  {
+   "i": 183,
+   "en": "are you nuts? we've spent thousands of years in a cave and you want to go scurrying back into the first one you find?!? besides, what about the promised land? no way!",
+   "zh": "你疯了吗?我们在山洞里待了几千年,你还想一发现山洞就钻回去?!再说,应许之地怎么办?不行!"
+  },
+  {
+   "i": 184,
+   "en": "chief! looks like we may have some visitors...",
+   "zh": "族长!看起来我们有访客了……"
+  },
+  {
+   "i": 185,
+   "en": "a thousand greetings, oh mighty chief, we've been expecting you!",
+   "zh": "一千个问候,噢,伟大的族长,我们恭候您多时了!"
+  },
+  {
+   "i": 186,
+   "en": "you! where is this promised land! i see no naked dancing! we've trekked for days across the desert to get here, thanks to you!",
+   "zh": "你!应许之地在哪儿!我没看见任何裸体跳舞!托你的福,我们在沙漠里跋涉了好几天才到这里!"
+  },
+  {
+   "i": 187,
+   "en": "this is not the land you seek, but you are here! and we are in need of slaves, yes, dire need! it is you who will dance for us fat boy!",
+   "zh": "这不是你要找的地方,但你已经到了!我们需要奴隶,是的,急需!该为我们跳舞的是你,胖子!"
+  },
+  {
+   "i": 188,
+   "en": "attack! take the women and the children... kill the old ones and the chief! especially the chief!",
+   "zh": "进攻!抓住女人和孩子……杀掉老人和族长!尤其是族长!"
+  },
+  {
+   "i": 189,
+   "en": "the prophecy! that cactii-addled shaman was right! protect the chief!",
+   "zh": "预言应验了!那个吃仙人掌吃糊涂的萨满说对了!保护族长!"
+  },
+  {
+   "i": 190,
+   "en": "do you want the good news or the bad news?",
+   "zh": "你想先听好消息还是坏消息?"
+  },
+  {
+   "i": 191,
+   "en": "errmmm, the bad news, then the good news will make it better.",
+   "zh": "呃……先听坏消息,这样好消息就能让我好受点。"
+  },
+  {
+   "i": 192,
+   "en": "well the bad news is that there's only one way out of this hell hole and that's through the enemies camp.",
+   "zh": "坏消息是,走出这个鬼地方只有一条路,就是穿过敌人的营地。"
+  },
+  {
+   "i": 193,
+   "en": "but that's terrible! what's the good news!",
+   "zh": "那太糟糕了!好消息是什么!"
+  },
+  {
+   "i": 194,
+   "en": "there is no good news... i just didn't want you to hit me...",
+   "zh": "没有好消息……我只是不想让你打我……"
+  },
+  {
+   "i": 195,
+   "en": "then we'll cut our way through! just as well that you let me know. and don't worry, i'm not going to hit you... i'm going to hit you lots!",
+   "zh": "那我们就杀出一条路!幸好你告诉了我。别担心,我不会打你……我要狠狠地打你!"
+  },
+  {
+   "i": 196,
+   "en": "ouch! i should've seen that coming. our people are in a bad way, i'll go talk to the shaman about healing them... starting with me.",
+   "zh": "哎哟!我早该料到的。我们的人伤得很重,我去找萨满给他们治疗……先从我开始。"
+  },
+  {
+   "i": 197,
+   "en": "it seems like we've built our camp near someones watering hole... those tigers don't look pleased to see us!",
+   "zh": "看来我们把营地扎在了某个家伙的水源地附近……那些老虎看到我们好像不太高兴!"
+  },
+  {
+   "i": 198,
+   "en": "zombies, tigers, barbarians, what next? we'd better keep an eye on them... those teeth look sharp!",
+   "zh": "僵尸、老虎、野蛮人,接下来还有什么?我们最好盯着它们……那些牙齿看起来很锋利!"
+  },
+  {
+   "i": 199,
+   "en": "hmmm, we used them against our enemies once... why not try it again?",
+   "zh": "嗯,我们曾经用它们对付过敌人……为什么不再试一次?"
+  },
+  {
+   "i": 200,
+   "en": "well volunteered! better get training, those cats can run pretty fast you know!",
+   "zh": "主动请缨,好样的!最好赶紧训练,你知道这些猫跑得可快了!"
+  },
+  {
+   "i": 201,
+   "en": "i've learned some new moves, yeah? i can conjure disease on the ground and give people niagra to... well... get them in the mood... the gods say i'll need a better sanctuary though... and as many wives as i want.",
+   "zh": "我学会了一些新招,是吧?我能在地上召唤疾病,还能给人们喝尼亚加拉……呃……让他们来点情绪……神明说我需要一座更好的圣所……还有我想要多少老婆就要多少。"
+  },
+  {
+   "i": 202,
+   "en": "we're going to have to use every means at our disposal to get out of this place if we want our freedom. ",
+   "zh": "如果我们想要自由,就必须用尽一切手段离开这个地方。"
+  },
+  {
+   "i": 203,
+   "en": "finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing but trouble. they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for generations to come. and so they decided to settle there..",
+   "zh": "终于,Avnotaklu人再次获得了自由,不过老实说,到目前为止这自由除了麻烦什么也没给他们带来。他们发现自己被一片美丽辽阔的山谷环绕,完全能养活他们子孙后代。于是他们决定在那里定居……"
+  },
+  {
+   "i": 204,
+   "en": "we have journeyed far and wide to find this place and despite the distinct lack of naked dancing, it's pretty good!",
+   "zh": "我们跋山涉水才找到这个地方,尽管明显缺少裸体跳舞,但这里相当不错!"
+  },
+  {
+   "i": 205,
+   "en": "we have nowhere to go home to and i am tired of wandering, so let us make this place our home. we do not know what danger lies in store, but we shall defend our new home against all comers! ",
+   "zh": "我们已无家可归,我也厌倦了流浪,那就让我们把这里当作家吧。我们不知道前方有什么危险,但我们会抵御一切来犯者,保卫我们的新家!"
+  },
+  {
+   "i": 206,
+   "en": "we do not know when peril will strike... oh there it is.",
+   "zh": "我们不知道危险何时来临……哦,这不就来了。"
+  },
+  {
+   "i": 207,
+   "en": "well, that showed them. here we will build the settlement to end all settlements and more importantly, our home! now get on with it!",
+   "zh": "好了,把他们打跑了。我们将在这里建起一座空前绝后的村落,更重要的是,我们的家!现在快动手!"
+  },
+  {
+   "i": 208,
+   "en": "more barbarians! i've had enough of these guys, let's deal with them once and for all! we will fight for peace!",
+   "zh": "又来野蛮人了!我受够这帮家伙了,让我们一劳永逸地解决他们!我们要为和平而战!"
+  },
+  {
+   "i": 209,
+   "en": "err, fighting for peace? isn't that a bit of a contradiction in terms?",
+   "zh": "呃,为和平而战?这不是自相矛盾吗?"
+  },
+  {
+   "i": 210,
+   "en": "shut up and start killing!",
+   "zh": "闭嘴,开始杀吧!"
+  },
+  {
+   "i": 211,
+   "en": "and so it was that the avnotaklu came to find their home. so if you ever wonder why we are the way we are, all you have to do is look at where we came from!",
+   "zh": "就这样,Avnotaklu人找到了他们的家。所以如果你想知道我们为什么是现在这个样子,只需看看我们是从哪里来的!"
+  },
+  {
+   "i": 212,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 213,
+   "en": "alright? i'm the shaman, i'm the gods' voice around here which means i get to do pretty much whatever i like, yeah? this is my sanctuary, where i heal the sick and wounded but i can also use my voodoo outside.",
+   "zh": "怎么样?我是萨满,我是神明在这里的代言人,这意味着我基本上想干什么就干什么,懂吧?这是我的圣所,我在这里治疗病人和伤员,不过我也可以在外面使用我的巫术。"
+  },
+  {
+   "i": 214,
+   "en": "i can only do two spells at the moment but as the gods get to know me they will show me more. 'healing' heals people and 'defence' means they get hurt less in combat. ",
+   "zh": "我现在只会两种法术,不过随着神明越来越了解我,他们会教我更多。“治疗”可以治愈人们,“防御”则让他们在战斗中少受伤害。"
+  },
+  {
+   "i": 215,
+   "en": "if you want to heal someone, just send him here. you can also click on the sanctuary, select the spell from the list and then select the target on the map. you can also queue people and i will  deal with them in turn, just don't rush me, yeah? the same goes for 'defence', communing with the gods has never been so easy!",
+   "zh": "如果你想治疗某人,把他送到这儿来就行。你也可以点击圣所,从列表里选择法术,然后在地图上选择目标。你还可以排队,我会依次处理,只是别催我,懂吧?“防御”也一样,与神明沟通从来没这么轻松过!"
+  },
+  {
+   "i": 216,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 217,
+   "en": "hi, i'm the first member of the prehistoric intelligence agency. we can see further than your average tribesman and can hide in bushes to become undetectable. the higher our skill, the closer we can get to the enemy without being seen. we know everything about everyone... including you!",
+   "zh": "嗨,我是史前情报局的第一位成员。我们比普通族人看得更远,还能躲进灌木丛中隐身。我们的技能越高,就越能接近敌人而不被发现。我们对每个人都了如指掌……包括你!"
+  },
+  {
+   "i": 218,
+   "en": "we can also detect enemy scouts, but that door can swing both ways, so we must be careful about sneaking up on people. still, we'll learn more in time, no-one can hide from us, no-one!",
+   "zh": "我们也能发现敌方侦察兵,不过这种事是双向的,所以潜近别人时必须小心。不过,我们会越来越厉害,没人能躲过我们,没人!"
+  },
+  {
+   "i": 219,
+   "en": "",
+   "zh": ""
+  },
+  {
+   "i": 220,
+   "en": "yeah that's more like it! i can brew the niagra love potion now and call forth plagues to smite the enemy! niagra stimulates passion and makes villagers more likely to go and rattle huts...",
+   "zh": "对,这才像话!我现在能酿造尼亚加拉爱情药水,还能召唤瘟疫来惩罚敌人了!尼亚加拉能激发激情,让村民更有可能去摇晃小屋……"
+  },
+  {
+   "i": 221,
+   "en": "'disease' is a nasty spell, so you'd better be careful with it. it doesn't differentiate friend from foe and it spreads quick! beware the power of the gods... yeah?",
+   "zh": "“疾病”是一种很恶毒的法术,你最好小心使用。它不分敌友,而且传播得很快!要敬畏神明的力量……懂吧?"
+  },
+  {
+   "i": 222,
+   "en": "i think we need a bigger kitchen... we can upgrade it to make it seat more and be more comfortable. this will make the villagers happier!",
+   "zh": "我觉得我们需要一个更大的厨房……我们可以升级它,让它能容纳更多人、更舒适。这会让村民更开心!"
+  },
+  {
+   "i": 223,
+   "en": "an upgrade is available for the armoury, this will allow us to make better weapons and traps!",
+   "zh": "军械库有可用的升级了,这能让我们造出更好的武器和陷阱!"
+  },
+  {
+   "i": 224,
+   "en": "we can upgrade the gym and the range now, which will mean that our warriors can train their skills higher and increase their hit points quicker! feel the burn!",
+   "zh": "现在可以升级健身房和靶场了,这意味着我们的战士能把技能训练得更高,生命值也涨得更快!感受燃烧吧!"
+  },
+  {
+   "i": 225,
+   "en": "we could add a jacuzzi and a bar to the disco, to help these jive turkeys mellow, you dig? alright!",
+   "zh": "我们可以给迪厅加一个按摩浴缸和一个酒吧,帮这些舞林高手放松一下,你懂吧?好嘞!"
+  },
+  {
+   "i": 226,
+   "en": "our towers can be upgraded, to make them sturdier and more resilient to attack.",
+   "zh": "我们的哨塔可以升级了,这会让它们更坚固,更能抵御攻击。"
+  },
+  {
+   "i": 227,
+   "en": "we can improve the sanctuary, which will allow our shaman to cast better spells.",
+   "zh": "我们可以改进圣所,这样萨满就能施展更强的法术。"
+  },
+  {
+   "i": 228,
+   "en": "the pia centre can be upgraded now! this will allow our agents to train their skill higher!",
+   "zh": "PIA中心现在可以升级了!这样我们的特工就能把技能训练得更高!"
+  },
+  {
+   "i": 229,
+   "en": "move the cursor over the map using the directional pad or '2', '4', '6' and '8' keys. use '5' or the directional pad button as 'select'. press the left soft key - lsk - or * to access the game menu or confirm. press the right soft key - rsk - or # to cancel the current selection or enter the pause menu. '0' accesses quick help on panels which are currently on screen. '1' centers the screen on the location of warning messages. '3' opens the mini map.",
+   "zh": "用方向键或“2”、“4”、“6”、“8”键在地图上移动光标。用“5”或方向键中间的按钮作为“选择”。按左软键(lsk)或*打开游戏菜单或确认。按右软键(rsk)或#取消当前选择或进入暂停菜单。“0”可查看当前屏幕上面板的快捷帮助。“1”将屏幕定位到警告信息所在位置。“3”打开小地图。"
+  },
+  {
+   "i": 230,
+   "en": "lead your tribe in it's bid to survive in the prehistoric world. there are 4 types of resources in the game that you need. food, to feed your villagers and wood, stone and bones are used to construct buildings, which are required for sleeping, eating, training, etc. you can find the description of each building in the construction menu. build your settlement and train warriors to defend your people.",
+   "zh": "带领你的部落在史前世界中努力生存。游戏中你需要4种资源:食物用来喂饱村民,木材、石头和骨头用来建造建筑,而建筑用于睡觉、吃饭、训练等。你可以在建造菜单中查看每种建筑的说明。建设你的聚居地,训练战士来保卫你的族人。"
+  },
+  {
+   "i": 231,
+   "en": "each villager has their own attributes including name, gender, age, happiness, hit points, hunger level and fatigue level. they also have a set of combat and civil skills. all of them affect different aspects of their lives. &&each person has a set of skills which get higher as a villager performs a task. skills can be roughly divided into two groups: combat and civil. &&combat skills are: &\u000e - melee attack;&\u000f - ranged attack;&\r - scouting.&&civil skills are:&\u0001,\u0002,\u0003,\u0004,\u0005,\u0006,\u0007 - harvesting;&\f - building;&\b - weaponsmithing;&\t - cooking;&\u000b - witchcraft;&\n - dj'ing.&&task icons are shown on the villager's informational panel. task icons correspond to the skill icons, except for guarding \u0010 and idle \u0000.",
+   "zh": "每个村民都有自己的属性,包括姓名、性别、年龄、幸福度、生命值、饥饿程度和疲劳程度。他们还拥有一套战斗技能和民用技能,这些都会影响他们生活的不同方面。&&每个人都有一套技能,村民每完成一次任务,相应技能就会提高。技能大致分为两类:战斗技能和民用技能。&&战斗技能有:&\u000e - 近战攻击;&\u000f - 远程攻击;&\r - 侦察。&&民用技能有:&\u0001,\u0002,\u0003,\u0004,\u0005,\u0006,\u0007 - 采集;&\f - 建造;&\b - 武器制造;&\t - 烹饪;&\u000b - 巫术;&\n - DJ打碟。&&任务图标显示在村民的信息面板上。任务图标与技能图标一一对应,只有守卫 \u0010 和空闲 \u0000 例外。"
+  },
+  {
+   "i": 232,
+   "en": "to learn more about the game, try the tutorial or visit the official wap site.",
+   "zh": "想进一步了解游戏,可以试试教程,或访问官方WAP网站。"
+  },
+  {
+   "i": 233,
+   "en": "prehistoric tribes&&version: \u001f&&~ 2008 thq wireless inc. all rights reserved. wireless version developed by gear games, ltd. gear games and its logo are trademarks of gear games, ltd. prehistoric tribes, thq, thq wireless and their respective logos are trademarks and/or registered trademarks of thq inc. all rights reserved. all other trademarks, logos and copyrights are property of their respective owners.&&technical support: wirelesscs@thq.com&&www.prehistoric-games.com&&wap.prehistoric-games.com",
+   "zh": "史前部落&&版本:\u001f&&~ 2008 THQ Wireless Inc. 保留所有权利。无线版由Gear Games, Ltd.开发。Gear Games及其标志是Gear Games, Ltd.的商标。Prehistoric Tribes、THQ、THQ Wireless及其各自标志是THQ Inc.的商标和/或注册商标。保留所有权利。所有其他商标、标志和版权均归其各自所有者所有。&&技术支持:wirelesscs@thq.com&&www.prehistoric-games.com&&wap.prehistoric-games.com"
+  },
+  {
+   "i": 234,
+   "en": "population&\u0017&buildings built&\u0018&buildings razed&\u0019&enemies killed&\u001a&resources&\u001b&total score&\u001c",
+   "zh": "人口&\u0017&建造建筑&\u0018&摧毁建筑&\u0019&击杀敌人&\u001a&资源&\u001b&总得分&\u001c"
+  },
+  {
+   "i": 235,
+   "en": "",
+   "zh": ""
+  }
+ ]
+}

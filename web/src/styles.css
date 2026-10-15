@@ -1,0 +1,33 @@
+:root {
+  background: #000;
+  color-scheme: dark;
+  font-family: sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #000;
+}
+
+body {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  height: 100vh;
+}
+
+canvas {
+  width: min(75vw, 60vh);
+  height: auto;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
