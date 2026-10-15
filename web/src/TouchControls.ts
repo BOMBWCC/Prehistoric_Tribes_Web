@@ -95,13 +95,22 @@ export function attachTouchControls(
     if (game.cameraBFlag || game.columnScrollDelta !== 0 || game.rowScrollDelta !== 0) return;
     const [tx, ty] = tileAt(x, y);
     if (game.wByte === 3) {
-      // Building placement: the footprint cursor is f.T:I/f.U:I; walk it there with the keys.
+      // Building placement: f.T:I/f.U:I is the footprint's top-left tile, its size t138[104 + type]
+      // x t138[130 + type] (f.S:I is the type). A tap inside the footprint places it; a tap
+      // elsewhere walks the footprint there with the keys, centred under the finger.
+      // CORRECTED 2026-10-15 (user, phone): only the top-left tile counted, so tapping the middle
+      // of the footprint kept moving it and it could never be placed.
+      const table = runtime.packedOffsets[138] ?? 0;
+      const fw = Math.max(1, runtime.packedBytes[table + 104 + game.cSInt] ?? 1);
+      const fh = Math.max(1, runtime.packedBytes[table + 130 + game.cSInt] ?? 1);
       const cx = game.IByte + game.cTInt;
       const cy = game.KByte + game.cUInt;
-      if (tx === cx && ty === cy) { run(tapKey(OriginalKey.FIRE)); return; }
+      if (tx >= cx && tx < cx + fw && ty >= cy && ty < cy + fh) { run(tapKey(OriginalKey.FIRE)); return; }
+      const ax = tx - Math.floor((fw - 1) / 2);
+      const ay = ty - Math.floor((fh - 1) / 2);
       run((function* () {
-        yield* navigate(() => game.IByte + game.cTInt, tx, OriginalKey.LEFT, OriginalKey.RIGHT, false);
-        yield* navigate(() => game.KByte + game.cUInt, ty, OriginalKey.UP, OriginalKey.DOWN, false);
+        yield* navigate(() => game.IByte + game.cTInt, ax, OriginalKey.LEFT, OriginalKey.RIGHT, false);
+        yield* navigate(() => game.KByte + game.cUInt, ay, OriginalKey.UP, OriginalKey.DOWN, false);
       })());
       return;
     }
