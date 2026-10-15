@@ -270,6 +270,18 @@ function baseState(overrides = {}) {
   assert.deepEqual(calls, [55, 62, 62]);
 }
 
+// Test 14c: X:B -- offset 94 stores g[pipIndex] per record, offset 1596 clears it on the way out.
+{
+  const state = baseState({ O: 2 });
+  state.byteTables[3][0] = packFlags3(0, 1, 0);
+  state.byteTables[3][1] = packFlags3(0, 2, 0);
+  state.entityMarkerG[1] = 7;
+  state.entityMarkerG[2] = 9;
+  const xs = [];
+  stepLegacyMapMarkerDetail(4, 99, 0, 0, 0, 1, state, { onX: (x) => xs.push(x) });
+  assert.deepEqual(xs, [7, 9, 0]);
+}
+
 // Test 15: qByte/local3/pipIndex shortcut (local8===4) with recordShort===116
 // -> draws with local10=0.
 {

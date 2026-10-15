@@ -10164,6 +10164,9 @@ export class LegacyRuntimeState {
           statScratch: this.mainArrays.aShort,
         },
         {
+          // CORRECTED 2026-10-15 (docs/bugs.md BUG-001): X:B was never written here, so q() never drew
+          // the health bar of a unit inside a building (a chief on a site looked idle).
+          onX: (value) => { this.game.XByte = value; },
           onComposite: packed ? (record, x, y) => packed.drawComposite(record, x, y) : undefined,
           onSpriteDraw: packed
             ? (record, x, y, phase) => {

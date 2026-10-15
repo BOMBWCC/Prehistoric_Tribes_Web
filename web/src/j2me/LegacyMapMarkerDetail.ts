@@ -102,6 +102,12 @@ export type LegacyMapMarkerDetailCallbacks = {
   readonly onEntityAction?: (id: number, x: number, y: number, arg4: number, arg5: number) => void;
   /** f.x:Z (#383) -- set unconditionally true in one sub-branch; no other reads found in this method. */
   readonly onXFlag?: () => void;
+  /**
+   * f.X:B (#113): offset 94 stores g[pipIndex] -- the unit inside the building -- for each record,
+   * and offset 1596 clears it on the way out. q(), reached through onEntityAction, reads it to draw
+   * that unit's health bar while the cursor is on the building.
+   */
+  readonly onX?: (value: number) => void;
 };
 
 export function stepLegacyMapMarkerDetail(
@@ -130,6 +136,7 @@ export function stepLegacyMapMarkerDetail(
       const pipIndex = (flags3 & 63) >> 3;
       const P = (flags3 & 0xff) >> 6;
       const X = state.entityMarkerG[pipIndex] ?? 0;
+      callbacks.onX?.(X);
       const familyShift = (((state.shortTables[1]?.[recordN] ?? 0) & 49152) >> 14) << 7;
       const recordShortBase = (state.shortTables[1]?.[recordN] ?? 0) & 4095;
       const x1 = local10In + (state.byteTables[1]?.[recordN] ?? 0) + familyShift;
@@ -161,6 +168,7 @@ export function stepLegacyMapMarkerDetail(
     // Bytecode's own exception table (offsets 17..1590 -> 1593) swallows
     // any exception from a single record's processing.
   }
+  callbacks.onX?.(0);
 }
 
 /** local8===1, bytecode offsets 195..700 (all three sub-cases plus the plain default). */
