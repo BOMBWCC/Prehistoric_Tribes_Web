@@ -59,6 +59,25 @@ function fresh() {
   assert.equal(result, 4);
 }
 
+// Offset 88 `iflt 114`: a negative e[4646 + marker] counts even when e[4444 + marker] is this
+// building (the unit inside it).
+{
+  const state = fresh();
+  const id = 5;
+  state.dense[8932 + id] = 3;
+  state.packedOffsets[138] = 1000;
+  state.dense[8749 + id] = 0;
+  state.packedBytes[1000 + 156 + 0] = 0;
+  state.dense[8810 + id] = 7;
+  state.dense[4646 + 7] = -1; // < 0
+  state.dense[4444 + 7] = id; // this building
+  state.dense[9115 + id] = 1;
+  state.packedBytes[1000 + 0 * 26 + 0] = 0;
+  assert.equal(legacyEntitySelectionNibble(id, state.dense, state.packedBytes, state.packedOffsets), 4);
+  state.dense[4646 + 7] = 0; // >= 0 and e[4444] === id: no count
+  assert.equal(legacyEntitySelectionNibble(id, state.dense, state.packedBytes, state.packedOffsets), 3);
+}
+
 // local2+=1 gate satisfied via dense[8627+id]!=0 (the other OR branch),
 // but the marker sub-gate fails (marker<=0) -> local2 stays unchanged.
 {

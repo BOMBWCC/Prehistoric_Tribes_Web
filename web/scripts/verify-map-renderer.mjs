@@ -23,7 +23,7 @@ renderLegacyMap({
   gridC,
   onComposite: (...args) => calls.push(["tile", ...args]),
   onMarker: (...args) => calls.push(["marker", ...args]),
-}, { column: 0, row: 0, columns: 12, rows: 19 });
+}, { column: 0, row: 0 }, { fromColumn: 0, toColumn: 11, fromRow: 0, toRow: 18 });
 assert.deepEqual(JSON.parse(JSON.stringify(calls)), [
   ["tile", 1, 0, 0],
   ["marker", 175, 1, 0],
@@ -44,6 +44,26 @@ renderLegacyMap({
   gridC,
   onComposite: (...args) => shifted.push(args),
   onMarker: () => {},
-}, { column: 2, row: 1, columns: 12, rows: 19 });
+}, { column: 2, row: 1 }, { fromColumn: 0, toColumn: 11, fromRow: 0, toRow: 18 });
 assert.deepEqual(JSON.parse(JSON.stringify(shifted)), [[5, 0, 0]]);
+
+// f.n()'s windows: aj..al x ak..am inclusive -- e.g. only the newly exposed column 2.
+const column = [];
+renderLegacyMap({
+  width: 3, height: 2, gridB, gridC,
+  onComposite: (...args) => column.push(args),
+  onMarker: () => {},
+}, { column: 0, row: 0 }, { fromColumn: 2, toColumn: 2, fromRow: 0, toRow: 1 });
+assert.deepEqual(JSON.parse(JSON.stringify(column)), [[2, 44, 0], [5, 44, 16]]);
+
+// D:Z (offsets 38..79): only cells flagged in a:[[Z], and the flag is cleared.
+const dirty = [[false, false, true], [true, false, false]];
+const dirtyCalls = [];
+renderLegacyMap({
+  width: 3, height: 2, gridB, gridC,
+  onComposite: (...args) => dirtyCalls.push(args),
+  onMarker: () => {},
+}, { column: 0, row: 0 }, { fromColumn: 0, toColumn: 2, fromRow: 0, toRow: 1 }, dirty);
+assert.deepEqual(JSON.parse(JSON.stringify(dirtyCalls)), [[2, 44, 0], [3, 0, 16]]);
+assert.deepEqual(dirty, [[false, false, false], [false, false, false]]);
 console.log("f.o() visible-cell map renderer OK");

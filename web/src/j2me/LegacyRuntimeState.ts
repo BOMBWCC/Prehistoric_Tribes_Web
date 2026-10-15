@@ -72,7 +72,7 @@ import { stepLegacyZAc } from "./LegacyZAc";
 import { stepLegacyZAd } from "./LegacyZAd";
 import { stepLegacyZAa } from "./LegacyZAa";
 import { drawLegacy1010 } from "./Legacy1010Renderer";
-import { LEGACY_DEFAULT_MAP_VIEWPORT, renderLegacyMap, type LegacyMapViewport, type LegacyRenderableMap } from "./LegacyMapRenderer";
+import { LEGACY_DEFAULT_MAP_VIEWPORT, renderLegacyMap, type LegacyMapRedrawRange, type LegacyMapViewport, type LegacyRenderableMap } from "./LegacyMapRenderer";
 import { runLegacyProjectionLifecycle, type LegacyProjectionLifecycleInput } from "./LegacyProjectionLifecycle";
 import { consumeLegacyZCommand, type LegacyZCommandConsumerCallbacks } from "./LegacyZCommandConsumer";
 import { dispatchLegacyZ, type LegacyZDispatchCallbacks } from "./LegacyZDispatch";
@@ -440,6 +440,8 @@ export class LegacyRuntimeState {
    */
   readonly touchMenuRows: number[] = [];
   touchMenuQ = -1;
+  /** Not in the original: x of the last number the bottom bar (record 1010) drew, -1 for none. */
+  touchBarNumberX = -1;
   readonly offscreenTargets = typeof document === "undefined" ? undefined : new LegacyOffscreenTargets();
   /**
    * f.an() (Back key) fields, live since 2026-09-27. Only Q/R/H/vInt used to
@@ -8092,6 +8094,7 @@ export class LegacyRuntimeState {
           onEntity: (id, entityX, entityY, arg4, arg5) => this.stepEntityAction(id, entityX, entityY, arg4, arg5),
           onText: (textX, textY, width, text, value) => {
             this.frameHelperCalls.push({ kind: "frame-1010-number", x: textX, y: textY, value: Number(text), style: width });
+            this.touchBarNumberX = textX;
             try {
               this.geometry.queueTextWithWidth(textX, textY, width, text, value);
               this.geometryRenderer.renderTo(graphics, this.imageGroups[0]!);
@@ -8898,12 +8901,14 @@ export class LegacyRuntimeState {
           // #435 returns false.
         }
       },
-      // f.o() (#629): redraw the tile window into the offscreen buffer the
-      // composite reads, i.e. Graphics[N:B] == graphics[targetSlot].
+      // f.o() (#629): redraw f.n()'s window -- aj..al x ak..am, only the a:[[Z] cells while D:Z --
+      // into the offscreen buffer the composite reads, i.e. Graphics[N:B] == graphics[targetSlot].
       onRedraw: () => {
+        const scroll = this.cameraScrollState;
         this.renderMap(
-          { ...LEGACY_DEFAULT_MAP_VIEWPORT, column: this.game.IByte, row: this.game.KByte },
+          { fromColumn: scroll.pixelColumnOffset, toColumn: scroll.scrollTargetColumn, fromRow: scroll.pixelRowOffset, toRow: scroll.scrollTargetRow },
           (this.game.targetSlot as 0 | 1 | 2 | 3),
+          scroll.dFlag ? this.effectRectBoolGrid : null,
         );
       },
     });
@@ -10093,7 +10098,7 @@ export class LegacyRuntimeState {
   }
 
   /** f.o() (#629) into Graphics[target]; see LegacyMapRenderer.ts. */
-  renderMap(viewport: LegacyMapViewport = LEGACY_DEFAULT_MAP_VIEWPORT, target: 0 | 1 | 2 | 3 = 1): void {
+  renderMap(range: LegacyMapRedrawRange, target: 0 | 1 | 2 | 3, dirty: boolean[][] | null): void {
     const data = this.packedData;
     const graphics = this.offscreenTargets?.graphics[target];
     if (!this.activeMap || !data || !graphics) return;
@@ -10110,7 +10115,7 @@ export class LegacyRuntimeState {
       gridC: this.gridC,
       onComposite: (record, x, y) => packed.drawComposite(record, x, y),
       onMarker: (value, ah, ai) => this.drawMapMarker(value, 0, ah, ai, packed),
-    }, viewport);
+    }, { column: this.game.IByte, row: this.game.KByte }, range, dirty);
   }
 
   /**

@@ -35,7 +35,10 @@ export function legacyEntitySelectionNibble(
   const tableVal = packedBytes[packedOffsets[138] + 156 + (dense[8749 + id] ?? 0)] ?? 0;
   if (tableVal > -1 || (dense[8627 + id] ?? 0) !== 0) {
     const marker = dense[8810 + id] ?? 0;
-    if (marker > 0 && (dense[4646 + marker] ?? 0) >= 0 && (dense[4444 + marker] ?? 0) !== id) {
+    // Offsets 66..111: `iflt 114` -- a negative e[4646 + marker] counts straight away; otherwise it
+    // counts unless e[4444 + marker] is this building. CORRECTED 2026-10-15 (pixel comparison,
+    // play26 frame 37500): this required e[4646 + marker] >= 0, so a building's first pip stayed dark.
+    if (marker > 0 && ((dense[4646 + marker] ?? 0) < 0 || (dense[4444 + marker] ?? 0) !== id)) {
       local2 = toJavaByte(local2 + 1); // bytecode offset 117's explicit i2b.
     }
   }

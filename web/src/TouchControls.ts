@@ -32,6 +32,11 @@ export function attachTouchControls(
 ): TouchControls {
   const game = runtime.game;
   let script: Script | null = null;
+  // Ticks counted by step(), and the tick of the last touch/mouse input: behaviour that only suits
+  // touch (centring the placement footprint) must not touch keyboard play or a replayed key script.
+  let tick = 0;
+  let touchTick = -1000;
+  const touched = () => { touchTick = tick; };
   let pan = { x: 0, y: 0 };
   let boxMode = false;
   // Box select in progress: the anchor (where the finger went down), the finger now, the ticks FIRE
@@ -69,7 +74,7 @@ export function attachTouchControls(
     if (confirm && read() === target) yield* tapKey(OriginalKey.FIRE);
   }
 
-  const run = (next: Script) => { script = next; };
+  const run = (next: Script) => { script = next; touched(); };
   // Capture keeps the moves and the lift coming to the element that saw the press. It throws for
   // a pointer the browser no longer tracks, which must not cost the key press.
   const capture = (element: Element, id: number) => { try { element.setPointerCapture(id); } catch { /* no capture */ } };
@@ -95,23 +100,20 @@ export function attachTouchControls(
     if (game.cameraBFlag || game.columnScrollDelta !== 0 || game.rowScrollDelta !== 0) return;
     const [tx, ty] = tileAt(x, y);
     if (game.wByte === 3) {
-      // Building placement: f.T:I/f.U:I is the footprint's top-left tile, its size t138[104 + type]
-      // x t138[130 + type] (f.S:I is the type). A tap inside the footprint places it; a tap
-      // elsewhere walks the footprint there with the keys, centred under the finger.
-      // CORRECTED 2026-10-15 (user, phone): only the top-left tile counted, so tapping the middle
-      // of the footprint kept moving it and it could never be placed.
+      // Building placement: the footprint is centred on the cursor (f.T:I = y - w/2, f.U:I = A - h/2
+      // each frame) and stays put on screen while a drag moves the map under it. A tap inside it
+      // places the building; a tap elsewhere brings that tile under the footprint by moving the
+      // view, or, at the map's edge where the view cannot move, by moving the cursor.
       const table = runtime.packedOffsets[138] ?? 0;
       const fw = Math.max(1, runtime.packedBytes[table + 104 + game.cSInt] ?? 1);
       const fh = Math.max(1, runtime.packedBytes[table + 130 + game.cSInt] ?? 1);
-      const cx = game.IByte + game.cTInt;
-      const cy = game.KByte + game.cUInt;
-      if (tx >= cx && tx < cx + fw && ty >= cy && ty < cy + fh) { run(tapKey(OriginalKey.FIRE)); return; }
-      const ax = tx - Math.floor((fw - 1) / 2);
-      const ay = ty - Math.floor((fh - 1) / 2);
-      run((function* () {
-        yield* navigate(() => game.IByte + game.cTInt, ax, OriginalKey.LEFT, OriginalKey.RIGHT, false);
-        yield* navigate(() => game.KByte + game.cUInt, ay, OriginalKey.UP, OriginalKey.DOWN, false);
-      })());
+      const fx = game.IByte + game.cTInt;
+      const fy = game.KByte + game.cUInt;
+      if (tx >= fx && tx < fx + fw && ty >= fy && ty < fy + fh) { run(tapKey(OriginalKey.FIRE)); return; }
+      panTo(tx - game.yByte, ty - game.AByte);
+      const col = tx - game.IByte;
+      const row = ty - game.KByte;
+      if (col >= 0 && col < game.viewportO && row >= 0 && ty < rowLimit()) { game.yByte = col; game.AByte = row; }
       return;
     }
     const cx = game.IByte + game.yByte;
@@ -138,20 +140,25 @@ export function attachTouchControls(
     game.AByte = row;
   };
 
+  /** Moves the view origin (f.I:B/f.K:B) toward (column, row) inside f.Y()'s bounds; f.A:Z redraws. */
+  const panTo = (column: number, row: number) => {
+    const minK = game.selectionFlags[4] ? 1 : 0;
+    const maxK = game.mapHeight - game.viewportP - 1 - (game.selectionBa >> 5);
+    const I = Math.max(0, Math.min(game.mapWidth - game.viewportO, column));
+    const K = Math.max(minK, Math.min(maxK, row));
+    if (I === game.IByte && K === game.KByte) return;
+    game.IByte = I;
+    game.KByte = K;
+    game.AFlag = true; // f.n() redraws the whole view
+  };
+
   const applyPan = () => {
     if (game.vByte !== 1 || game.cameraBFlag || game.columnScrollDelta !== 0 || game.rowScrollDelta !== 0) return;
     const dc = -Math.trunc(pan.x / TILE_W);
     const dr = -Math.trunc(pan.y / TILE_H);
     if (dc === 0 && dr === 0) return;
     pan = { x: pan.x + dc * TILE_W, y: pan.y + dr * TILE_H };
-    const minK = game.selectionFlags[4] ? 1 : 0;
-    const maxK = game.mapHeight - game.viewportP - 1 - (game.selectionBa >> 5);
-    const I = Math.max(0, Math.min(game.mapWidth - game.viewportO, game.IByte + dc));
-    const K = Math.max(minK, Math.min(maxK, game.KByte + dr));
-    if (I === game.IByte && K === game.KByte) return;
-    game.IByte = I;
-    game.KByte = K;
-    game.AFlag = true; // f.n() redraws the whole view
+    panTo(game.IByte + dc, game.KByte + dr);
   };
 
   // ---- the bottom panel ----
@@ -170,7 +177,18 @@ export function attachTouchControls(
         else run(navigate(() => game.frameLayoutAS, slot, OriginalKey.LEFT, OriginalKey.RIGHT, false));
         return;
       }
-      run(navigate(() => game.frameLayoutAS, slot, OriginalKey.LEFT, OriginalKey.RIGHT, true)); // a command icon
+      // An item with a quantity (the selected slot draws a number, e.g. the weapon workshop): its
+      // upper half is UP, its lower half DOWN. Choosing such a slot only selects it; a command icon
+      // is chosen and confirmed with one tap.
+      // The bar draws the selected slot's number at 63 + 34 * slot (its icon sits at 39 + 34 * slot).
+      const quantity = () => Math.abs(runtime.touchBarNumberX - (63 + 34 * game.frameLayoutAS)) <= 4;
+      if (slot === game.frameLayoutAS && quantity()) { run(tapKey(y < 306 ? OriginalKey.UP : OriginalKey.DOWN)); return; }
+      if (slot === game.frameLayoutAS) { run(tapKey(OriginalKey.FIRE)); return; }
+      run((function* () {
+        yield* navigate(() => game.frameLayoutAS, slot, OriginalKey.LEFT, OriginalKey.RIGHT, false);
+        yield; // let the bar draw the newly selected slot
+        if (game.frameLayoutAS === slot && !quantity()) yield* tapKey(OriginalKey.FIRE);
+      })());
     }
   };
 
@@ -223,6 +241,7 @@ export function attachTouchControls(
     const on = digit ? "digit" : game.vByte !== 1 ? "screen" : gy >= panelTop() ? "panel" : "map";
     gesture = { id: event.pointerId, sx: event.clientX, sy: event.clientY, x0: gx, y0: gy, gx, gy, drag: false, on, digit };
     if (digit) keys.press(digit);
+    touched();
   });
 
   canvas.addEventListener("pointermove", (event) => {
@@ -279,39 +298,55 @@ export function attachTouchControls(
       capture(button, event.pointerId);
       button.dataset.down = "1";
       keys.press(key);
+      touched();
     });
     button.addEventListener("pointerup", up);
     button.addEventListener("pointercancel", up);
     button.addEventListener("contextmenu", (event) => event.preventDefault());
   }
 
+  let lastW = game.wByte;
+
   return {
     step() {
-      if (box) {
-        // The original's box select: FIRE held for five ticks (f.aE()) turns on u:Z with the
-        // cursor's tile as one corner; after the release the cursor sets the other corner, and the
-        // next FIRE press selects the units inside (f.aF()). Here: hold on the anchor, then the
-        // cursor follows the finger, and the lift is that last FIRE.
-        const holding = box.ticks <= 6;
-        const [tx, ty] = holding ? tileAt(box.ax, box.ay) : tileAt(box.x, box.y);
-        game.yByte = Math.max(0, Math.min(game.viewportO - 1, tx - game.IByte));
-        game.AByte = Math.max(0, Math.min(rowLimit() - 1 - game.KByte, ty - game.KByte));
-        if (box.ticks === 0) keys.press(OriginalKey.FIRE);
-        else if (box.ticks === 6) {
-          keys.release(OriginalKey.FIRE);
-          if (!game.uFlag) { box = null; setBoxMode(false); return; } // box mode did not start
-        } else if (!holding && box.lifted) {
-          box = null;
-          setBoxMode(false);
-          run(tapKey(OriginalKey.FIRE));
-          script!.next();
-          return;
-        }
-        box.ticks += 1;
-        return;
+      // Entering building placement by touch: the footprint starts in the middle of the screen
+      // (f.C:B/f.D:B, the cursor's home), not wherever the cursor last was.
+      tick += 1;
+      if (game.vByte === 1 && game.wByte === 3 && lastW !== 3 && tick - touchTick < 16) {
+        game.yByte = game.cursorTargetColumn;
+        game.AByte = game.cursorTargetRow;
       }
-      applyPan();
-      if (script && script.next().done) script = null;
+      lastW = game.wByte;
+      stepInput();
+      runtime.touchBarNumberX = -1; // the coming tick's bar draw sets it again (read above first)
     },
   };
+
+  function stepInput(): void {
+    if (box) {
+      // The original's box select: FIRE held for five ticks (f.aE()) turns on u:Z with the
+      // cursor's tile as one corner; after the release the cursor sets the other corner, and the
+      // next FIRE press selects the units inside (f.aF()). Here: hold on the anchor, then the
+      // cursor follows the finger, and the lift is that last FIRE.
+      const holding = box.ticks <= 6;
+      const [tx, ty] = holding ? tileAt(box.ax, box.ay) : tileAt(box.x, box.y);
+      game.yByte = Math.max(0, Math.min(game.viewportO - 1, tx - game.IByte));
+      game.AByte = Math.max(0, Math.min(rowLimit() - 1 - game.KByte, ty - game.KByte));
+      if (box.ticks === 0) keys.press(OriginalKey.FIRE);
+      else if (box.ticks === 6) {
+        keys.release(OriginalKey.FIRE);
+        if (!game.uFlag) { box = null; setBoxMode(false); return; } // box mode did not start
+      } else if (!holding && box.lifted) {
+        box = null;
+        setBoxMode(false);
+        run(tapKey(OriginalKey.FIRE));
+        script!.next();
+        return;
+      }
+      box.ticks += 1;
+      return;
+    }
+    applyPan();
+    if (script && script.next().done) script = null;
+  }
 }

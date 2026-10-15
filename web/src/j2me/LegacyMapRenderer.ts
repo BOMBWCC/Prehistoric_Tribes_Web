@@ -26,24 +26,44 @@ export type LegacyMapRenderInput = {
   readonly onMarker: (value: number, ah: number, ai: number) => void;
 };
 
+/** f.o()'s window: f.aj..f.al columns and f.ak..f.am rows, inclusive, relative to f.I / f.K. */
+export type LegacyMapRedrawRange = {
+  readonly fromColumn: number;
+  readonly toColumn: number;
+  readonly fromRow: number;
+  readonly toRow: number;
+};
+
 /**
- * private void o() (bytecode/f-javap.txt line 3154), per cell in row-major
- * order: gridB < 175 draws that terrain piece, otherwise a(gridB, 0); then a
- * gridC value in [-123, -1] -- buildings, resources, markers -- goes to
- * a(gridC, 0).
+ * private void o() (bytecode/f-javap.txt line 3154), per cell of the range in row-major order:
+ * gridB < 175 draws that terrain piece, otherwise a(gridB, 0); then a gridC value in [-123, -1]
+ * -- buildings, resources, markers -- goes to a(gridC, 0).
  *
- * Deviations kept from the earlier port: the whole window is redrawn (the
- * original walks aj..al x ak..am and, under D:Z, only cells flagged in
- * a:[[Z]), because f.n()'s partial blit is not wired; cells past the map
- * edge are skipped, which is what s:Z + b(int,int) do in the original.
+ * Offsets 38..79: with D:Z set (`dirty` given) only cells flagged in a:[[Z] are drawn, and their
+ * flag is cleared. Cells past the map edge are skipped (s:Z + b(int,int) in the original).
+ *
+ * CORRECTED 2026-10-15 (pixel comparison, play26 frame 37500): this used to redraw the whole
+ * window every time. f.n() redraws only the newly exposed column or row after a scroll, the
+ * bottom three rows for C:Z and the dirty cells for B:Z, so a cell's detail pieces that reach into
+ * a neighbour (pebbles, rock edges) stay on screen in the original; a full redraw painted the
+ * neighbour over them.
  */
-export function renderLegacyMap(input: LegacyMapRenderInput, viewport: LegacyMapViewport): void {
-  const maxColumns = Math.min(viewport.columns, Math.max(0, input.width - viewport.column));
-  const maxRows = Math.min(viewport.rows, Math.max(0, input.height - viewport.row));
-  for (let ai = 0; ai < maxRows; ai += 1) {
-    const row = viewport.row + ai;
-    for (let ah = 0; ah < maxColumns; ah += 1) {
-      const column = viewport.column + ah;
+export function renderLegacyMap(
+  input: LegacyMapRenderInput,
+  origin: { readonly column: number; readonly row: number },
+  range: LegacyMapRedrawRange,
+  dirty: boolean[][] | null = null,
+): void {
+  for (let ai = range.fromRow; ai <= range.toRow; ai += 1) {
+    const row = origin.row + ai;
+    for (let ah = range.fromColumn; ah <= range.toColumn; ah += 1) {
+      if (dirty) {
+        const dirtyRow = dirty[ai];
+        if (!dirtyRow?.[ah]) continue;
+        dirtyRow[ah] = false;
+      }
+      const column = origin.column + ah;
+      if (row < 0 || column < 0 || row >= input.height || column >= input.width) continue;
       const tile = (input.gridB[row]?.[column] ?? 0) & 0xff;
       if (tile < 175) input.onComposite(tile, ah * 22, ai * 16);
       else input.onMarker(tile, ah, ai);
