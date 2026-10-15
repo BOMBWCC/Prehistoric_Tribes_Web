@@ -917,7 +917,10 @@ export class LegacyRuntimeState {
       packedBytes: this.packedBytes,
       packedOffsets: this.packedOffsets,
       jTables: Array.from(this.packedData?.byteTables ?? []),
-      d: this.gGeometry[0],
+      // f.d:[I (#275, offsets 443/482): the HUD slot y table, oElementRecordInts -- 1107 sets
+      // d[8] = -20 to lift the cost panel. CORRECTED 2026-10-15 (pixel comparison, play26 frame
+      // 40000): this passed gGeometry[0], so the panel never moved up.
+      d: this.game.oElementRecordInts,
       aF: this.game.frameCommandAF,
       aI: this.game.frameCommandAI,
       aJ: this.game.frameCommandAJ,
