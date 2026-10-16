@@ -22,6 +22,8 @@ type Script = Generator<void, void, void>;
 export type TouchControls = {
   /** Call once per tick, before the key edges are forwarded to the game. */
   step(): void;
+  /** Drops queued taps, drags and box selects (input made before the game started). */
+  cancel(): void;
 };
 
 export function attachTouchControls(
@@ -308,6 +310,11 @@ export function attachTouchControls(
   let lastW = game.wByte;
 
   return {
+    cancel() {
+      script = null;
+      box = null;
+      pan = { x: 0, y: 0 };
+    },
     step() {
       // Entering building placement by touch: the footprint starts in the middle of the screen
       // (f.C:B/f.D:B, the cursor's home), not wherever the cursor last was.

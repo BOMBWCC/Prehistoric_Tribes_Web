@@ -183,7 +183,6 @@
     "test:z-subrecord-draw": "node scripts/verify-z-subrecord-draw.mjs",
     "test:packed-sprite-primitive": "node scripts/verify-packed-sprite-primitive.mjs",
     "test:image-helper-invocation": "node scripts/verify-image-helper-invocation.mjs",
-    "test:image-helper-projection": "node scripts/verify-image-helper-projection.mjs",
     "test:z-geometry-bridge": "node scripts/verify-z-geometry-bridge.mjs",
     "test:z-element-coordinates": "node scripts/verify-z-element-coordinates.mjs",
     "test:z-element-scan": "node scripts/verify-z-element-scan.mjs",

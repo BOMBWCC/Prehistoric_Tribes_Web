@@ -103,4 +103,18 @@ function makeState(overrides = {}) {
   assert.deepEqual(log, [["f at call", false], ["k"], ["I"]]);
 }
 
+
+// Offsets 196..218: a mode-117 unit calls j(int) with 0 (offset 215 iconst_0) -- the rest
+// branch, not the healing one (corrected 2026-10-16; this used to pass 1).
+{
+  const state = makeState({ [2929 + 5]: 117, [2828 + 5]: 5 });
+  const args = [];
+  try {
+    stepLegacySubsystemEntityProbe({ state, entityId: 5, f: { value: true }, onJ: () => {}, onJInt: (arg) => args.push(arg) });
+  } catch {
+    // later offsets may need callbacks this case does not provide
+  }
+  assert.deepEqual(args, [0]);
+}
+
 console.log("private boolean i() (entity probe, never returns true) OK");

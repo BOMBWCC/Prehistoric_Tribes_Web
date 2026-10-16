@@ -55,7 +55,6 @@ import { LegacyOffscreenTargets } from "./LegacyOffscreenTargets";
 import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
 import { drawLegacy1137Composition } from "./Legacy1137Composition";
 import { ZH_LANGUAGE, ZH_LANGUAGE_NAME, ZhPainter, ZhStrings, paintZhLine, tokenizeZh, tokensWidth, wrapZh, type ZhPaint, type ZhToken, type ZhTranslationFile } from "./LegacyZhText";
-import { projectLegacyImageHelper } from "./LegacyImageHelperProjection";
 import { prepareLegacyImageHelperInvocation } from "./LegacyImageHelperInvocation";
 import { drawLegacyFrameCommand } from "./LegacyFrameCommandDraw";
 import { stepLegacyFrameCommandChanged, type LegacyZAdChangeState } from "./LegacyFrameCommandChanged";
@@ -3363,9 +3362,9 @@ export class LegacyRuntimeState {
       shortOffsets: this.packedOffsets,
       shortTables: this.packedData.shortTables,
       byteTables: this.packedData.byteTables,
-      groupSelectors: this.mainArrays.gBytes,
+      groupSelectors: this.entityMarkerG,
       ah: 0,
-      ai: this.game.projectionAi,
+      ai: this.game.aiScratch,
       I: this.game.IByte,
       K: this.game.KByte,
       S,
@@ -3381,67 +3380,53 @@ export class LegacyRuntimeState {
       graphics,
     });
     this.frameProjections.length = 0;
-    projectLegacyImageHelper({
-      recordBase: invocation.recordBase,
-      recordCount: invocation.recordCount,
-      argument1: invocation.marker,
-      argument2: invocation.argument2,
-      argument3: invocation.argument3,
-      initialU: 0,
-      originX: invocation.originX,
-      originY: invocation.originY,
+    // a(IBBIIB) (#442) -- the same method the map markers use, through the same port. CORRECTED
+    // 2026-10-16 (pixel comparison, title-screen scenery): this path had its own copy of #442
+    // (LegacyImageHelperProjection.ts) that still recomputed the animation phase from f:I per record
+    // and kept g/h/i in a second set of arrays, so the menu's smoke and water ran out of phase.
+    stepLegacyMapMarkerDetail(
+      invocation.marker,
+      invocation.argument2,
+      invocation.argument3,
+      invocation.originX,
+      invocation.originY,
       mode,
-      shortTables: this.packedData.shortTables,
-      byteTables: this.packedData.byteTables,
-      groupSelectors: this.mainArrays.gBytes,
-      eBytes: this.denseState,
-      hFlags: this.mainArrays.hBytes,
-      groupFlags: this.mainArrays.iBytes,
-      aBytes: this.packedBytes,
-      aShorts: this.packedOffsets,
-      stateV: this.game.vByte,
-      fieldF: this.game.fCounter,
-      fieldK: this.game.KByte,
-      ai: this.game.projectionAi,
-      // x:Z (#383), offset 1492. Wired 2026-09-28.
-      onStateX: () => { this.game.xZFlag = true; },
-      onComposite: (record, x, y) => packed.drawComposite(record, x, y),
-      onProjection: (record, x, y, extra) => {
-        this.frameProjections.push([record, x, y, extra]);
-        const data = this.packedData;
-        if (!data) return;
-        const wrapped = data.shortTables[5]?.[record] ?? 0;
-        const divisor = data.byteTables[9]?.[record] ?? 0;
-        const index = divisor === 0 ? wrapped : wrapped + (extra % divisor);
-        const drawRecord = data.shortTables[6]?.[index] ?? 0;
-        const drawX = x + (data.byteTables[10]?.[index] ?? 0);
-        const drawY = y + (data.byteTables[11]?.[index] ?? 0);
-        packed.drawComposite(drawRecord, drawX, drawY);
+      {
+        phase: this.game.fCounter,
+        N: invocation.recordBase,
+        O: invocation.recordCount,
+        qByte: this.game.qByte,
+        vByte: this.game.vByte,
+        ai: this.game.aiScratch,
+        originRow: this.game.KByte,
+        dense: this.denseState,
+        packedBytes: this.packedBytes,
+        packedOffsets: this.packedOffsets,
+        shortTables: this.packedData.shortTables,
+        byteTables: this.packedData.byteTables,
+        entityMarkerG: this.entityMarkerG,
+        entityMarkerH: this.entityMarkerH,
+        entityMarkerI: this.entityMarkerI,
+        statScratch: this.mainArrays.aShort,
       },
-      onStatefulProjection: (record, x, y, extra, kind) => {
-        this.game.projectionAq = record;
-        this.game.projectionAr = x;
-        this.game.projectionAs = y;
-        this.game.projectionAt = extra;
-        this.game.projectionY = kind;
-        // The call itself: a(IIIIB) (#443), whose p() draws the sprite and writes ao/ap/au/...
-        // Added 2026-10-09 (oracle menu run: f.ao/f.ap stayed 0 on the title screen).
-        this.stepEntityAction(record, x, y, extra, kind);
-        this.frameHelperCalls.push({
-          kind: "stateful-projection",
-          record,
-          x,
-          y,
-          extra,
-          mode: kind,
-        });
+      {
+        onX: (value) => { this.game.XByte = value; },
+        onComposite: (record, x, y) => packed.drawComposite(record, x, y),
+        onSpriteDraw: (record, x, y, phase) => {
+          this.frameProjections.push([record, x, y, phase]);
+          this.stepZSubrecordDraw(record, x, y, phase, {
+            onSpriteRecord: (spriteRecord, drawX, drawY) => packed.drawComposite(spriteRecord, drawX, drawY),
+          });
+        },
+        onEntityAction: (id, x, y, arg4, arg5) => this.stepEntityAction(id, x, y, arg4, arg5),
+        onXFlag: () => { this.game.xZFlag = true; },
       },
-    });
-    // f.a(IBBIIB) clears g/h/i[0..7] after the normal projection loop.
+    );
+    // f.a(int,byte) offsets 1158..1202 clear g/h/i[0..7] after the detail draw.
     for (let index = 0; index < 8; index += 1) {
-      this.mainArrays.gBytes[index] = 0;
-      this.mainArrays.hBytes[index] = 0;
-      this.mainArrays.iBytes[index] = 0;
+      this.entityMarkerG[index] = 0;
+      this.entityMarkerH[index] = 0;
+      this.entityMarkerI[index] = 0;
     }
   }
 
@@ -4037,8 +4022,8 @@ export class LegacyRuntimeState {
                     // private boolean b(int,int) (#347): a worker's record skills, wired 2026-09-15.
                     onCheckSlotProgress: (kind, level) => this.gainEntitySlotSkills(id, kind, level),
                     // private void j(int) (#394), wired 2026-09-21 --
-                    // LegacyEntityOccupantCare.ts. i():Z calls it with 1 (the
-                    // healing branch) when the unit's mode is 117.
+                    // LegacyEntityOccupantCare.ts. i():Z calls it with 0 (the
+                    // rest branch) when the unit's mode is 117.
                     onJInt: (arg) => stepLegacyEntityOccupantCare({
                       state: this.denseState,
                       v: id,
@@ -6680,7 +6665,7 @@ export class LegacyRuntimeState {
           gBase: g.subsystemGBase,
           gridC: this.gridC,
           sceneQ: g.qByte,
-          fBByte: g.subsystemFBByte,
+          fBByte: g.levelBByte,
           simulationCounter: g.c,
           saveOffsets: this.saveOffsets,
           // b.x:I (#230) / b.w:I (#228) -- cross-method scratch fields, not
@@ -6741,7 +6726,7 @@ export class LegacyRuntimeState {
           oByte: g.subsystemOByte,
           gByte: this.subsystemArrays.bgByte,
           sceneQ: g.qByte,
-          fBByte: g.subsystemFBByte,
+          fBByte: g.levelBByte,
           simulationCounter: g.c,
           fields: liveView<{ x: number; y: number; z: number; aU: number; v: number }>(g, {
             x: "subsystemX", y: "subsystemY", z: "subsystemEntityZ", aU: "subsystemAU", v: "subsystemV",
@@ -6793,7 +6778,7 @@ export class LegacyRuntimeState {
           fByte: g.subsystemGFFlagByte,
           mByte: g.subsystemM,
           sceneQ: g.qByte,
-          fBByte: g.subsystemFBByte,
+          fBByte: g.levelBByte,
           simulationCounter: g.c,
           fields: liveView<{ O: number; aR: number; v: number; w: number; Q: number }>(g, { O: "subsystemOByte", aR: "subsystemAR", v: "subsystemV", w: "subsystemW", Q: "subsystemBQByte" }),
         },

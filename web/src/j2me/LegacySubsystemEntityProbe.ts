@@ -38,7 +38,10 @@
  *  5. offset 192..195 (the only remaining path): calls `private void J()`
  *     (#246, `onJ`) unconditionally -- `subsystemEntityJTrigger`.
  *  6. offset 196..218: if `mode===117` (re-read of `dense[2929+id]`), calls
- *     `private void j(int)` (#394, `onJInt`) with `1`.
+ *     `private void j(int)` (#394, `onJInt`) with `0` (offset 215 `iconst_0`: the
+ *     rest branch, everyone else on the record recovers). CORRECTED 2026-10-16
+ *     (oracle, custom-mode script, frame 64090): this passed 1, the healing branch,
+ *     which turned a healed occupant out of its building a frame early.
  *  7. offset 219..441 (`dense[4646+id]>=0`) vs 442..594 (else): mirrors the
  *     shape of `j()`'s own offset 215..703 block (same field offsets --
  *     4646/8749/4444/8627/8810/9115/48/45/46/47/64 -- reused inline code,
@@ -219,7 +222,7 @@ export function stepLegacySubsystemEntityProbe(input: LegacySubsystemEntityProbe
   input.onJ?.();
 
   if ((state[2929 + id] ?? 0) === 117) {
-    input.onJInt?.(1);
+    input.onJInt?.(0);
   }
 
   const assoc = state[4444 + id] ?? 0;

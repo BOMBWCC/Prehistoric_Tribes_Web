@@ -101,7 +101,9 @@ function freshRt() {
   // still read timingCounterE -- both are confirmed correct as-is.
   const usingFCounter = phaseLines.filter((line) => line.includes("this.game.fCounter"));
   const usingTimingCounterE = phaseLines.filter((line) => line.includes("this.game.timingCounterE"));
-  assert.equal(usingFCounter.length, 3, `expected 3 phase lines reading game.fCounter, found ${usingFCounter.length}: ${JSON.stringify(usingFCounter)}`);
+  // A fourth since 2026-10-16: drawImageHelper's a(IBBIIB) call (the 1118 helper) now goes through
+  // stepLegacyMapMarkerDetail too, with the same f:I phase.
+  assert.equal(usingFCounter.length, 4, `expected 4 phase lines reading game.fCounter, found ${usingFCounter.length}: ${JSON.stringify(usingFCounter)}`);
   assert.equal(usingTimingCounterE.length, 2, `expected 2 phase lines reading game.timingCounterE (1137 composition + negative-branch cell body), found ${usingTimingCounterE.length}: ${JSON.stringify(usingTimingCounterE)}`);
 }
 

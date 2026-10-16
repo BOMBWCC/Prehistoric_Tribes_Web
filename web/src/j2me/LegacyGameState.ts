@@ -285,7 +285,13 @@ export class LegacyGameState {
   /** Raw f.am() selector fields (#103/#372/#112); kept separate from timing flags. */
   actionT = 0;
   // actionUCounter (f.u:B #372) merged into the top-level `uByte` field 2026-08-20.
-  actionWFlag = true;
+  /**
+   * f.W:Z (#112): a saved custom game exists. Java's default false -- the constructor never sets it;
+   * d(int) reads it from the store and e(int) sets it when a custom game is saved. CORRECTED
+   * 2026-10-15 (oracle, custom-mode script): it started true, so a fresh install could enter CUSTOM
+   * GAME, where the original says PASS THE TUTORIAL FIRST! (f.aw() -> Q 21).
+   */
+  actionWFlag = false;
   // placementAsByte (a never-written copy of f.as:B #219) merged into frameLayoutAS 2026-09-15.
   /** Raw f.b byte copied into aP() create-record coordinates. */
   levelBByte = 0;
@@ -985,15 +991,9 @@ export class LegacyGameState {
   // b.aQ:I (#92) is subsystemArrays.bAQ (merged 2026-10-02).
   /** b.G:I (#19) -- at()'s territory-bounding-box table base; b.a() sets it to a:[S][219] + f.q:B*4. */
   subsystemGBase = 0;
-  /**
-   * f.b:B (#138) -- read by aq()/as()/at()/av() alongside f.q everywhere.
-   * NOT yet cross-verified against `subsystemModeByte` (a same-shaped,
-   * undocumented existing field this project hasn't confirmed is the same
-   * constant-pool index) -- kept separate rather than risk a wrong reuse,
-   * matching this project's convention for same-shaped-but-unconfirmed
-   * fields (see `subsystemY`'s own docblock for the same caution).
-   */
-  subsystemFBByte = 0;
+  // f.b:B as class b reads it (b's constant #138) is f.b:B #243 -- game.levelBByte. A twin
+  // `subsystemFBByte` stayed 0 while at() wrote the difficulty into levelBByte, so HARD spawned
+  // EASY enemies. MERGED 2026-10-16 (oracle, custom-mode HARD script, frame 57600).
   /** b.aR:I (#93) -- as()'s snapshot of aQ for av(), and aw()'s time-budget check. */
   subsystemAR = 0;
   /** b.P:B (#43) -- ar()'s own queued placement candidate row, or -1. */
@@ -1160,8 +1160,8 @@ export class LegacyGameState {
   projectionAx = 0;
   projectionAy = 0;
   projectionAz = 0;
-  /** f.ai used by the raw image-helper call; constructor default is 0. */
-  projectionAi = 0;
+  // f.ai:I (#199) is aiScratch. A never-written twin `projectionAi` fed the 1118 helper until
+  // 2026-10-16, so the title-screen scenery ran out of phase after a game had moved ai.
   /** Reads byte[shortTable[shortOffset] + add], preserving the original indirection. */
   resourceByte?: (shortOffset: number, add: number) => number;
 

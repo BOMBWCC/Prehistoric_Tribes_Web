@@ -310,6 +310,10 @@ export class LegacySubsystemArrays {
     this.dShort.fill(-1);
     // b.a() never writes the route scratch f:[B; its offset-7 `f:B` (#167) is
     // game.subsystemGFFlagByte. REMOVED 2026-10-12 (oracle run 12, play7 frame 21693).
+    // Offsets 243..280 do clear the sites table f:[[B (#168) row 0, fRows[0][0..9]. ADDED
+    // 2026-10-16 (oracle, custom-mode script, frame 62600): an unfinished site of the previous game
+    // stayed listed in the next one.
+    this.fRows[0].fill(0);
     this.gRows[0].fill(0);
     this.j.set(Int8Array.from({ length: 50 }, (_, index) => index));
   }

@@ -6,10 +6,8 @@
  * to be established from its readers and writers.
  */
 export class LegacyMainArrays {
-  /** f.g/h/i: the three scalar 11-byte projection/group state arrays. */
-  readonly gBytes = new Int8Array(11);
-  readonly hBytes = new Int8Array(11);
-  readonly iBytes = new Int8Array(11);
+  // f.g/h/i:[B are LegacyRuntimeState.entityMarkerG/H/I; a second copy here served the 1118
+  // helper until 2026-10-16.
 
   /** byte[P + 3][O] with P=18 and O=11. */
   readonly g = byteMatrix(21, 11);

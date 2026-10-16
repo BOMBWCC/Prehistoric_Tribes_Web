@@ -24,8 +24,9 @@
  * #266 and `i()`'s meal branch use), so it is threaded through explicitly
  * rather than kept local.
  *
- * Both call sites pass a constant: `i():Z` (offset 595) calls `j(1)` when the
- * unit's mode is 117 -- the healing branch -- and `K()` calls `j(0)`.
+ * Both call sites pass a constant: `i():Z` (offset 216) calls `j(0)` when the unit's mode is
+ * 117, and `j():Z` (offset 123) calls `j(1)` -- the healing branch -- for a type-55 unit.
+ * (Corrected 2026-10-16; this said i():Z passed 1 and K() passed 0.)
  */
 export type LegacyEntityOccupantCareInput = {
   readonly state: Int8Array;

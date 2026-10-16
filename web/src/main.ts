@@ -189,8 +189,10 @@ async function boot(): Promise<void> {
   bootStatus = "running";
   refreshDebugOverlay();
   // Keys pressed during the splash and loading never reached the original's canvas; dropping them
-  // keeps a press meant to skip the logos from confirming Q14's first language (2026-10-15).
+  // keeps a press meant to skip the logos from confirming Q14's first language (2026-10-15). The
+  // same goes for a tap: the touch layer queued it as FIRE (2026-10-16, user: no Chinese option).
   keys.endTick();
+  touch.cancel();
   loop.start();
 }
 
@@ -291,6 +293,7 @@ async function debugBootWithoutSplash(): Promise<void> {
     .loadProgressFromStore()
     .loadOriginalStartupStores()
     .initializeOriginalLoop();
+  touch.cancel();
   bootStatus = "debug: running (no rAF loop; use __prehistoricDebugTick/__prehistoricDebugRender)";
   refreshDebugOverlay();
 }
