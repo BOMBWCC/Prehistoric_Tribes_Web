@@ -18,7 +18,7 @@ const { stepLegacyGameplayTick } = loadModule(new URL("../src/j2me/LegacyGamepla
 const game = new LegacyGameState();
 game.vByte = 1;
 game.iByte = 0;
-game.frameFlags[4] = true;
+game.selectionFlags[4] = true; // f.a:[Z (#123), not f.b:[Z (frameFlags)
 game.resourceByte = (offset, add) =>
   offset === 296 ? 3 : offset === 298 ? 7 : offset === 306 ? 2 : offset === 305 && add === 2 ? 9 : 0;
 const calls = [];
@@ -30,6 +30,16 @@ assert.equal(game.entityJ, 113);
 assert.equal(game.Q, 25);
 assert.equal(game.R, 28);
 assert.deepEqual(calls, [["load", 9]]);
+
+// a[6]/a[7]/a[8] (or w == 3) skip the whole help page (offsets 126..153 jump to 385).
+{
+  const blocked = new LegacyGameState();
+  blocked.vByte = 1; blocked.iByte = 0; blocked.Q = 28; blocked.selectionFlags[7] = true;
+  stepLegacyGameplayTick(blocked, { loadMode: () => { throw new Error("must not load"); } });
+  assert.equal(blocked.iByte, -1);
+  assert.equal(blocked.vByte, 1);
+  assert.equal(blocked.Q, 28);
+}
 
 const counters = new LegacyGameState();
 for (let i = 0; i < 8; i += 1) stepLegacyGameplayTick(counters);

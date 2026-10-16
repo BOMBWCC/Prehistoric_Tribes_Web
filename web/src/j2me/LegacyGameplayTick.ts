@@ -26,6 +26,11 @@ export type LegacyGameplayTickCallbacks = {
   readonly onStateMachine?: () => void;
   readonly onFrameUpdate?: () => void;
   readonly onFlushPending?: () => void;
+  /**
+   * o:Z (#347) = false, at h() offsets 92 (v == 0), 366 (after ae()) and 378 (after V()). o:Z is
+   * the key repeat-guard keyPressed sets; it lives in LegacyInputState (rawState.oGuard).
+   */
+  readonly onClearO?: () => void;
 };
 
 /**
@@ -51,43 +56,43 @@ export function stepLegacyGameplayTick(
 
   if (game.vByte === 0) {
     callbacks.onStateMachine?.();
-    game.oFlag = false;
+    callbacks.onClearO?.();
   } else if (game.vByte === 1) {
     if (game.iByte === 0) {
+      // Offsets 107..341: the '0' key opens the help page for the current panel. The flags are
+      // f.a:[Z (#123, selectionFlags), and w == 3 or a[6]/a[7]/a[8] skips the whole page (goto 385).
+      // CORRECTED 2026-10-16 (oracle, '0' with a unit selected): this read f.b:[Z (frameFlags) and
+      // only skipped the m:B choice, so the page opened with the wrong topic and moved the view.
       game.iByte = -1;
-      if (
-        game.wByte !== 3 &&
-        !game.frameFlags[6] &&
-        !game.frameFlags[8] &&
-        !game.frameFlags[7]
-      ) {
-        if (game.frameFlags[0]) {
+      const a = game.selectionFlags;
+      if (game.wByte !== 3 && !a[6] && !a[8] && !a[7]) {
+        if (a[0]) {
           game.mByte = 0;
-        } else if (game.frameFlags[4]) {
+        } else if (a[4]) {
           game.mByte = 1;
           if (game.resourceByte?.(296, game.subsystemGByte) === 3) {
             game.entityJ = (120 - (game.resourceByte?.(298, game.subsystemGByte) ?? 0)) | 0;
           }
         }
+        game.vByte = 0;
+        const modeIndex = game.resourceByte?.(306, game.mByte) ?? 0;
+        callbacks.loadMode?.(game.resourceByte?.(305, modeIndex) ?? 0);
+        game.Q = 25;
+        game.R = 28;
+        game.Z = 0;
+        game.H = true;
+        game.zByte = game.yByte;
+        game.BByte = game.AByte;
+        game.JByte = game.IByte;
+        game.cameraSavedKByte = game.KByte; // L:B (#72)
       }
-      game.vByte = 0;
-      const modeIndex = game.resourceByte?.(306, game.mByte) ?? 0;
-      callbacks.loadMode?.(game.resourceByte?.(305, modeIndex) ?? 0);
-      game.Q = 25;
-      game.R = 28;
-      game.Z = 0;
-      game.H = true;
-      game.zByte = game.yByte;
-      game.BByte = game.AByte;
-      game.JByte = game.IByte;
-      game.cameraSavedKByte = game.KByte; // L:B (#72)
     } else {
       if (game.wByte === 2 || game.wByte === 4) callbacks.onAe?.();
       else {
         callbacks.onV?.();
         callbacks.onK?.();
       }
-      game.oFlag = false;
+      callbacks.onClearO?.();
     }
 
     if (game.vByte === 1) {

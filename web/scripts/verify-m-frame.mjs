@@ -12,9 +12,10 @@ vm.runInNewContext(ts.transpileModule(source, {
 const { stepLegacyMFrame } = module.exports;
 
 const commands = [];
-const state = { H: true, I: false, m: 3, flags: [], d: [], a: new Int16Array(196) };
+const state = { H: true, I: false, m: 3, flags: [], d: [], a: new Int16Array(196), bytes: new Int8Array(10) };
 state.a[195] = 4;
-state.d[6] = 271;
+state.bytes[6] = 9; // a:[B[a:[S[195] + 2]] picks the f.d:[I index
+state.d[9] = 271;
 let oCalls = 0;
 stepLegacyMFrame({ state, emit: (command) => commands.push(command), onO: () => { oCalls += 1; } });
 assert.equal(state.H, false);
@@ -29,7 +30,7 @@ assert.deepEqual(JSON.parse(JSON.stringify(commands)), [
   { kind: "primitive", index: 17, x: 0, y: 320 },
 ]);
 
-const second = { H: true, I: true, m: 0, flags: [], d: [], a: new Int16Array(196) };
+const second = { H: true, I: true, m: 0, flags: [], d: [], a: new Int16Array(196), bytes: new Int8Array(4) };
 const secondCommands = [];
 stepLegacyMFrame({ state: second, emit: (command) => secondCommands.push(command), onO: () => { throw new Error("O must be skipped when I is true"); } });
 assert.equal(secondCommands[0].kind, "drawRegion");

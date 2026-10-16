@@ -111,9 +111,18 @@ export class LegacyInputState {
     }
   }
 
+  /**
+   * o:Z (#347) = false. Only h() clears it (LegacyGameplayTick's onClearO); until 2026-10-16 every
+   * tick did, so after the '0' help key (whose h() branch leaves it set) the next key went through
+   * where the original drops it, and a release could not set p:Z (oracle, frame 24035).
+   */
+  clearRepeatGuard(): void {
+    this.repeatGuard = false;
+    this.rawState.oGuard = false;
+  }
+
   endTick(): void {
     const deferred = this.pendingRelease || this.rawState.pendingRelease;
-    this.rawState.oGuard = false;
     // The real reset-on-deferred-release effect now lives entirely in
     // `game.pFlag` (set via onPendingRelease, consumed by
     // stepLegacyGameplayTick on the next tick) -- this only keeps the

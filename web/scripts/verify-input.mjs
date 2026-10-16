@@ -23,14 +23,23 @@ input.press(OriginalKey.FIRE);
 if (!input.fireHeld || !input.specialMode || input.repeatCounter !== 1) throw new Error("Fire press mismatch");
 input.release(OriginalKey.FIRE);
 if (input.specialMode || !input.pendingRelease || !input.fireHeld) throw new Error("Fire release mismatch");
+input.clearRepeatGuard(); // h() clears o:Z (it no longer clears itself at endTick)
 input.endTick();
 if (input.fireHeld || input.pendingRelease) throw new Error("Deferred FIRE reset mismatch");
 input.press(OriginalKey.UP);
 if (!input.actionUp || selected.at(-1) !== 50) throw new Error("Up mapping mismatch");
 input.release(OriginalKey.UP);
 if (!input.actionUp || released.includes(50)) throw new Error("Guarded direction release must remain pending");
+input.clearRepeatGuard();
 input.endTick();
 if (input.actionUp || input.pendingRelease) throw new Error("Deferred direction reset mismatch");
+// Without h() clearing o:Z (e.g. the frame the '0' help key opens its page), the next press is dropped.
+input.press(OriginalKey.LEFT);
+input.release(OriginalKey.LEFT);
+input.endTick();
+if (input.repeatGuard !== true) throw new Error("o:Z must stay set until h() clears it");
+input.press(OriginalKey.RIGHT);
+if (input.actionRight) throw new Error("a press while o:Z is set must be dropped");
 
 // Browser keyboard (2026-10-15, the user's layout): WASD and arrows move, Enter/Space confirm,
 // Q is the left soft key, Esc/Backspace the right one (back/cancel), M the minimap key '3'.

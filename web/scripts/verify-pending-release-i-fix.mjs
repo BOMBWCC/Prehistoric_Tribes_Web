@@ -82,7 +82,8 @@ const { OriginalKey } = loadModule("./Input", srcDir);
   // A normal (non-deferred) release must NOT set pFlag.
   const rt = new LegacyRuntimeState();
   rt.input.press(OriginalKey.UP);
-  rt.input.endTick(); // clears the repeat-guard, as f.h() does every real tick
+  rt.input.clearRepeatGuard(); // f.h() clears o:Z (offsets 92/366/378)
+  rt.input.endTick();
   rt.input.release(OriginalKey.UP);
   assert.equal(rt.game.pFlag, false);
   assert.equal(rt.game.inputUp, false);

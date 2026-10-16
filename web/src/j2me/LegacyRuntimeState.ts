@@ -427,8 +427,9 @@ export class LegacyRuntimeState {
     I: false,
     m: 0,
     flags: this.game.frameFlags,
-    d: Array.from({ length: 600 }, () => 0),
+    d: this.game.oElementRecordInts,
     a: new Int16Array(312),
+    bytes: new Int8Array(0),
   };
   readonly framePrimitives: Array<readonly [number, number, number]> = [];
   readonly frameProjections: Array<readonly [number, number, number, number]> = [];
@@ -1919,6 +1920,7 @@ export class LegacyRuntimeState {
       // clobbered m:B and never set Y:I.
       loadMode: (mode) => this.stepLegacyL(mode),
       onI: () => resetLegacyZI(this.game),
+      onClearO: () => this.input.clearRepeatGuard(),
       // f.h() owns the v==0 -> f.ak() dispatch in the original run loop.
       // Keep it inside this tick so timing counters and state transitions have
       // the same caller boundary in menu and gameplay states.
@@ -8631,6 +8633,7 @@ export class LegacyRuntimeState {
         });
       } else if (handler === "M") {
         this.mFrameState.a = this.packedOffsets;
+        this.mFrameState.bytes = this.packedBytes;
         this.mFrameState.H = this.game.H;
         this.mFrameState.I = this.game.I;
         this.mFrameState.m = this.game.mByte;

@@ -654,7 +654,6 @@ export class LegacyGameState {
   projectionT = 0;
   gCounter = 0;
   nFlag = false;
-  oFlag = false;
   /** f.K:Z (#69) -- chief-pick mode: set by b.t(), cleared by af() once a unit is picked (and by aM()). */
   kFlag = false;
   /**
@@ -665,7 +664,7 @@ export class LegacyGameState {
   kResetFlag = false;
   /**
    * f.p:Z (#351) -- keyReleased(int)'s deferred-release flag, set when a
-   * release lands while the repeat-guard (`o:Z`/`oFlag`) is still held
+   * release lands while the repeat-guard (`o:Z`, LegacyInputState's oGuard) is still held
    * (offset 226..230). CORRECTION (2026-08-22): set via
    * `LegacyInputState`'s `onPendingRelease` hook now (was never written by
    * anything); consumed the same tick-boundary way as always by
