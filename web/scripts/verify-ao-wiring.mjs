@@ -295,8 +295,9 @@ function freshRuntime() {
   rt.stepDefaultAo();
   assert.deepEqual(calls, []);
   const base = 200 + 0 + 1;
-  assert.equal(rt.packedBytes[base + 17 + 2], 19); // 17 + eByte/2
-  assert.equal(rt.packedBytes[base + 3 + 17 + 1], 18); // 17 + lInt
+  // Offsets 796..877: row base (MUSIC) gets 17 + e/2, row base + 2 (HINTS) gets 17 + l.
+  assert.equal(rt.packedBytes[base], 19); // 17 + eByte/2
+  assert.equal(rt.packedBytes[base + 2], 18); // 17 + lInt
 }
 
 // value===7 (onA0 -> stepLegacyAA, constant-pool #482, real name "aA()" --

@@ -3187,13 +3187,13 @@ export class LegacyRuntimeState {
    * wired below: `local5` (an armed/occupied-slot count for the selected
    * formation, `g.FByte`) is already computed earlier in this method, so
    * it has no further dependency. The `cACInt`/`f.aC:I`(#151) branch
-   * remains a documented no-op: its real producer is a DIFFERENT,
-   * currently-unported method, `private boolean a()`
+   * draws the box count: its producer is a DIFFERENT,
+   * method, `private boolean a()`
    * (`bytecode/f-javap.txt` offsets 0..275, starting at that file's line
    * 5394 -- not `p()`, an earlier misattribution caught while re-deriving
    * this), which scans the camera-visible `gridC` cells for a per-type
-   * gate (`e[1919+cellType]>0`) and also sets `ax:I`; a real future
-   * candidate of its own, not folded into this fix. The `a(1000+s+1,2)`
+   * gate (`e[1919+cellType]>0`) and also sets `ax:I` (since ported in
+   * LegacySpriteLayerPredicates.ts); the branch is wired since 2026-10-16. The `a(1000+s+1,2)`
    * building ghost (offset 518) is wired since 2026-10-01 through
    * `drawImageHelper`: its >= 1000 arm takes its origin from S:I/T:I, not
    * ah/ai, so the earlier objection did not apply.
@@ -3305,8 +3305,16 @@ export class LegacyRuntimeState {
           this.geometry.reset();
         }
       }
-      // cACInt-gated numeric overlay -- still deferred, see docblock above:
-      // its producer is a distinct, not-yet-ported method.
+      // Offsets 662..721: the same overlay with aC:I, the unit count f.a()Z leaves for the box
+      // being dragged (the "2" next to the cursor). Unwired until 2026-10-16 (screenshot diff).
+      if (g.cACInt > 0) {
+        const graphics = this.offscreenTargets?.graphics[this.game.targetSlot];
+        if (graphics) {
+          this.geometry.queueTextWithWidth(arg1 + 22, arg2 + 8, 0, String(g.cACInt), 1);
+          this.geometryRenderer.renderTo(graphics, this.imageGroups[0]!);
+          this.geometry.reset();
+        }
+      }
 
       if (g.wByte === 3) {
         if (g.cSInt < 0) {
@@ -7523,7 +7531,7 @@ export class LegacyRuntimeState {
   }
 
   /** Exact b.j() post-load counter/table reconstruction. */
-  runSubsystemJ(q = this.game.qByte): void {
+  runSubsystemJ(q = this.game.qByte, c = this.game.c): void {
     const table113 = this.packedOffsets[113] + (q < 4 ? 0 : q === 4 ? 12 : 24);
     for (let index = 0; index < 12; index += 1) {
       this.mainArrays.f[index] = this.packedBytes[table113 + index] ?? 0;
@@ -7536,7 +7544,7 @@ export class LegacyRuntimeState {
     const end = this.packedBytes[rangeBase + 1] ?? cursor;
     while (cursor < end) {
       const threshold = this.packedBytes[this.packedOffsets[299] + cursor] ?? 0;
-      if (this.game.c >= threshold * 100) {
+      if (c >= threshold * 100) {
         const index = this.packedBytes[this.packedOffsets[300] + cursor] ?? -1;
         if (index >= 0 && index < this.mainArrays.f.length) {
           this.mainArrays.f[index] = (this.mainArrays.f[index] + 1) & 0xff;
@@ -9006,15 +9014,14 @@ export class LegacyRuntimeState {
           state,
           packedBytes: this.packedBytes,
           packedOffsets: this.packedOffsets,
-          // f.as()'s `f.a:La;` (#148) is a lazily-constructed MIDI Player
-          // wrapper (class `a`, `new a("/s"+track+"audio/midi")`) -- a
-          // genuinely separate, unported audio-playback path from the
-          // already-ported f.aQ()/startOriginalAudio() track player.
-          // onAudio/onAudioStop stay unwired: Q=12 never appears in the
-          // confirmed real device Q sequence (see reverse-engineering/
-          // main-menu-cutscene-walkthrough.md §13), so this stays a
-          // documented, off-critical-path gap rather than invented audio
-          // plumbing. See docs/unknowns.md 2026-08-31 entry.
+          // f.as() offsets 66..84: with a player (f.a:La; #148, created by aQ() and cleared by aR(),
+          // i.e. game.playerExists) the toggle only calls a.a(e): e == 0 stops it, otherwise it
+          // restarts and sets the volume. Only without one does it run aR() + aQ(), whose track
+          // pick uses the RNG. CORRECTED 2026-10-16 (oracle, options screen, frame 12253): the
+          // player branch was unwired, so every MUSIC toggle re-rolled a track.
+          onAudio: this.game.playerExists
+            ? (value) => { if (value === 0) this.midiPlayer?.stop(); else this.midiPlayer?.start(); }
+            : undefined,
           onAQ: () => this.startOriginalAudio(),
         });
         this.aoState.Z = state.Z;
@@ -9991,6 +9998,12 @@ export class LegacyRuntimeState {
         this.game.subsystemOByte = -1;
         this.game.subsystemAR = -1;
         this.game.subsystemP = -1;
+        // b.a() offset 361: j() fills f.f:[B, the per-kind max level f.ac() offers UPGRADE below.
+        // Missing until 2026-10-16 (oracle, f.f set at frame 95): it stayed 0 in a new game, so no
+        // building ever showed UPGRADE until a save was loaded. aM() has already zeroed f.c
+        // (state.cInt, written back to game.c only afterwards); with the old count the q=2 time
+        // unlocks fired on a map reload (play26 frame 72053).
+        this.runSubsystemJ(q, state.cInt);
         // b.a() offsets 364..383, its last write: G:I = a:[S][219] + f.q:B*4.
         // Missing until 2026-10-08 (oracle), so at()'s table base stayed 0.
         this.game.subsystemGBase = (this.packedOffsets[219] ?? 0) + q * 4; // b.a:[S] is f.a:[S] (packedOffsets)

@@ -362,9 +362,12 @@ export function stepLegacyAo(input: LegacyAoInput): void {
     input.onCByte?.(74);
   } else if (value === 2) {
     state.R = state.Q; state.Q = 12; state.aaInt = state.Z; state.Z = 1;
+    // Offsets 796..877: row 1 (MUSIC) gets 17 + e/2 and row 3 (HINTS) 17 + l -- the values are the
+    // text records, not part of the index. CORRECTED 2026-10-16 (pixel comparison, options screen):
+    // the values were added to the indices, so both rows always showed the default OFF.
     const base = packedOffsets[151] + packedBytes[packedOffsets[152] + 12] + 1;
-    const firstIndex = base + 17 + Math.trunc(state.eByte / 2);
-    const secondIndex = base + 3 + 17 + state.lInt;
+    const firstIndex = base;
+    const secondIndex = base + 2;
     input.onResourceByte?.(firstIndex, toByte(17 + Math.trunc(state.eByte / 2)));
     input.onResourceByte?.(secondIndex, toByte(17 + state.lInt));
   } else if (value === 4) {
@@ -595,13 +598,14 @@ export function stepLegacyAs(input: LegacyAsInput): void {
   const base = packedOffsets[151] + packedBytes[packedOffsets[152] + 12] + 1;
   if (state.Z === 1) {
     state.eByte = state.eByte === 0 ? 2 : 0;
-    const index = base + 17 + Math.trunc(state.eByte / 2);
-    packedBytes[index] = toByte(17 + Math.trunc(state.eByte / 2));
+    // Offsets 24..65 / 118..157: the option rows are base (MUSIC) and base + 2 (HINTS); 17 + value
+    // is what is stored, not an index offset (corrected 2026-10-16, see ao()'s option branch).
+    packedBytes[base] = toByte(17 + Math.trunc(state.eByte / 2));
     if (input.onAudio) input.onAudio(state.eByte);
     else { input.onAudioStop?.(); input.onAQ?.(); }
   } else if (state.Z === 3) {
     state.lInt = state.lInt === 0 ? 1 : 0;
-    packedBytes[base + 3 + 17 + state.lInt] = toByte(17 + state.lInt);
+    packedBytes[base + 2] = toByte(17 + state.lInt);
   }
 }
 

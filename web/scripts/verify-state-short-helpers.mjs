@@ -27,7 +27,8 @@ assert.deepEqual(ar, { ...ar, T: 0, Q: 22, vInt: 69, R: 29 });
 
 const as = { Z: 1, eByte: 0, lInt: 0 };
 stepLegacyAs({ state: as, packedBytes: bytes, packedOffsets: offsets });
-assert.equal(as.eByte, 2); assert.equal(bytes[200 + 0 + 1 + 17 + 1], 18);
+// Offsets 24..65: the MUSIC row (a[151] + a[a[152] + 12] + 1) gets 17 + e/2.
+assert.equal(as.eByte, 2); assert.equal(bytes[200 + 0 + 1], 18);
 
 const at = { Z: 6, b: 0, c: 0, q: 2, Q: 4, d: 0, r: 0, V: 8, vInt: 0, pByte: 1, s: 4, R: 0, H: false };
 stepLegacyAt({ state: at });

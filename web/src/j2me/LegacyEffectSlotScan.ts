@@ -117,9 +117,11 @@ export function stepLegacyEffectSlotScan(
     if (timer < 20) {
       // Bytecode offsets 189..286: still animating -- step through the
       // sprite's footprint in 2-tile strides and draw record 74 wherever
-      // it's currently within the viewport.
+      // it's currently within the viewport. Rows run to height inclusive (offset 198), columns
+      // stop before width (offset 208). CORRECTED 2026-10-16 (pixel comparison, a demolished hut):
+      // the column loop was inclusive too, drawing an extra column of dust on the right.
       for (let row = 0; row <= height; row += 2) {
-        for (let col = 0; col <= width; col += 2) {
+        for (let col = 0; col < width; col += 2) {
           if (withinViewport(x + col, y + row)) {
             const phase = 4 * col + 2 * row + timer - 1;
             callbacks.onSpriteDraw?.(

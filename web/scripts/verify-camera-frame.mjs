@@ -51,7 +51,7 @@ function mockGraphics() {
   assert.deepEqual(graphics.calls, [
     ["setColor", 0],
     ["drawRect", 452, 249, 1562, 976],
-    ["setColor", 0x10dee4],
+    ["setColor", 0x10dd64],
     ["drawRect", 451, 248, 1562, 976],
   ]);
 }

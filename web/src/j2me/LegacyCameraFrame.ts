@@ -7,7 +7,7 @@ import type { Graphics } from "./Graphics";
  *  - offsets 0..296 (gated by `letterboxFlag`, bytecode field `u:Z` #370 --
  *    the same field already tracked as `game.uFlag`, constant-pool index
  *    confirmed against f.V()'s read of the same field): draws an outlined
- *    rectangle (color 0 inset by 1px, then color 0x10DEE4) sized to how far
+ *    rectangle (color 0 inset by 1px, then color 0x10DD64 = 1105252) sized to how far
  *    the current viewport extends past the map bounds -- screen letterboxing
  *    near map edges.
  *  - offsets 297..496 (unconditional): reads the map-grid cell at the
@@ -92,7 +92,7 @@ export function stepLegacyCameraLetterbox(
 
   graphics.setColor(0);
   graphics.drawRect(11 + qPixels + 1, 8 + rPixels + 1, width, height);
-  graphics.setColor(0x10dee4);
+  graphics.setColor(0x10dd64); // ldc 1105252; was 0x10dee4 until 2026-10-16 (screenshot diff)
   graphics.drawRect(11 + qPixels, 8 + rPixels, width, height);
 
   return { b, c, d, e };
