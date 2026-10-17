@@ -4,13 +4,14 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const source = new URL("../src/j2me/LegacyEntityDPredicate.ts", import.meta.url).pathname;
+const source = new URL("../src/sim/units/LegacyEntityDPredicate.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(source, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Math });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Math });
 const { stepLegacyEntityDPredicate } = module.exports;
 
 const ID = 6;

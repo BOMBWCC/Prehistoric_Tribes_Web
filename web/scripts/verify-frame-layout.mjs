@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { deriveLegacyFrameLayout } from "../src/j2me/LegacyFrameLayout.ts";
+import { deriveLegacyFrameLayout } from "../src/render/LegacyFrameLayout.ts";
 
 const shorts = Array.from({ length: 11 }, () => new Int16Array(1));
 shorts[9] = new Int16Array(549);

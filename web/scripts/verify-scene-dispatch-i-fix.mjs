@@ -10,7 +10,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -29,7 +29,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 {
   const rt = new LegacyRuntimeState();
@@ -37,9 +37,9 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.game.staticL = true;
   rt.game.inputV = true;
   rt.game.E = 99;
-  rt.game.iByte = 5;
+  rt.game.digitKey = 5;
   rt.runSceneDispatch(37);
-  assert.equal(rt.game.iByte, -1);
+  assert.equal(rt.game.digitKey, -1);
   assert.equal(rt.game.iFlag, false);
   assert.equal(rt.game.staticL, false);
   assert.equal(rt.game.inputV, false);
@@ -50,8 +50,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   rt.runSceneDispatch(37);
-  rt.game.vByte = 1;
-  // Prime b.n() before the frame. game.c starts at -1 and b.g() only calls
+  rt.game.loopMode = 1;
+  // Prime b.n() before the frame. game.missionFrame starts at -1 and b.g() only calls
   // b.n() when `c % 10 === 0` (b-javap.txt offsets 0..14), so on a frame with
   // c === -1 the marker-bucket cube b.c:[[[B](#151) is still the all-zero
   // f.g() allocation rather than the all -1 fill b.n() writes at its own
@@ -61,9 +61,9 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   // original never reaches it because a scene dispatch never lands on frame
   // one of a fresh game; this test used to, because it drove runSceneDispatch
   // on a runtime that had never ticked. See docs/unknowns.md 2026-09-07.
-  rt.game.c = 0;
+  rt.game.missionFrame = 0;
   rt.stepGameplayFrame();
-  assert.notEqual(rt.game.iByte, 0);
+  assert.notEqual(rt.game.digitKey, 0);
 }
 
 console.log("runSceneDispatch (final void b(int)) real i() wiring OK");

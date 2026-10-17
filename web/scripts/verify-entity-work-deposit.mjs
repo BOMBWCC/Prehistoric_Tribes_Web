@@ -4,12 +4,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const file = new URL("../src/j2me/LegacyEntityWorkDeposit.ts", import.meta.url).pathname;
+const file = new URL("../src/sim/units/LegacyEntityWorkDeposit.ts", import.meta.url).pathname;
 const module = { exports: {} };
 vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-}).outputText, { module, exports: module.exports, Int8Array, Int16Array, RangeError });
+}).outputText, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array, RangeError });
 const { stepLegacyEntityWorkDeposit } = module.exports;
 
 function setup() {

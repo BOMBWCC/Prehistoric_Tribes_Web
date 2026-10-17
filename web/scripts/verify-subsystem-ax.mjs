@@ -10,7 +10,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = new URL("../src/j2me/LegacySubsystemAx.ts", import.meta.url).pathname;
+const path = new URL("../src/sim/tribe/LegacySubsystemAx.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;

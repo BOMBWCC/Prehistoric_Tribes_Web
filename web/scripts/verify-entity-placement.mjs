@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 function compile(relativePath, dependencies = {}) {
   const path = `${new URL(relativePath, import.meta.url).pathname}`;
@@ -20,9 +21,11 @@ function compile(relativePath, dependencies = {}) {
   return module.exports;
 }
 
-const footprint = compile("../src/j2me/LegacyFootprintCheck.ts");
-const { placeLegacyEntity } = compile("../src/j2me/LegacyEntityPlacement.ts", {
-  "./LegacyFootprintCheck": footprint,
+const footprint = compile("../src/sim/world/LegacyFootprintCheck.ts", { "../../core/DataTables": denseRequire("core/DataTables") });
+const { placeLegacyEntity } = compile("../src/sim/units/LegacyEntityPlacement.ts", {
+  "../world/LegacyFootprintCheck": footprint,
+  "../../core/DenseLayout": denseRequire("core/DenseLayout"),
+  "../../core/DataTables": denseRequire("core/DataTables"),
 });
 
 const state = new Int8Array(9983);

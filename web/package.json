@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "oracle": "node scripts/oracle-all.mjs",
+    "test": "node scripts/test-all.mjs",
     "test:codec": "node scripts/verify-rms-codec.mjs",
     "test:runtime-persistence": "node scripts/verify-runtime-gameplay-persistence.mjs",
     "test:geometry": "node scripts/verify-geometry.mjs",
@@ -353,6 +355,7 @@
     "test:zh-text": "node scripts/verify-zh-text.mjs"
   },
   "devDependencies": {
+    "playwright": "^1.64.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }

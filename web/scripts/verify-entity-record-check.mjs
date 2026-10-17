@@ -6,7 +6,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -21,7 +21,7 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { checkLegacyEntityRecord } = loadModule("./LegacyEntityRecordCheck", srcDir);
+const { checkLegacyEntityRecord } = loadModule("./sim/units/LegacyEntityRecordCheck", srcDir);
 
 // Unit 5 (type 77) at construction record 2 (type 16, 9115 = 3), as in the
 // tutorial: d(int) passes (8505 5 < t138[182] 40; t41[m] == t41[77]).

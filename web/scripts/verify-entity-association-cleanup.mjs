@@ -4,12 +4,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 const module = { exports: {} };
-const output = ts.transpileModule(fs.readFileSync(new URL("../src/j2me/LegacyEntityAssociationCleanup.ts", import.meta.url).pathname, "utf8"), {
+const output = ts.transpileModule(fs.readFileSync(new URL("../src/sim/units/LegacyEntityAssociationCleanup.ts", import.meta.url).pathname, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
 const { stepLegacyEntityAssociationCleanup } = module.exports;
 
 function make(over = {}) {

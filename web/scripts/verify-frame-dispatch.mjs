@@ -20,27 +20,27 @@ function loadModule(path) {
 }
 
 const { selectLegacyFrameHandler } = loadModule(
-  `${new URL("../src/j2me/LegacyFrameDispatch.ts", import.meta.url).pathname}`,
+  `${new URL("../src/ui/LegacyFrameDispatch.ts", import.meta.url).pathname}`,
 );
 const { stepLegacyFrameDispatch } = loadModule(
-  `${new URL("../src/j2me/LegacyFrameDispatch.ts", import.meta.url).pathname}`,
+  `${new URL("../src/ui/LegacyFrameDispatch.ts", import.meta.url).pathname}`,
 );
 const table = new Int8Array(220);
 const offsets = new Int16Array(312);
 offsets[153] = 40;
-const game = { c: -1, Q: 14 };
+const game = { missionFrame: -1, screen: 14 };
 assert.equal(selectLegacyFrameHandler(game, table, offsets, 153), "NONE");
 table[40 + 14] = 1;
 assert.equal(selectLegacyFrameHandler(game, table, offsets, 153), "G");
-game.c = 0;
+game.missionFrame = 0;
 assert.equal(selectLegacyFrameHandler(game, table, offsets, 153), "H");
 table[40 + 14] = 0;
 for (const [q, handler] of [[23, "I"], [15, "J"], [17, "P"], [20, "K"], [19, "L"], [25, "M"], [27, "N"], [32, "Q32"]]) {
-  assert.equal(selectLegacyFrameHandler({ c: 0, Q: q }, table, offsets, 153), handler);
+  assert.equal(selectLegacyFrameHandler({ missionFrame: 0, screen: q }, table, offsets, 153), handler);
 }
 
 const inline = {
-  c: 0, Q: 18, H: true, N: 0, c1: 7,
+  missionFrame: 0, screen: 18, H: true, N: 0, c1: 7,
   flags: Array.from({ length: 20 }, () => false),
 };
 const calls = [];
@@ -58,7 +58,7 @@ assert.equal(inline.flags[13], true);
 assert.deepEqual(calls, [[11, 0, 0], [17, 0, 320], [13, 0, 0]]);
 
 const q24Calls = [];
-const q24 = { ...inline, Q: 24, H: true, flags: Array.from({ length: 20 }, () => false) };
+const q24 = { ...inline, screen: 24, H: true, flags: Array.from({ length: 20 }, () => false) };
 stepLegacyFrameDispatch({
   state: q24, packedBytes: table, packedOffsets: offsets, stateTableIndex: 153,
   onPrimitive: (...args) => q24Calls.push(args),
@@ -79,7 +79,7 @@ stepLegacyFrameDispatch({
 });
 assert.deepEqual(q24Repeat, []);
 
-const q32 = { ...inline, Q: 32, H: true, flags: Array.from({ length: 20 }, () => false) };
+const q32 = { ...inline, screen: 32, H: true, flags: Array.from({ length: 20 }, () => false) };
 let l3 = 0;
 const q32Calls = [];
 stepLegacyFrameDispatch({

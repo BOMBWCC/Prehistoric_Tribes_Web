@@ -7,7 +7,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Array, Math, console });
 function loadModule(specifier, fromDir) {
   const absPath = path.resolve(fromDir, specifier) + ".ts";
@@ -19,7 +19,7 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { checkLegacyEntityAffordable, stepLegacyEntityPayCost } = loadModule("./LegacyEntityResourceCost", srcDir);
+const { checkLegacyEntityAffordable, stepLegacyEntityPayCost } = loadModule("./sim/units/LegacyEntityResourceCost", srcDir);
 
 // Tables: action S = 11 (type 39) costs 2 of pool slot 2 (t73[11]=0, t73[12]=1,
 // t71[0]=2, t72[0]=2); t76[2]=7; t74[11]=3; t75[11]=4.

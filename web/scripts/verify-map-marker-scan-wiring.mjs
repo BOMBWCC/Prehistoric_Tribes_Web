@@ -18,7 +18,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -37,7 +37,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- decay pass runs for real (part 1: dense[8871+i] bit-0 clear, dense[9176+i] clamp) ---
 {
@@ -62,8 +62,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.game.mapWidth = 8;
   rt.game.mapHeight = 8;
-  rt.game.IByte = 0;
-  rt.game.KByte = 0;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = 0;
   rt.occupancyClass = () => 0; // "visible" for every cell
   // xSlotTable[0][0][slot]!==0, [1][slot]===3, [2][slot]=x, [3][slot]=y, [4][slot]=typeColumn.
   rt.game.xSlotTable[0][0][0] = 1;

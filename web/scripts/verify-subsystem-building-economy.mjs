@@ -5,7 +5,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math, RangeError, Error });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -20,9 +20,9 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { stepLegacySubsystemBuildingEconomy } = loadModule("./LegacySubsystemBuildingEconomy", srcDir);
-const { stepLegacySubsystemAx } = loadModule("./LegacySubsystemAx", srcDir);
-const { stepLegacySubsystemVoidN } = loadModule("./LegacySubsystemVoidN", srcDir);
+const { stepLegacySubsystemBuildingEconomy } = loadModule("./sim/tribe/LegacySubsystemBuildingEconomy", srcDir);
+const { stepLegacySubsystemAx } = loadModule("./sim/tribe/LegacySubsystemAx", srcDir);
+const { stepLegacySubsystemVoidN } = loadModule("./sim/tribe/LegacySubsystemVoidN", srcDir);
 
 // ---- ax() and n() coverage carried over from the pre-2026-09-14 version of this test ----
 function makeAxInput(overrides = {}) {

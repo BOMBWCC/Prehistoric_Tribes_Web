@@ -10,7 +10,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -29,7 +29,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 const fakeGraphics = { setColor() {}, fillRect() {}, drawImage() {}, drawString() {}, drawRect() {}, drawLine() {} };
 
@@ -37,9 +37,9 @@ const fakeGraphics = { setColor() {}, fillRect() {}, drawImage() {}, drawString(
 {
   const rt = new LegacyRuntimeState();
   rt.packedData = { shortTables: [], byteTables: [], packedBytes: new Int8Array(1), packedOffsets: new Int16Array(1) };
-  rt.game.outerLoopLFlag = true;
-  rt.game.IByte = 0;
-  rt.game.KByte = 0;
+  rt.game.formUpActive = true;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = 0;
   rt.game.outerLoopRowEndMarker[1] = -1;
 
   let spyRecord;
@@ -56,8 +56,8 @@ const fakeGraphics = { setColor() {}, fillRect() {}, drawImage() {}, drawString(
 {
   const rt = new LegacyRuntimeState();
   rt.packedData = { shortTables: [], byteTables: [], packedBytes: new Int8Array(1), packedOffsets: new Int16Array(1) };
-  rt.game.outerLoopLFlag = false;
-  rt.game.outerLoopNFlag = false;
+  rt.game.formUpActive = false;
+  rt.game.callToArmsActive = false;
   rt.game.outerLoopRowEndMarker[1] = -1;
 
   let fired = false;

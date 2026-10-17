@@ -12,7 +12,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -31,7 +31,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- runSelectionFlagsRefresh with fifth=true reaches the real 9-arg branch ---
 {
@@ -56,11 +56,11 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt["runSelectionFlagsRefresh"] = (...args) => { calls.push(args); return original(...args); };
 
   rt.game.staticL = true;
-  rt.game.wByte = 0; // !== 3, so onSelectionPreset fires
+  rt.game.barMode = 0; // !== 3, so onSelectionPreset fires
   // stepLegacyGameplayTick's own onV gate: vByte===1 (iByte defaults -1,
   // already !==0) and wByte not in {2,4} (0 satisfies both this and W()'s
   // own wByte!==3 gate above).
-  rt.game.vByte = 1;
+  rt.game.loopMode = 1;
   rt["stepGameplayFrame"]();
 
   // CORRECTION (2026-09-03): the 2026-08-24 expectation of a SECOND call

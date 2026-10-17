@@ -7,7 +7,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -26,7 +26,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // No active slots in either the r() (mainArrays.d) or s() (mainArrays.e)
 // tables: both scans are genuine no-ops, no exception, no throw.
@@ -42,7 +42,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.mainArrays.e[0][0] = 7; // slot 0: entity id 7
   rt.mainArrays.e[1][0] = 20; // timer already expired
-  rt.game.wByte = 2;
+  rt.game.barMode = 2;
   rt.game.qCounter = 7;
   rt.game.pendingP = false;
   rt.stepGameplayOuterLoop();
@@ -56,10 +56,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // in the same tick and its expiring slot sets P.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.IByte = 0;
-  rt.game.KByte = 0;
-  rt.game.viewportO = 100;
-  rt.game.viewportP = 100;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = 0;
+  rt.game.viewColumns = 100;
+  rt.game.viewRows = 100;
   rt.mainArrays.d[0][0] = 5; // slot 0: record id 5 (active)
   rt.mainArrays.d[5][0] = 0; // aq index 0
   rt.mainArrays.d[6][0] = 1; // slotKind 1 -> triggers the null-deref branch
@@ -67,7 +67,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.occupancyClass = () => 0; // stub: force the "passable" class so the gate passes
   rt.mainArrays.e[0][1] = 9; // an s()-side expiring slot that should NOT fire this tick
   rt.mainArrays.e[1][1] = 20;
-  rt.game.wByte = 2;
+  rt.game.barMode = 2;
   rt.game.qCounter = 9;
   rt.game.pendingP = false;
   assert.doesNotThrow(() => rt.stepGameplayOuterLoop());
@@ -79,8 +79,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.game.ad = 0;
   rt.game.ae = 0;
-  rt.game.outerLoopNFlag = true;
-  rt.game.outerLoopLFlag = false;
+  rt.game.callToArmsActive = true;
+  rt.game.formUpActive = false;
   let spy;
   const orig = rt.stepZSubrecordDraw.bind(rt);
   rt.stepZSubrecordDraw = (record, x, y, phase, cb) => {
@@ -96,8 +96,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.game.ad = 0;
   rt.game.ae = 0;
-  rt.game.outerLoopNFlag = false;
-  rt.game.outerLoopLFlag = true;
+  rt.game.callToArmsActive = false;
+  rt.game.formUpActive = true;
   let spy;
   const orig = rt.stepZSubrecordDraw.bind(rt);
   rt.stepZSubrecordDraw = (record, x, y, phase, cb) => {
@@ -112,7 +112,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   rt.game.ad = 5;
-  rt.game.outerLoopNFlag = true;
+  rt.game.callToArmsActive = true;
   let fired = false;
   const orig = rt.stepZSubrecordDraw.bind(rt);
   rt.stepZSubrecordDraw = (record, x, y, phase, cb) => {
@@ -126,10 +126,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // With r() no longer throwing, the row-end-marker tail runs too (2026-09-28).
 {
   const rt = new LegacyRuntimeState();
-  rt.game.IByte = 0;
-  rt.game.KByte = 0;
-  rt.game.viewportO = 100;
-  rt.game.viewportP = 100;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = 0;
+  rt.game.viewColumns = 100;
+  rt.game.viewRows = 100;
   rt.mainArrays.d[0][0] = 5;
   rt.mainArrays.d[5][0] = 0;
   rt.mainArrays.d[6][0] = 1;
@@ -137,7 +137,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.occupancyClass = () => 0;
   rt.game.ad = 0;
   rt.game.ae = 0;
-  rt.game.outerLoopNFlag = true;
+  rt.game.callToArmsActive = true;
   let fired = false;
   const orig = rt.stepZSubrecordDraw.bind(rt);
   rt.stepZSubrecordDraw = (record, x, y, phase, cb) => {

@@ -12,7 +12,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -31,7 +31,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacyZB2 } = loadModule("./LegacyZB2", srcDir);
+const { stepLegacyZB2 } = loadModule("./ui/LegacyZB2", srcDir);
 
 // RETRACTED 2026-09-07: this used to assert a guaranteed throw, on the premise
 // that class b's g:[[B] (#176) is permanently null. f.g() allocates it as

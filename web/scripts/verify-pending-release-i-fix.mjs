@@ -13,7 +13,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -32,8 +32,8 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
-const { OriginalKey } = loadModule("./Input", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
+const { OriginalKey } = loadModule("./platform/Input", srcDir);
 
 {
   const rt = new LegacyRuntimeState();
@@ -58,7 +58,7 @@ const { OriginalKey } = loadModule("./Input", srcDir);
   rt.game.iFlag = true;
   rt.game.E = 99;
   rt.game.wFlag = true;
-  rt.game.iByte = 77;
+  rt.game.digitKey = 77;
   rt.game.inputT = true;
   rt.game.nInt = 42;
 
@@ -73,7 +73,7 @@ const { OriginalKey } = loadModule("./Input", srcDir);
   assert.equal(rt.game.iFlag, false);
   assert.equal(rt.game.E, 4);
   assert.equal(rt.game.wFlag, false);
-  assert.equal(rt.game.iByte, -1);
+  assert.equal(rt.game.digitKey, -1);
   assert.equal(rt.game.inputT, false);
   assert.equal(rt.game.nInt, 0);
 }

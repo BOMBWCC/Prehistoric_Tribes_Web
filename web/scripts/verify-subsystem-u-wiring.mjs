@@ -9,7 +9,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -28,7 +28,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- subsystemBVoid (private void b(boolean), #335) ---
 
@@ -36,7 +36,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   const id = 7;
-  rt.game.subsystemU = 0; // team 0 -> s in [1,30]
+  rt.game.bTeam = 0; // team 0 -> s in [1,30]
   rt.denseState[8932 + 5] = 1; // count gate for slot 5
   rt.denseState[8993 + 5] = 7; // linked-list head === id, immediate match
   rt.denseState[0 + id] = 11; // x
@@ -52,7 +52,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   const id = 7;
-  rt.game.subsystemU = 0;
+  rt.game.bTeam = 0;
   rt.denseState[8932 + 5] = 1;
   rt.denseState[8993 + 5] = 7;
   rt["subsystemBVoid"](id, false);
@@ -65,7 +65,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   const id = 7;
-  rt.game.subsystemU = 0;
+  rt.game.bTeam = 0;
   rt.denseState[4646 + id] = 1;
   rt.denseState[4444 + id] = 3; // assoc
   rt.denseState[8749 + 3] = 8;
@@ -153,7 +153,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.denseState[4444 + id] = 3;
   rt.denseState[0 + id] = 41;
   rt.denseState[101 + id] = 42;
-  rt.game.wByte = 2;
+  rt.game.barMode = 2;
   rt.game.qCounter = 3; // matches f.d's id argument (dense[4444+id]=3) -> sets pendingP (f.P:Z)
   rt["subsystemU"](id);
   assert.equal(rt.denseState[3030 + id], 0);

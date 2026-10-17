@@ -11,7 +11,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -30,7 +30,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // Gate: cRFlag===false is a total no-op.
 {
@@ -49,12 +49,12 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.game.cSInt = 100;
   rt.game.xOFlag = true;
   rt.game.xMFlag = true; // must be forced false by the O:Z branch
-  rt.game.IByte = 15; rt.game.yByte = 3;
-  rt.game.KByte = 5; rt.game.AByte = 2;
+  rt.game.cameraColumn = 15; rt.game.cursorColumn = 3;
+  rt.game.cameraRow = 5; rt.game.cursorRow = 2;
   rt["stepLegacyX"]();
-  assert.equal(rt.game.outerLoopNFlag, true);
+  assert.equal(rt.game.callToArmsActive, true);
   assert.equal(rt.game.xMFlag, false);
-  assert.equal(rt.game.outerLoopLFlag, false);
+  assert.equal(rt.game.formUpActive, false);
   assert.equal(rt.game.outerLoopRowEndMarker[0], 18);
   assert.equal(rt.game.outerLoopRowEndMarker[1], 7);
   assert.equal(rt.game.cSInt, 0); // l(-1) always resets s:I to 0
@@ -68,7 +68,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.game.xOFlag = false;
   rt.game.xMFlag = true;
   rt["stepLegacyX"]();
-  assert.equal(rt.game.outerLoopLFlag, true);
+  assert.equal(rt.game.formUpActive, true);
   assert.equal(rt.game.cSInt, 0);
 }
 
@@ -95,8 +95,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.game.cRFlag = true;
   rt.game.cSInt = 3;
   rt.game.qCounter = 7;
-  rt.game.IByte = 10; rt.game.yByte = 1;
-  rt.game.KByte = 20; rt.game.AByte = 2;
+  rt.game.cameraColumn = 10; rt.game.cursorColumn = 1;
+  rt.game.cameraRow = 20; rt.game.cursorRow = 2;
   rt["stepLegacyX"]();
   assert.equal(rt.game.xNByte, 0); // first slot was empty
   assert.equal(rt.game.xSlotTable[0][1][0], 3);
@@ -137,10 +137,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.game.cRFlag = true;
   rt.game.cSInt = 5;
-  rt.game.IByte = -50; rt.game.cTInt = 0; // x = -50, out of bounds
-  const wByteBefore = rt.game.wByte;
+  rt.game.cameraColumn = -50; rt.game.cTInt = 0; // x = -50, out of bounds
+  const wByteBefore = rt.game.barMode;
   rt["stepLegacyX"]();
-  assert.equal(rt.game.wByte, wByteBefore);
+  assert.equal(rt.game.barMode, wByteBefore);
 }
 
 console.log("f.X() (private void X()) OK");

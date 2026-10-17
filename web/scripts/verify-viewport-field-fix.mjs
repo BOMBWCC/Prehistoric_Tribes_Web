@@ -18,7 +18,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -37,34 +37,34 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- normalizeEntityViewport reads cursorTargetColumn/cursorTargetRow/cameraSFlag/mapWidth/mapHeight ---
 {
   const rt = new LegacyRuntimeState();
   rt.game.cursorTargetColumn = 5;
   rt.game.cursorTargetRow = 6;
-  rt.game.IByte = -3; // forces aK()'s while(I<0) clamp to run
-  rt.game.KByte = -3;
+  rt.game.cameraColumn = -3; // forces aK()'s while(I<0) clamp to run
+  rt.game.cameraRow = -3;
   rt.game.cameraSFlag = true; // if honored, breaks out of the K<0 clamp loop immediately
   rt["normalizeEntityViewport"]();
   // y/A snapshot C/D at entry (aK()'s own first two lines).
-  assert.equal(rt.game.yByte, 5);
-  assert.equal(rt.game.AByte, 6);
+  assert.equal(rt.game.cursorColumn, 5);
+  assert.equal(rt.game.cursorRow, 6);
   // I clamps up to 0 regardless of sFlag (only the K<0 loop checks sFlag).
-  assert.equal(rt.game.IByte, 0);
+  assert.equal(rt.game.cameraColumn, 0);
   // K stays negative because cameraSFlag=true breaks the clamp loop immediately.
-  assert.equal(rt.game.KByte, -3);
+  assert.equal(rt.game.cameraRow, -3);
 }
 
 // cameraSFlag=false: K<0 clamp actually increments K to 0 (no early break).
 {
   const rt = new LegacyRuntimeState();
-  rt.game.IByte = 0;
-  rt.game.KByte = -3;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = -3;
   rt.game.cameraSFlag = false;
   rt["normalizeEntityViewport"]();
-  assert.equal(rt.game.KByte, 0);
+  assert.equal(rt.game.cameraRow, 0);
 }
 
 // --- stepEntityCoordinateUpdate reads cursorTargetColumn/cursorTargetRow (not the removed viewportC/D) ---
@@ -76,13 +76,13 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.denseState[0 + id] = 50;
   rt.denseState[101 + id] = 60;
   rt["stepEntityCoordinateUpdate"](id, -2);
-  assert.equal(rt.game.IByte, 50 - 3);
-  assert.equal(rt.game.KByte, 60 - 4 + -2);
+  assert.equal(rt.game.cameraColumn, 50 - 3);
+  assert.equal(rt.game.cameraRow, 60 - 4 + -2);
   assert.equal(rt.game.AFlag, true);
 }
 
 // --- stepEntityCoordinateUpdate's aK() clamp actually survives the write-back ---
-// (bug: onViewportNormalize mutates game.IByte/KByte directly, but the
+// (bug: onViewportNormalize mutates game.cameraColumn/KByte directly, but the
 // method's own local `state.I`/`state.K` copy was never re-synced before
 // being written back over the just-clamped game fields -- silently
 // discarding aK()'s clamp every time this branch ran.)
@@ -94,8 +94,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.denseState[0 + id] = -5; // forces a negative pre-clamp IByte
   rt.denseState[101 + id] = 0;
   rt["stepEntityCoordinateUpdate"](id, 0);
-  assert.equal(rt.game.IByte, 0); // clamped by aK(), not left at the stale -5
-  assert.equal(rt.game.KByte, 0);
+  assert.equal(rt.game.cameraColumn, 0); // clamped by aK(), not left at the stale -5
+  assert.equal(rt.game.cameraRow, 0);
 }
 
 // --- stepMapEntry's onAO: same staleness bug, verified via the public stepStateAOMap wrapper ---
@@ -112,8 +112,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
     onAP: () => {},
     onViewportNormalize: () => {
       rt["normalizeEntityViewport"]();
-      mapState.I = rt.game.IByte;
-      mapState.K = rt.game.KByte;
+      mapState.I = rt.game.cameraColumn;
+      mapState.K = rt.game.cameraRow;
     },
     onSpatialPass: () => {},
   });

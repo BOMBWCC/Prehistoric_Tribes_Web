@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const file = new URL("../src/j2me/LegacyZAc.ts", import.meta.url).pathname;
+const file = new URL("../src/ui/LegacyZAc.ts", import.meta.url).pathname;
 const module = { exports: {} };
 const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array });
 const { stepLegacyZAc } = module.exports;
 
 const e = new Int8Array(9200); const f = new Int8Array(16); const r = new Int8Array(8);

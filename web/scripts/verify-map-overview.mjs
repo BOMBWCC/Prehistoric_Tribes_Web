@@ -5,7 +5,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, Math });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -20,7 +20,7 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { legacyMapOverviewColor, drawLegacyMapOverview, stepLegacyMapOverviewScroll } = loadModule("./LegacyMapOverview", srcDir);
+const { legacyMapOverviewColor, drawLegacyMapOverview, stepLegacyMapOverviewScroll } = loadModule("./render/LegacyMapOverview", srcDir);
 
 const recorder = (name, log) => ({
   setColor: (c) => log.push([name, "color", c]),

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-const file = new URL("../src/j2me/LegacyCScanDraw.ts", import.meta.url).pathname;
+const file = new URL("../src/text/LegacyCScanDraw.ts", import.meta.url).pathname;
 const module = { exports: {} };
 const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

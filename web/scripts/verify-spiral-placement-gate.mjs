@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 // RESTORED (2026-09-07): this method used to stub every mode's "candidate
 // accepted" path into a deliberate null dereference (b:[S]/c:[[B]/f.b:[[B],
@@ -10,12 +11,12 @@ import vm from "node:vm";
 // respectively). These cases replace the old "guaranteed throw" assertions
 // with real, hand-computed behaviour derived from the full bytecode trace
 // in the source file's own docblock.
-const file = new URL("../src/j2me/LegacySpiralPlacementGate.ts", import.meta.url).pathname;
+const file = new URL("../src/sim/world/LegacySpiralPlacementGate.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
 const { checkLegacySpiralPlacementGate } = module.exports;
 
 const grid = (w, h) => Array.from({ length: h }, () => new Int8Array(w));

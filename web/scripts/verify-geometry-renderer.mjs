@@ -3,7 +3,7 @@ import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-const file = new URL("../src/j2me/LegacyGeometryRenderer.ts", import.meta.url).pathname;
+const file = new URL("../src/text/LegacyGeometryRenderer.ts", import.meta.url).pathname;
 const source = fs.readFileSync(file, "utf8");
 const output = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

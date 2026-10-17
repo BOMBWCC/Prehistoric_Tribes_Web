@@ -5,7 +5,7 @@ import ts from "typescript";
 
 const module = { exports: {} };
 const output = ts.transpileModule(
-  fs.readFileSync(new URL("../src/j2me/LegacySelectionFlags.ts", import.meta.url), "utf8"),
+  fs.readFileSync(new URL("../src/ui/LegacySelectionFlags.ts", import.meta.url), "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
 vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int32Array });

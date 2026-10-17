@@ -16,7 +16,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -31,7 +31,7 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- stepGameplayZAf: af()'s `selectionFlags[6]` branch is
 // `aJ(); l(0); s = table138[416 + r[as]]`. l(0) sets w=3. ---
@@ -40,18 +40,18 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const g = rt.game;
   g.selectionFlags[6] = true;
   rt.mainArrays.r[0] = 2;
-  g.frameLayoutAS = 0;
-  g.wByte = 2;
+  g.menuCursor = 0;
+  g.barMode = 2;
   g.pendingP = false;
   const seen = [];
   rt.stepLegacyL = function stub(value) {
-    seen.push({ value, w: this.game.wByte });
-    this.game.wByte = 3;
+    seen.push({ value, w: this.game.barMode });
+    this.game.barMode = 3;
     this.game.pendingP = true;
   };
   rt["stepGameplayZAf"]();
   assert.deepEqual(seen, [{ value: 0, w: 2 }], "l(0) runs once and sees af()'s current w");
-  assert.equal(g.wByte, 3, "w written by l(0) must survive af()'s write-back");
+  assert.equal(g.barMode, 3, "w written by l(0) must survive af()'s write-back");
   assert.equal(g.pendingP, true, "so must P");
 }
 
@@ -63,16 +63,16 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   g.nInt = 0;
   g.iFlag = true;
   g.zlYInt = 0;
-  g.wByte = 2;
+  g.barMode = 2;
   g.E = 0;
   let seenE = null;
   rt.stepGameplayZAf = function stub() {
     seenE = this.game.E;
-    this.game.wByte = 3;
+    this.game.barMode = 3;
   };
   rt["stepGameplayZAe"]();
   assert.equal(seenE, 4, "push: af() must see ae()'s E = 4 (offset set before the call)");
-  assert.equal(g.wByte, 3, "pull: w written inside af() must survive ae()'s write-back");
+  assert.equal(g.barMode, 3, "pull: w written inside af() must survive ae()'s write-back");
   assert.equal(g.iFlag, false);
 }
 

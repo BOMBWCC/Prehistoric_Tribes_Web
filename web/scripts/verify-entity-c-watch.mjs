@@ -9,7 +9,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -28,7 +28,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacyEntityCWatch } = loadModule("./LegacyEntityCWatch", srcDir);
+const { stepLegacyEntityCWatch } = loadModule("./sim/units/LegacyEntityCWatch", srcDir);
 
 function makeInput(overrides = {}) {
   const dense = new Int8Array(10000);

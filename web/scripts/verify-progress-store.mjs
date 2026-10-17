@@ -15,7 +15,7 @@ function load(path) {
   vm.runInNewContext(output, {
     module,
     exports: module.exports,
-    require: (specifier) => load(`${new URL(`../src/j2me/${specifier.replace("./", "")}.ts`, import.meta.url).pathname}`),
+    require: (specifier) => load(new URL(`${specifier}.ts`, `file://${path}`).pathname), // relative to the importing module
     ...context,
   });
   return module.exports;
@@ -32,7 +32,7 @@ const fakeBase64 = {
   atob(value) { return Buffer.from(value, "base64").toString("binary"); },
 };
 const context = { localStorage: fakeLocalStorage, ...fakeBase64, Uint8Array, DataView, ArrayBuffer, Buffer };
-const recordStorePath = `${new URL("../src/j2me/RecordStore.ts", import.meta.url).pathname}`;
+const recordStorePath = `${new URL("../src/platform/RecordStore.ts", import.meta.url).pathname}`;
 const recordStoreModule = { exports: {} };
 const recordStoreOutput = ts.transpileModule(fs.readFileSync(recordStorePath, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -40,7 +40,7 @@ const recordStoreOutput = ts.transpileModule(fs.readFileSync(recordStorePath, "u
 vm.runInNewContext(recordStoreOutput, { module: recordStoreModule, exports: recordStoreModule.exports, ...context });
 const records = recordStoreModule.exports;
 
-const rmsPath = `${new URL("../src/j2me/RmsRecords.ts", import.meta.url).pathname}`;
+const rmsPath = `${new URL("../src/save/RmsRecords.ts", import.meta.url).pathname}`;
 const rmsModule = { exports: {} };
 const rmsOutput = ts.transpileModule(fs.readFileSync(rmsPath, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -57,7 +57,7 @@ assert.equal(store.getNumRecords(), 1);
 assert.equal(codec.decodeSlot0Record(store.getRecord(1)).l, 8);
 console.log("J2ME record-1 replace semantics OK");
 
-const progressPath = `${new URL("../src/j2me/LegacyProgressStore.ts", import.meta.url).pathname}`;
+const progressPath = `${new URL("../src/save/LegacyProgressStore.ts", import.meta.url).pathname}`;
 const { LegacyProgressStore } = load(progressPath);
 storage.set("t1", JSON.stringify([fakeBase64.btoa("bad gameplay record")]))
 const progress = new LegacyProgressStore();

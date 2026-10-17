@@ -4,7 +4,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -23,7 +23,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacyEntityStatusGuard } = loadModule("./LegacyEntityStatusGuard", srcDir);
+const { stepLegacyEntityStatusGuard } = loadModule("./sim/units/LegacyEntityStatusGuard", srcDir);
 
 function makeGrid() {
   const grid = [];

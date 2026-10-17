@@ -4,7 +4,7 @@ import path from "node:path";
 import ts from "typescript";
 import vm from "node:vm";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -22,7 +22,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacySubsystemP } = loadModule("./LegacySubsystemP", srcDir);
+const { stepLegacySubsystemP } = loadModule("./sim/tribe/LegacySubsystemP", srcDir);
 
 // CORRECTED 2026-09-10: offset 18 is `if_icmpge 665`, so `dense[808+id] >= 1`
 // goes STRAIGHT to the tail and the main body is the `<= 0` side -- this file

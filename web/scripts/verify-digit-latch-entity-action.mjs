@@ -1,7 +1,7 @@
 // End-to-end proof that keyPressed(int)'s digit tableswitch (LegacyKeyHandlers'
 // onDigitLatch) is the literal mechanism that drives f.W()'s (LegacyGameplayCommand)
 // i==1 viewport-reset and i==3 onEntityActionStart(20,1,0) branches. Before this
-// wiring existed, LegacyRuntimeState.projectRawKeyPressed never wrote game.iByte
+// wiring existed, LegacyRuntimeState.projectRawKeyPressed never wrote game.digitKey
 // for digit keys, so stepLegacyGameplayCommand's two most important branches were
 // permanently unreachable from the keyboard.
 import assert from "node:assert/strict";
@@ -19,16 +19,16 @@ function load(relativePath) {
   return module.exports;
 }
 
-const { legacyKeyPressed } = load("../src/j2me/LegacyKeyHandlers.ts");
-const { stepLegacyGameplayCommand } = load("../src/j2me/LegacyGameplayCommand.ts");
+const { legacyKeyPressed } = load("../src/core/LegacyKeyHandlers.ts");
+const { stepLegacyGameplayCommand } = load("../src/ui/LegacyGameplayCommand.ts");
 
 // Minimal LegacyGameState-shaped object; only the fields stepLegacyGameplayCommand reads.
 function freshGame() {
   return {
-    staticL: false, staticM: false, wByte: 0, sByte: 0, FByte: -1,
-    iByte: -1, ayByte: 0, AFlag: false, qByte: 3, vByte: 1,
-    Q: 0, R: 0, Z: 0, H: false, XFlag: false,
-    zByte: 0, BByte: 0, JByte: 0, frameLayoutL: 0, yByte: 0, AByte: 0, IByte: 0, KByte: 0,
+    staticL: false, staticM: false, barMode: 0, sByte: 0, selectionGroup: -1,
+    digitKey: -1, ayByte: 0, AFlag: false, mission: 3, loopMode: 1,
+    screen: 0, R: 0, Z: 0, H: false, XFlag: false,
+    zByte: 0, BByte: 0, JByte: 0, selectedId: 0, cursorColumn: 0, cursorRow: 0, cameraColumn: 0, cameraRow: 0,
     tByte: 0, wFlag: false,
   };
 }
@@ -44,7 +44,7 @@ function pressDigit(game, keyCode) {
   legacyKeyPressed(rawState, keyCode, {
     getGameAction: () => 666,
     onDigitLatch: (value, holdW) => {
-      game.iByte = value;
+      game.digitKey = value;
       if (holdW) game.wFlag = true;
     },
   });
@@ -53,20 +53,20 @@ function pressDigit(game, keyCode) {
 // Digit '3' (raw keyCode 51) with qByte==3 must reach f.a(20,1,0) -> f.ap().
 const entityActionGame = freshGame();
 pressDigit(entityActionGame, 51);
-assert.equal(entityActionGame.iByte, 3);
+assert.equal(entityActionGame.digitKey, 3);
 assert.equal(entityActionGame.wFlag, true);
 const entityActionCalls = [];
 stepLegacyGameplayCommand(entityActionGame, {
   onEntityActionStart: (ap, am, an) => entityActionCalls.push([ap, am, an]),
 });
 assert.deepEqual(entityActionCalls, [[20, 1, 0]]);
-assert.equal(entityActionGame.iByte, -1, "f.W() must consume i back to -1");
+assert.equal(entityActionGame.digitKey, -1, "f.W() must consume i back to -1");
 
 // Digit '1' (raw keyCode 49) with ayByte==1 must reach the viewport-reset branch.
 const viewportGame = freshGame();
 viewportGame.ayByte = 1;
 pressDigit(viewportGame, 49);
-assert.equal(viewportGame.iByte, 1);
+assert.equal(viewportGame.digitKey, 1);
 let viewportResets = 0;
 stepLegacyGameplayCommand(viewportGame, { onViewportReset: () => { viewportResets += 1; } });
 assert.equal(viewportResets, 1);

@@ -8,7 +8,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -27,11 +27,11 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 for (const w of [0, 1, 2, 3]) {
   const rt = new LegacyRuntimeState();
-  rt.game.wByte = w;
+  rt.game.barMode = w;
   // packedData is required by stepGameplayFramePrep's own early-return guard.
   rt.packedData = { shortTables: [], byteTables: [] };
   let threw = false;
@@ -53,7 +53,7 @@ for (const w of [0, 1, 2, 3]) {
 // in-browser separately.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.wByte = 1;
+  rt.game.barMode = 1;
   rt.game.kByte = 1; // forces local5 = 1 > 0
   rt.packedData = { shortTables: [], byteTables: [] };
   let threw = false;

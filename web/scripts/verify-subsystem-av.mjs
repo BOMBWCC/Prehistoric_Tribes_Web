@@ -5,7 +5,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -24,7 +24,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacySubsystemAv } = loadModule("./LegacySubsystemAv", srcDir);
+const { stepLegacySubsystemAv } = loadModule("./sim/tribe/LegacySubsystemAv", srcDir);
 
 function makeInput(overrides = {}) {
   return {
@@ -50,7 +50,7 @@ function noopCallbacks(overrides = {}) {
   return { onClamp: (v, mi, ma) => Math.max(mi, Math.min(ma, v)), onRandomA: () => 0, ...overrides };
 }
 
-// Gate: f.q>=7 && game.c<A/7 -> no-op, defaults returned.
+// Gate: f.q>=7 && game.missionFrame<A/7 -> no-op, defaults returned.
 {
   const input = makeInput({ sceneQ: 7, aInt: 1000, simulationCounter: 100 }); // 100 < 1000/7≈142
   const result = stepLegacySubsystemAv(input, noopCallbacks());
@@ -59,7 +59,7 @@ function noopCallbacks(overrides = {}) {
   assert.equal(result.oByte, -1);
 }
 
-// Second early return (offsets 203..246): game.c<A && q===0 && g:B<11 ->
+// Second early return (offsets 203..246): game.missionFrame<A && q===0 && g:B<11 ->
 // returns before the loop; g:B>=11 jumps to 285 and the raid goes ahead.
 // (The port had the comparison inverted until 2026-10-02.)
 for (const [gByte, expectBroadcast] of [[10, false], [11, true]]) {
@@ -99,7 +99,7 @@ for (const [gByte, expectBroadcast] of [[10, false], [11, true]]) {
 
 // Entity selection: all gates must pass for a unit to be selected (bit6 set).
 {
-  const input = makeInput({ sceneQ: 1, aInt: 100000, simulationCounter: 0 }); // game.c(0) < A -- but q!==0 so no early-return
+  const input = makeInput({ sceneQ: 1, aInt: 100000, simulationCounter: 0 }); // game.missionFrame(0) < A -- but q!==0 so no early-return
   const v = 51; // team1, u*50+1=51
   input.state[1919 + v] = 10; // HP>0
   input.state[1414 + v] = 20; // level>=12
@@ -167,7 +167,7 @@ for (const [gByte, expectBroadcast] of [[10, false], [11, true]]) {
   assert.equal(input.state[7979 + v] & 64, 0, "all three spatial fields below y/2 excludes the unit");
 }
 
-// HP-regen only happens while game.c<A, and overwrites BOTH 1919 and 6767 with the same value.
+// HP-regen only happens while game.missionFrame<A, and overwrites BOTH 1919 and 6767 with the same value.
 {
   const input = makeInput({ sceneQ: 1, aInt: 100000, simulationCounter: 10 });
   const v = 51;
@@ -182,7 +182,7 @@ for (const [gByte, expectBroadcast] of [[10, false], [11, true]]) {
   assert.equal(input.state[6767 + v], expected, "6767 is overwritten too, not read as a fixed max");
 }
 
-// No HP-regen when game.c>=A.
+// No HP-regen when game.missionFrame>=A.
 {
   const input = makeInput({ sceneQ: 1, aInt: 5, simulationCounter: 100 });
   const v = 51;
@@ -192,7 +192,7 @@ for (const [gByte, expectBroadcast] of [[10, false], [11, true]]) {
   input.state[1717 + v] = 999;
   input.state[6767 + v] = 20;
   stepLegacySubsystemAv(input, noopCallbacks());
-  assert.equal(input.state[1919 + v], 3, "unchanged since game.c>=A");
+  assert.equal(input.state[1919 + v], 3, "unchanged since game.missionFrame>=A");
   assert.equal(input.state[6767 + v], 20);
 }
 

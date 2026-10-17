@@ -9,13 +9,13 @@ function loadModule(path) {
   cache.set(path, module);
   const source = fs.readFileSync(path, "utf8");
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const localRequire = (specifier) => loadModule(`${path.slice(0, path.lastIndexOf("/"))}/${specifier.replace("./", "")}.ts`);
+  const localRequire = (specifier) => loadModule(new URL(`${specifier}.ts`, `file://${path}`).pathname);
   vm.runInNewContext(output, { module, exports: module.exports, require: localRequire });
   return module.exports;
 }
-const root = new URL("../src/j2me/", import.meta.url).pathname;
-const { LegacyInputState } = loadModule(`${root}LegacyInputState.ts`);
-const { OriginalKey, KeyState, attachOriginalKeyboard } = loadModule(`${root}Input.ts`);
+const root = new URL("../src/", import.meta.url).pathname;
+const { LegacyInputState } = loadModule(`${root}core/LegacyInputState.ts`);
+const { OriginalKey, KeyState, attachOriginalKeyboard } = loadModule(`${root}platform/Input.ts`);
 const selected = [];
 const released = [];
 const input = new LegacyInputState({ onSelectionKey: (key) => selected.push(key), onKeyReleased: (key) => released.push(key) });

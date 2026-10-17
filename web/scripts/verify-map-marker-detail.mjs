@@ -3,19 +3,20 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 
 function loadModule(file) {
   const module = { exports: {} };
   const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array, Math });
+  vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array, Math });
   return module.exports;
 }
 
-const { stepLegacyMapMarkerDetail } = loadModule(path.join(srcDir, "LegacyMapMarkerDetail.ts"));
+const { stepLegacyMapMarkerDetail } = loadModule(path.join(srcDir, "render/LegacyMapMarkerDetail.ts"));
 
 function packFlags3(P, pipIndex, local8) {
   return ((P & 3) << 6) | ((pipIndex & 7) << 3) | (local8 & 7);

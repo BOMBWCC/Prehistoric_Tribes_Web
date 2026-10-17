@@ -22,7 +22,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -41,13 +41,13 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 const rt = new LegacyRuntimeState();
 // Select the real "P" handler (Q===17 with the G/H command-table slot
 // unset) exactly like selectLegacyFrameHandler does.
-rt.game.Q = 17;
-rt.game.c = 0;
+rt.game.screen = 17;
+rt.game.missionFrame = 0;
 // Drive stepLegacyP's own tableA0===1, aR<tableA84 branch (offsets
 // 191..343): aS selects table row 0 (packedOffsets all default to 0, so
 // no extra offset math is needed), aR>=0 and below tableA84 so the method
@@ -60,7 +60,7 @@ rt.game.al = 2; // Matches the live al===2 story-dialog state; gates the epilogu
 rt.game.aS = 0;
 rt.game.H = false; // needsFullReset=false -- isolate the tableA0===1 branch from the unrelated full-reset clear.
 rt.game.jFlag = false;
-rt.game.fCounter = 20; // The `phase` value onSpriteDraw's 4th argument should carry (am!==0 -> state.phase).
+rt.game.animPhase = 20; // The `phase` value onSpriteDraw's 4th argument should carry (am!==0 -> state.phase).
 // packedOffsets[155] defaults to 0, so table-155 lookups read packedBytes
 // directly at +0/+28/+84 (+aS, which is 0 here).
 rt.packedBytes[0] = 1; // tableA0 === 1

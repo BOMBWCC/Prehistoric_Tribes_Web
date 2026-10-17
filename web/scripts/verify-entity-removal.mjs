@@ -10,7 +10,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -29,7 +29,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // type===2 reaches b.a(int)(#476) with dense[9237+id]>=1, i.e. past its only
 // real guard. RETRACTED 2026-09-07: this used to assert an uncaught throw on
@@ -117,10 +117,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   const id = 8;
   rt.denseState[8749 + id] = 5;
-  rt.game.wByte = 2;
+  rt.game.barMode = 2;
   rt.game.qCounter = id;
   rt.stepEntityRemoval(id, true);
-  assert.equal(rt.game.wByte, 0);
+  assert.equal(rt.game.barMode, 0);
   assert.equal(rt.game.qCounter, 0);
   assert.equal(rt.game.selectionFlags[0], true);
   assert.equal(rt.game.selectionFlags[2], false);

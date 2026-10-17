@@ -4,12 +4,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 const module = { exports: {} };
-const output = ts.transpileModule(fs.readFileSync(new URL("../src/j2me/LegacyEntityCourtship.ts", import.meta.url).pathname, "utf8"), {
+const output = ts.transpileModule(fs.readFileSync(new URL("../src/sim/units/LegacyEntityCourtship.ts", import.meta.url).pathname, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-vm.runInNewContext(output, { module, exports: module.exports, Math });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Math });
 const { stepLegacyEntityCourtship } = module.exports;
 
 function make(rolls) {

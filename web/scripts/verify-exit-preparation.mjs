@@ -9,7 +9,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -28,22 +28,22 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 function freshRt() {
   const rt = new LegacyRuntimeState();
   rt.game.mapWidth = 200;
   rt.game.mapHeight = 200;
-  rt.game.viewportO = 0;
-  rt.game.viewportP = 0;
+  rt.game.viewColumns = 0;
+  rt.game.viewRows = 0;
   return rt;
 }
 
 // Middle-of-map: W = I-20+0 (no clamp), X = K-30+0 (no clamp, since 60<=200).
 {
   const rt = freshRt();
-  rt.game.IByte = 50;
-  rt.game.KByte = 60;
+  rt.game.cameraColumn = 50;
+  rt.game.cameraRow = 60;
   rt["stepLegacyExitPreparation"]();
   assert.equal(rt.game.exitPrepWInt, 50 - 20);
   assert.equal(rt.game.exitPrepXInt, 60 - 30);
@@ -53,8 +53,8 @@ function freshRt() {
 // Negative-clamp: I small enough that W would go negative -> clamps to 0.
 {
   const rt = freshRt();
-  rt.game.IByte = 0;
-  rt.game.KByte = 0;
+  rt.game.cameraColumn = 0;
+  rt.game.cameraRow = 0;
   rt["stepLegacyExitPreparation"]();
   assert.equal(rt.game.exitPrepWInt, 0);
   assert.equal(rt.game.exitPrepXInt, 0);
@@ -64,7 +64,7 @@ function freshRt() {
 {
   const rt = freshRt();
   rt.game.mapWidth = 100;
-  rt.game.IByte = 90;
+  rt.game.cameraColumn = 90;
   rt["stepLegacyExitPreparation"]();
   assert.equal(rt.game.exitPrepWInt, 100 - 40);
 }
@@ -73,7 +73,7 @@ function freshRt() {
 {
   const rt = freshRt();
   rt.game.mapHeight = 100;
-  rt.game.KByte = 90;
+  rt.game.cameraRow = 90;
   rt["stepLegacyExitPreparation"]();
   assert.equal(rt.game.exitPrepXInt, 100 - 60);
 }
@@ -96,9 +96,9 @@ function freshRt() {
   const original = rt["stepLegacyExitPreparation"].bind(rt);
   rt["stepLegacyExitPreparation"] = () => { calls.push(1); return original(); };
 
-  rt.game.iByte = 3;
-  rt.game.qByte = 0; // !== 3, so onExitPreparation fires (not onEntityActionStart)
-  rt.game.vByte = 1; // stepLegacyGameplayTick's onV gate
+  rt.game.digitKey = 3;
+  rt.game.mission = 0; // !== 3, so onExitPreparation fires (not onEntityActionStart)
+  rt.game.loopMode = 1; // stepLegacyGameplayTick's onV gate
 
   rt["stepGameplayFrame"]();
 

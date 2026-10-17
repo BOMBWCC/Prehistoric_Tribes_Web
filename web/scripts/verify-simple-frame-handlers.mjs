@@ -17,7 +17,7 @@ function loadModule(path) {
   return module.exports;
 }
 
-const { stepLegacySimpleFrameHandler } = loadModule(new URL("../src/j2me/LegacySimpleFrameHandlers.ts", import.meta.url).pathname);
+const { stepLegacySimpleFrameHandler } = loadModule(new URL("../src/ui/LegacySimpleFrameHandlers.ts", import.meta.url).pathname);
 const fresh = () => ({ H: true, I: false, J: false, ab: false, x: 0, vInt: 10, m: 0, aP: 0, cFlag: false, AFlag: false, flags: Array.from({ length: 20 }, () => false), k: new Int8Array(56) });
 
 // f.H() (line 16103): first entry clears H, runs O(), sets k[52..54] by Q

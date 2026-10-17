@@ -1,17 +1,18 @@
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const source = fs.readFileSync(new URL("../src/j2me/LegacyStateMachine.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../src/ui/LegacyStateMachine.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports });
 const { stepLegacyAk, stepLegacyAo } = module.exports;
 
 const base = {
-  Q: 14,
+  screen: 14,
   iFlag: false,
   staticL: false,
   jFlag: false,
@@ -31,7 +32,7 @@ stepLegacyAk(fire, {
   onAo: () => fireCallbacks.push("ao"),
   onAd: () => fireCallbacks.push("ad"),
 });
-if (fire.Q !== 14 || fireCallbacks.includes("an") || !fireCallbacks.includes("ao") || fire.iFlag) {
+if (fire.screen !== 14 || fireCallbacks.includes("an") || !fireCallbacks.includes("ao") || fire.iFlag) {
   throw new Error("Q=14 FIRE must enter the proven Q<28 ao() branch and clear i");
 }
 

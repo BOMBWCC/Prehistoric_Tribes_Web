@@ -16,9 +16,9 @@ function loadModule(path) {
   return module.exports;
 }
 
-const root = new URL("../src/j2me/", import.meta.url).pathname;
-const { LegacyResourceTables } = loadModule(`${root}LegacyResourceTables.ts`);
-const { LegacyGeometryDecoder } = loadModule(`${root}LegacyGeometryDecoder.ts`);
+const root = new URL("../src/", import.meta.url).pathname;
+const { LegacyResourceTables } = loadModule(`${root}platform/LegacyResourceTables.ts`);
+const { LegacyGeometryDecoder } = loadModule(`${root}text/LegacyGeometryDecoder.ts`);
 const tables = new LegacyResourceTables();
 tables.smallOffsets[0] = 0;
 tables.smallOffsets[1] = 3;

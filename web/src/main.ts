@@ -1,13 +1,18 @@
 import "./styles.css";
-import { Anchor } from "./j2me/anchors";
-import { LogicalCanvas } from "./j2me/Canvas";
-import { ImageResource } from "./j2me/Image";
+import { Anchor } from "./platform/anchors";
+import { LogicalCanvas } from "./platform/Canvas";
+import { ImageResource } from "./platform/Image";
 import { loadOriginalResources } from "./ResourceBootstrap";
-import { FixedLoop } from "./j2me/FixedLoop";
-import { attachOriginalKeyboard, KeyState } from "./j2me/Input";
-import { LegacyRuntimeState } from "./j2me/LegacyRuntimeState";
-import { stepLegacyPaintScreen } from "./j2me/LegacyPaintScreen";
+import { FixedLoop } from "./platform/FixedLoop";
+import { attachOriginalKeyboard, KeyState } from "./platform/Input";
+import { LegacyRuntimeState } from "./core/LegacyRuntimeState";
+import { stepLegacyPaintScreen } from "./render/LegacyPaintScreen";
 import { attachTouchControls } from "./TouchControls";
+import { WideScreen } from "./WideScreen";
+import { attachSettings } from "./Settings";
+import { attachAlerts } from "./Alerts";
+import { attachHud } from "./Hud";
+import { attachMenuHud, savedLanguage, savedMusic } from "./MenuHud";
 // The Chinese strings; docs/translation-zh-CN.json is their single source.
 import zhTranslation from "../../docs/translation-zh-CN.json";
 
@@ -15,8 +20,14 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("App mount point is missing");
 
 const canvas = new LogicalCanvas(240, 320);
-app.append(canvas.element);
 const runtime = new LegacyRuntimeState();
+// The original's 240x320 frame stays in the page, hidden and first, so the oracle tools'
+// querySelector("canvas") still reads it; the player sees the WideScreen canvas.
+canvas.element.hidden = true;
+app.append(canvas.element);
+const screen = new WideScreen(runtime, canvas);
+screen.element.className = "screen";
+app.append(screen.element);
 const isDevelopmentHost = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
 if (isDevelopmentHost) {
   (window as Window & { __prehistoricRuntime?: LegacyRuntimeState }).__prehistoricRuntime = runtime;
@@ -32,11 +43,11 @@ function refreshDebugOverlay(): void {
   if (!debugOverlay) return;
   debugOverlay.textContent = [
     `boot=${bootStatus}`,
-    `Q=${runtime.game.Q} v=${runtime.game.vByte} c=${runtime.game.c} b=${runtime.game.b} i=${runtime.game.iFlag} M=${runtime.game.staticM}`,
+    `Q=${runtime.game.screen} v=${runtime.game.loopMode} c=${runtime.game.missionFrame} b=${runtime.game.b} i=${runtime.game.iFlag} M=${runtime.game.staticM}`,
     `input: U=${runtime.game.inputUp} D=${runtime.game.inputDown} L=${runtime.game.inputLeft} R=${runtime.game.inputRight} T=${runtime.game.inputT} V=${runtime.game.inputV}`,
     `selector: Z=${runtime.game.Z} y=${runtime.game.frameGenCounterY} ab=${runtime.game.ab} e=${runtime.game.inputUp} f=${runtime.game.inputDown} j=${runtime.game.jFlag}`,
     `ao: n=${runtime.aoTrace.count} Q=${runtime.aoTrace.inputQ} Z=${runtime.aoTrace.inputZ} value=${runtime.aoTrace.value} -> ${runtime.aoTrace.outputQ}`,
-    `layout: ar=${runtime.game.frameLayoutAR} av=${runtime.game.frameLayoutAv} au=${runtime.game.frameLayoutAU} aw=${runtime.game.frameLayoutAW} ax=${runtime.game.frameLayoutAX} as=${runtime.game.frameLayoutAS}`,
+    `layout: ar=${runtime.game.frameLayoutAR} av=${runtime.game.frameLayoutAv} au=${runtime.game.frameLayoutAU} aw=${runtime.game.frameLayoutAW} ax=${runtime.game.frameLayoutAX} as=${runtime.game.menuCursor}`,
     `flags=${runtime.game.frameFlags.map((value, index) => value ? index : "-").filter((value) => value !== "-").join(",") || "-"}`,
     `map=${runtime.game.mapWidth}x${runtime.game.mapHeight}`,
     `images=${runtime.imageGroups.filter(Boolean).length} packed=${runtime.packedData ? 1 : 0}`,
@@ -52,22 +63,14 @@ const keys = new KeyState();
 const detachKeyboard = attachOriginalKeyboard(window, keys);
 window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
-// Touch and mouse (temporary first version, user 2026-10-15): taps and drags on the screen plus a
-// row of virtual buttons under it, shown on every device.
-const buttonBar = document.createElement("div");
-buttonBar.className = "buttons";
-buttonBar.innerHTML = [
-  '<button type="button" data-box aria-pressed="false">框选</button>',
-  '<button type="button" data-key="LEFT" aria-label="左">◀</button>',
-  '<button type="button" data-key="RIGHT" aria-label="右">▶</button>',
-  '<button type="button" data-key="FIRE">确定</button>',
-  '<button type="button" data-key="DIGIT_7">7</button>',
-  '<button type="button" data-key="DIGIT_9">9</button>',
-  '<button type="button" data-key="DIGIT_3">地图</button>',
-  '<button type="button" data-key="DIGIT_1">警告</button>',
-].join("");
-app.append(buttonBar);
-const touch = attachTouchControls(canvas.element, buttonBar, runtime, keys);
+// Touch and mouse: taps and drags on the screen (TouchControls) plus the HUD buttons over it.
+const touch = attachTouchControls(screen, runtime, keys);
+// Keys bring back the original's hand cursor; a tap or click takes it away again.
+window.addEventListener("keydown", () => { screen.touchPlay = false; });
+window.addEventListener("pointerdown", () => { screen.touchPlay = true; });
+const notify = attachAlerts(app, runtime, touch);
+const hud = attachHud(app, runtime, screen, touch, attachSettings(app, screen, runtime), notify);
+const menuHud = attachMenuHud(app, runtime, screen, touch);
 // Pinch and double-tap zoom on iOS Safari, which ignores the viewport's user-scalable=no.
 for (const type of ["gesturestart", "gesturechange", "dblclick"]) {
   document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
@@ -78,29 +81,20 @@ for (const type of ["gesturestart", "gesturechange", "dblclick"]) {
 // initializeOriginalLoop() on the runtime the debug boot is already driving.
 let debugBootTookOver = false;
 
-const splashPaths = ["assets/l0.png", "assets/l1.png", "assets/l2.png"];
 const originalKeys = [
   "UP", "DOWN", "LEFT", "RIGHT", "FIRE", "SOFT_LEFT", "SOFT_RIGHT",
   "DIGIT_0", "DIGIT_1", "DIGIT_3", "DIGIT_7", "DIGIT_9",
 ] as const;
 
+/** The game's own splash only (user, 2026-10-17: no publisher logos, l0 / l1); it stays while the
+ *  resources load and the start-up questions are answered. */
 async function showSplash(): Promise<void> {
-  const images = await Promise.all(splashPaths.map((path) => ImageResource.create(path)));
-  // Exact tribes.run()/d.a() sequence: l0 is painted twice before l1,
-  // then l2 is painted immediately before f is created. There is no l3
-  // splash phase in the original caller.
-  const sequence = [
-    { image: images[0], delay: 1000 },
-    { image: images[0], delay: 2000 },
-    { image: images[1], delay: 2000 },
-    { image: images[2], delay: 0 },
-  ];
-  for (const frame of sequence) {
-    if (debugBootTookOver) return;
-    canvas.clear("#000000");
-    canvas.graphics.drawImage(frame.image, 131, 168, Anchor.HCENTER | Anchor.VCENTER);
-    if (frame.delay > 0) await new Promise((resolve) => window.setTimeout(resolve, frame.delay));
-  }
+  screen.splash = true;
+  const image = await ImageResource.create("assets/l2.png");
+  if (debugBootTookOver) return;
+  canvas.clear("#000000");
+  canvas.graphics.drawImage(image, 120, 160, Anchor.HCENTER | Anchor.VCENTER);
+  await new Promise((resolve) => window.setTimeout(resolve, 1200));
 }
 
 function tick(): void {
@@ -126,6 +120,8 @@ function tick(): void {
   if (!runtime.game.b) loop.stop();
 }
 
+let renders = 0;
+let starting = false;
 function render(): void {
   paint();
   // f.run offsets 161..215: if ad:I or ae:I is set after the first paint, both
@@ -135,6 +131,18 @@ function render(): void {
     runtime.game.ae = 0;
     paint();
   }
+  // The oracle runner sets __prehistoricWideEvery to draw the larger view on every Nth frame only.
+  const every = (window as Window & { __prehistoricWideEvery?: number }).__prehistoricWideEvery ?? 1;
+  if (renders++ % every === 0) screen.renderWide();
+  screen.compose();
+  hud.update();
+  menuHud.update();
+  // Start-up: the splash stays until the answered questions have led to the main menu.
+  if (starting && runtime.game.screen !== 14 && runtime.game.screen !== 16) {
+    starting = false;
+    screen.splash = false;
+    screen.frozen = false;
+  }
 }
 
 function paint(): void {
@@ -143,7 +151,7 @@ function paint(): void {
   // 465`): v==1 is the gameplay branch (offsets 8..462, ported as
   // renderGameplayTo/stepGameplayPaintComposite); v!=1 is every menu/
   // dialog/cutscene screen (offsets 465..605, LegacyPaintScreen).
-  if (runtime.game.vByte === 1) {
+  if (runtime.game.loopMode === 1) {
     runtime.renderGameplayTo(canvas.graphics);
   } else if (runtime.offscreenTargets) {
     stepLegacyPaintScreen(
@@ -163,6 +171,9 @@ function paint(): void {
 }
 
 const loop = new FixedLoop({ tickMs: 120, update: tick, render });
+// Between ticks the screen is only recomposed: a drag moves the view smoothly.
+const composeEveryFrame = () => { screen.compose(); hud.track(); requestAnimationFrame(composeEveryFrame); };
+requestAnimationFrame(composeEveryFrame);
 
 async function boot(): Promise<void> {
   bootStatus = "splash";
@@ -193,6 +204,10 @@ async function boot(): Promise<void> {
   // same goes for a tap: the touch layer queued it as FIRE (2026-10-16, user: no Chinese option).
   keys.endTick();
   touch.cancel();
+  // The language list and "play music?" are answered from the last choice behind the splash.
+  screen.freeze();
+  starting = true;
+  touch.answerStartQuestions(savedLanguage(), savedMusic());
   loop.start();
 }
 
@@ -235,10 +250,10 @@ async function boot(): Promise<void> {
  * bug in this port.
  */
 function debugEnterMap(mapIndex = 0): void {
-  runtime.game.qByte = mapIndex;
+  runtime.game.mission = mapIndex;
   runtime.stepMapEntry(mapIndex);
-  runtime.game.vByte = 1;
-  runtime.game.iByte = -1;
+  runtime.game.loopMode = 1;
+  runtime.game.digitKey = -1;
 }
 
 /**
@@ -267,15 +282,16 @@ function debugEnterMap(mapIndex = 0): void {
  */
 function debugEnterMapViaMenu(maxTicks = 200): number {
   for (let elapsed = 0; elapsed < maxTicks; elapsed += 1) {
-    if (runtime.game.Q === 28 && runtime.game.vByte === 1) return elapsed;
+    if (runtime.game.screen === 28 && runtime.game.loopMode === 1) return elapsed;
     runtime.input.press("FIRE");
     tick();
   }
-  return runtime.game.Q === 28 && runtime.game.vByte === 1 ? maxTicks : -1;
+  return runtime.game.screen === 28 && runtime.game.loopMode === 1 ? maxTicks : -1;
 }
 
 async function debugBootWithoutSplash(): Promise<void> {
   debugBootTookOver = true;
+  screen.splash = false;
   loop.stop();
   bootStatus = "debug: loading resources";
   refreshDebugOverlay();
@@ -306,6 +322,7 @@ if (isDevelopmentHost) {
     __prehistoricDebugRender: () => { render(); },
     __prehistoricDebugBootWithoutSplash: () => debugBootWithoutSplash(),
     __prehistoricDebugRuntime: runtime,
+    __prehistoricScreen: screen,
   });
 }
 

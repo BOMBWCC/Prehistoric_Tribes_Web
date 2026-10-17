@@ -11,7 +11,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -30,14 +30,14 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // Handler "K" real dispatch (Q=20, H=true) reaches stepLegacyO for real,
 // in the correct order (after onN/onU, matching the bytecode's own
 // n() -> u() -> O() sequence).
 {
   const rt = new LegacyRuntimeState();
-  rt.game.Q = 20;
+  rt.game.screen = 20;
   rt.game.H = true;
 
   const calls = [];

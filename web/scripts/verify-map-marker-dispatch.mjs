@@ -4,7 +4,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, console });
 const cache = new Map();
 
@@ -28,7 +28,7 @@ const {
   classifyLegacyMarkerRange,
   prepareLegacyMapMarkerDispatch: prepareRaw,
   drawLegacyMapMarkerPieces,
-} = loadModule("./LegacyMapMarkerDispatch", srcDir);
+} = loadModule("./render/LegacyMapMarkerDispatch", srcDir);
 
 // vm.createContext gives the loaded module its own realm, so objects it
 // returns (and any nested arrays) carry a different Object/Array prototype

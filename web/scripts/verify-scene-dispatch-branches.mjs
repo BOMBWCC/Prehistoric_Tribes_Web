@@ -15,7 +15,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -34,7 +34,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // ai===3: writes six dense-state constants at p[2]'s offset. p[2] defaults
 // to 0 (auxiliaryScratch starts zero-filled), so the writes land at
@@ -119,7 +119,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
     assert.match(String(err), /\/ma resource has not been attached/);
   }
   assert.equal(threw, true);
-  assert.equal(rt.game.qByte, 2);
+  assert.equal(rt.game.mission, 2);
   assert.equal(rt.game.subsystemGFFlagByte, 6);
   assert.equal(rt.game.ai, 48);
 }
@@ -137,7 +137,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // `stepEntityCoordinateUpdate` (LegacyRuntimeState.ts), the one already
 // wired everywhere else (T()'s onRecordAction, etc). Comparing the two
 // during the merge found a real bug in stepEntityCoordinateUpdate itself:
-// it read/wrote the "L" (saved-K) value from/to `game.frameLayoutL`, which is a
+// it read/wrote the "L" (saved-K) value from/to `game.selectedId`, which is a
 // DIFFERENT real field (f.l:B #337) than the one f(int,int) actually
 // writes (f.L:B #72, `game.cameraSavedKByte`) -- confirmed via direct
 // bytecode read (offset 8..13: `putfield #72 // L:B`). Fixed in
@@ -146,7 +146,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 function makeCameraRt() {
   const rt = new LegacyRuntimeState();
   rt.game.mapWidth = 999; rt.game.mapHeight = 999;
-  rt.game.viewportO = 0; rt.game.viewportP = 0;
+  rt.game.viewColumns = 0; rt.game.viewRows = 0;
   rt.game.cameraSFlag = true;
   rt.game.cursorTargetColumn = 5; rt.game.cursorTargetRow = 7;
   return rt;
@@ -156,12 +156,12 @@ function makeCameraRt() {
 // are untouched -- the one branch that skips aK()/A:Z entirely.
 {
   const rt = makeCameraRt();
-  rt.game.IByte = 11; rt.game.KByte = 13; rt.game.AFlag = false;
+  rt.game.cameraColumn = 11; rt.game.cameraRow = 13; rt.game.AFlag = false;
   rt.stepEntityCoordinateUpdate(0, -2);
   assert.equal(rt.game.JByte, 11);
   assert.equal(rt.game.cameraSavedKByte, 13);
-  assert.equal(rt.game.IByte, 11); // unchanged
-  assert.equal(rt.game.KByte, 13); // unchanged
+  assert.equal(rt.game.cameraColumn, 11); // unchanged
+  assert.equal(rt.game.cameraRow, 13); // unchanged
   assert.equal(rt.game.AFlag, false); // unchanged
 }
 
@@ -171,8 +171,8 @@ function makeCameraRt() {
   const rt = makeCameraRt();
   rt.denseState[0 + 53] = 20; rt.denseState[101 + 53] = 30;
   rt.stepEntityCoordinateUpdate(53, -2);
-  assert.equal(rt.game.IByte, (20 - 5) & 0xff);
-  assert.equal(rt.game.KByte, (30 - 7 + -2) & 0xff);
+  assert.equal(rt.game.cameraColumn, (20 - 5) & 0xff);
+  assert.equal(rt.game.cameraRow, (30 - 7 + -2) & 0xff);
   assert.equal(rt.game.AFlag, true);
 }
 
@@ -182,8 +182,8 @@ function makeCameraRt() {
   rt.denseState[9359 + 150 - 101] = 40;
   rt.denseState[9381 + 150 - 101] = 50;
   rt.stepEntityCoordinateUpdate(150, 3);
-  assert.equal(rt.game.IByte, (40 - 5) & 0xff);
-  assert.equal(rt.game.KByte, (50 - 7 + 3) & 0xff);
+  assert.equal(rt.game.cameraColumn, (40 - 5) & 0xff);
+  assert.equal(rt.game.cameraRow, (50 - 7 + 3) & 0xff);
   assert.equal(rt.game.AFlag, true);
 }
 
@@ -200,10 +200,10 @@ function makeCameraRt() {
 // asserting the stale, buggy value.
 {
   const rt = makeCameraRt();
-  rt.game.IByte = 60; rt.game.KByte = 70;
+  rt.game.cameraColumn = 60; rt.game.cameraRow = 70;
   rt.stepEntityCoordinateUpdate(-100, 4);
-  assert.equal(rt.game.IByte, (60 - 5) & 0xff);
-  assert.equal(rt.game.KByte, (70 - 7 + 4) & 0xff);
+  assert.equal(rt.game.cameraColumn, (60 - 5) & 0xff);
+  assert.equal(rt.game.cameraRow, (70 - 7 + 4) & 0xff);
   assert.equal(rt.game.AFlag, true);
 }
 
@@ -219,8 +219,8 @@ function makeCameraRt() {
   rt.packedBytes[104 + 2] = 6; // halfWidth = 6>>1 = 3
   rt.packedBytes[130 + 2] = 8; // halfHeight = 8>>1 = 4
   rt.stepEntityCoordinateUpdate(-negId, 1);
-  assert.equal(rt.game.IByte, (15 + 3 - 5) & 0xff);
-  assert.equal(rt.game.KByte, (25 + 4 - 7 + 1) & 0xff);
+  assert.equal(rt.game.cameraColumn, (15 + 3 - 5) & 0xff);
+  assert.equal(rt.game.cameraRow, (25 + 4 - 7 + 1) & 0xff);
   assert.equal(rt.game.AFlag, true);
 }
 
@@ -245,7 +245,7 @@ function makeCameraRt() {
     return originalPlace(map, team, a, b, c, d, e, f, options);
   };
   try { rt.runSceneDispatch(48); } catch { /* later steps may still throw; the q reads above already happened */ }
-  assert.equal(rt.game.qByte, 3, "T()'s ai===48 branch must end with q:B === 3");
+  assert.equal(rt.game.mission, 3, "T()'s ai===48 branch must end with q:B === 3");
   assert.ok(seenQ.length > 0, "ai===48 must reach at least one placeEntity call");
   for (const q of seenQ) {
     assert.equal(q, 3, "placeEntity must observe the LIVE q:B (3), not the pre-branch snapshot");
@@ -258,11 +258,11 @@ function makeCameraRt() {
 // LegacyRuntimeState.ts's onU). In real bytecode Q is a live instance
 // field, so the recursive call's own S() (`R = this.Q`) observes 28
 // immediately. `stepSubsystemStateCommand` re-copies `state.Q =
-// this.game.Q` at its own top on every call, including this recursive
-// one -- but the OUTER call's `this.game.Q = state.Q` write-back only
+// this.game.screen` at its own top on every call, including this recursive
+// one -- but the OUTER call's `this.game.screen = state.Q` write-back only
 // happens after the whole call (recursion included) returns, so
-// `this.game.Q` is still whatever Q held BEFORE this b(-1) dispatch
-// began. Without syncing `this.game.Q` right before the recursive call,
+// `this.game.screen` is still whatever Q held BEFORE this b(-1) dispatch
+// began. Without syncing `this.game.screen` right before the recursive call,
 // that stale read clobbers the just-written 28, and the new scene's own
 // R ends up wrong -- which is exactly what stalled the intro dialogue
 // permanently at a later non-advance ai (its `Q = R` tail could never
@@ -272,7 +272,7 @@ function makeCameraRt() {
 // not depend on real /a resource table data.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.Q = 999; // stand-in for "whatever Q held before this dispatch"
+  rt.game.screen = 999; // stand-in for "whatever Q held before this dispatch"
   rt.game.ai = 1; // stepSubsystemStateCommand's own copy-in reads game.ai
   rt.stateCommandState.aj = 2;
   rt.stateCommandState.ak = 1; // ak === aj-1 -> b(-1) reaches U()
@@ -281,7 +281,7 @@ function makeCameraRt() {
   assert.equal(
     rt.game.R,
     28,
-    "the recursive b(ai+1) call's S() must see U()'s just-written Q=28, not the stale pre-dispatch game.Q",
+    "the recursive b(ai+1) call's S() must see U()'s just-written Q=28, not the stale pre-dispatch game.screen",
   );
 }
 

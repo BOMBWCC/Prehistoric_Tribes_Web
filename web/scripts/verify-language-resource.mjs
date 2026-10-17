@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { LegacyResourceTables } from "../src/j2me/LegacyResourceTables.ts";
+import { LegacyResourceTables } from "../src/platform/LegacyResourceTables.ts";
 
 const tables = new LegacyResourceTables();
 const translation = new Int8Array(512);

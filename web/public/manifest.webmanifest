@@ -1,0 +1,13 @@
+{
+  "name": "Prehistoric Tribes",
+  "short_name": "Tribes",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#a7963f",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-384.png", "sizes": "384x384", "type": "image/png" }
+  ]
+}

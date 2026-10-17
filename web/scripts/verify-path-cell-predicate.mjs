@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import ts from 'typescript';
 import vm from 'node:vm';
 
-const source = new URL('../src/j2me/LegacyPathCellPredicate.ts', import.meta.url).pathname;
+const source = new URL('../src/sim/world/LegacyPathCellPredicate.ts', import.meta.url).pathname;
 const module = { exports: {} };
 const output = ts.transpileModule(fs.readFileSync(source, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

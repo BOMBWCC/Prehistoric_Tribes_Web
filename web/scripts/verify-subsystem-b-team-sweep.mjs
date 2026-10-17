@@ -3,7 +3,7 @@
 // two cSInt===100 call sites (replacing the "documented no-op" markers).
 // Also covers the corrected fN/fL/N/L wiring in stepEntityDecisionCheck's
 // subsystemB/subsystemNOrchestrator calls: both now read
-// game.outerLoopNFlag/outerLoopLFlag (confirmed via direct bytecode read
+// game.callToArmsActive/outerLoopLFlag (confirmed via direct bytecode read
 // of #37/#33 inside `private boolean b()`/`private boolean n()`, the SAME
 // indices this method itself uses) instead of the misidentified
 // game.nFlag/subsystemLFlag (a real, separate field with its own
@@ -14,7 +14,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -33,7 +33,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // --- subsystemBTeamSweep direct tests ---
 
@@ -41,7 +41,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // value1+value2<=1 -> no write (skip straight to next id).
 {
   const rt = new LegacyRuntimeState();
-  rt.game.outerLoopNFlag = false;
+  rt.game.callToArmsActive = false;
   rt.packedOffsets[41] = 200;
   rt.packedOffsets[100] = 300;
   rt.denseState[2828 + 4] = 5;
@@ -57,8 +57,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // outerLoopNFlag===false, gate fully satisfied -> writes dense[7979+id]|=96.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.outerLoopNFlag = false;
-  rt.game.outerLoopLFlag = false;
+  rt.game.callToArmsActive = false;
+  rt.game.formUpActive = false;
   rt.packedOffsets[41] = 200;
   rt.packedOffsets[100] = 300;
   const id = 4;
@@ -77,8 +77,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // outerLoopNFlag===true: skips the nested-table gate entirely, goes straight to the L-check.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.outerLoopNFlag = true;
-  rt.game.outerLoopLFlag = false;
+  rt.game.callToArmsActive = true;
+  rt.game.formUpActive = false;
   const id = 4;
   rt["subsystemBTeamSweep"]();
   assert.equal(rt.denseState[7979 + id], 96);
@@ -87,8 +87,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // outerLoopLFlag===true AND bit64 already set -> id skipped, no write (no OR applied).
 {
   const rt = new LegacyRuntimeState();
-  rt.game.outerLoopNFlag = true;
-  rt.game.outerLoopLFlag = true;
+  rt.game.callToArmsActive = true;
+  rt.game.formUpActive = true;
   const id = 4;
   rt.denseState[7979 + id] = 64;
   rt["subsystemBTeamSweep"]();
@@ -98,8 +98,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // outerLoopLFlag===true but bit64 NOT set -> write still happens.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.outerLoopNFlag = true;
-  rt.game.outerLoopLFlag = true;
+  rt.game.callToArmsActive = true;
+  rt.game.formUpActive = true;
   const id = 4;
   rt.denseState[7979 + id] = 0;
   rt["subsystemBTeamSweep"]();
@@ -117,8 +117,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt["subsystemBTeamSweep"] = () => { calls.push(1); return original(); };
   rt["stepLegacyX"]();
   assert.deepEqual(calls, [1]);
-  assert.equal(rt.game.outerLoopNFlag, true);
-  assert.equal(rt.game.outerLoopLFlag, false);
+  assert.equal(rt.game.callToArmsActive, true);
+  assert.equal(rt.game.formUpActive, false);
 }
 
 {
@@ -132,7 +132,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt["subsystemBTeamSweep"] = () => { calls.push(1); return original(); };
   rt["stepLegacyX"]();
   assert.deepEqual(calls, [1]);
-  assert.equal(rt.game.outerLoopLFlag, true);
+  assert.equal(rt.game.formUpActive, true);
 }
 
 // --- stepEntityDecisionCheck: fN/fL/N/L now read outerLoopNFlag/outerLoopLFlag ---
@@ -150,16 +150,16 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.packedOffsets[41] = 200;
   rt.packedBytes[200 + 5] = 1;
   rt.packedBytes[200 + 12] = 0;
-  rt.game.c = 1;
-  rt.game.subsystemU = 0;
+  rt.game.missionFrame = 1;
+  rt.game.bTeam = 0;
   rt.game.subsystemQ = 0;
   rt.game.subsystemMByte = 5;
   // Force nFlag/subsystemLFlag (the WRONG fields) to true, proving the real
   // decision path no longer reads them at all.
   rt.game.nFlag = true;
   rt.game.subsystemLFlag = true;
-  rt.game.outerLoopNFlag = false;
-  rt.game.outerLoopLFlag = false;
+  rt.game.callToArmsActive = false;
+  rt.game.formUpActive = false;
 
   const calls = [];
   const originalChange = rt.changeEntityType.bind(rt);

@@ -1,8 +1,8 @@
 // Regression test for the 2026-08-18 "phase" field-identity fix.
 //
 // Three call sites in LegacyRuntimeState.ts were binding "phase" to
-// game.timingCounterE (f.e:I, #284), but direct bytecode reads of their
-// own real target methods confirm they need f.f:I (#294)/game.fCounter,
+// game.animStep (f.e:I, #284), but direct bytecode reads of their
+// own real target methods confirm they need f.f:I (#294)/game.animPhase,
 // a genuinely different field that only shares the letter-adjacent "e"/"f"
 // naming, not an actual relationship:
 //  - stepLegacyP's pFrameState.phase (P(), offset 337/352) -- driven here
@@ -27,7 +27,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -46,23 +46,23 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 function freshRt() {
   const rt = new LegacyRuntimeState();
   // Force fCounter and timingCounterE to distinct, distinguishable values
   // so a test that reads the wrong field fails loudly instead of
   // coincidentally passing (both default to 0 otherwise).
-  rt.game.fCounter = 42;
-  rt.game.timingCounterE = 99;
+  rt.game.animPhase = 42;
+  rt.game.animStep = 99;
   return rt;
 }
 
 // --- stepLegacyP (real "P" handler, Q===17) reads fCounter, not timingCounterE ---
 {
   const rt = freshRt();
-  rt.game.Q = 17;
-  rt.game.c = 0;
+  rt.game.screen = 17;
+  rt.game.missionFrame = 0;
   let threw = null;
   try {
     rt.stepFrameDispatch();
@@ -89,8 +89,12 @@ function freshRt() {
 // unreliable for very large class methods during this test's own
 // development -- see the commit message for the discovery).
 {
-  const sourcePath = path.resolve(srcDir, "LegacyRuntimeState.ts");
-  const source = fs.readFileSync(sourcePath, "utf8");
+  // The runtime class plus the modules its wiring was split into (phase 2 step 3), where `this`
+  // became `rt`.
+  const sourcePaths = ["core/LegacyRuntimeState.ts", "sim/tribe/TribeRuntime.ts", "sim/units/UnitRuntime.ts",
+    "render/RenderRuntime.ts", "ui/UiRuntime.ts", "sim/world/WorldRuntime.ts", "save/SaveRuntime.ts"].map((p) => path.resolve(srcDir, p));
+  const source = sourcePaths.filter((p) => fs.existsSync(p)).map((p) => fs.readFileSync(p, "utf8")).join("\n")
+    .replace(/\brt\.game\./g, "this.game.");
   const phaseLines = source
     .split("\n")
     .map((line) => line.trim())
@@ -99,20 +103,20 @@ function freshRt() {
   // phase) must read fCounter -- P()'s is the live `phase: "fCounter"`
   // mapping on pFrameState since 2026-09-23, checked at runtime below; 2 sites (1137 composition, negative-branch cell body) must
   // still read timingCounterE -- both are confirmed correct as-is.
-  const usingFCounter = phaseLines.filter((line) => line.includes("this.game.fCounter"));
-  const usingTimingCounterE = phaseLines.filter((line) => line.includes("this.game.timingCounterE"));
+  const usingFCounter = phaseLines.filter((line) => line.includes("this.game.animPhase"));
+  const usingTimingCounterE = phaseLines.filter((line) => line.includes("this.game.animStep"));
   // A fourth since 2026-10-16: drawImageHelper's a(IBBIIB) call (the 1118 helper) now goes through
   // stepLegacyMapMarkerDetail too, with the same f:I phase.
-  assert.equal(usingFCounter.length, 4, `expected 4 phase lines reading game.fCounter, found ${usingFCounter.length}: ${JSON.stringify(usingFCounter)}`);
-  assert.equal(usingTimingCounterE.length, 2, `expected 2 phase lines reading game.timingCounterE (1137 composition + negative-branch cell body), found ${usingTimingCounterE.length}: ${JSON.stringify(usingTimingCounterE)}`);
+  assert.equal(usingFCounter.length, 4, `expected 4 phase lines reading game.animPhase, found ${usingFCounter.length}: ${JSON.stringify(usingFCounter)}`);
+  assert.equal(usingTimingCounterE.length, 2, `expected 2 phase lines reading game.animStep (1137 composition + negative-branch cell body), found ${usingTimingCounterE.length}: ${JSON.stringify(usingTimingCounterE)}`);
 }
 
 {
-  const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+  const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
-  rt.game.fCounter = 77;
-  rt.game.timingCounterE = 5;
-  assert.equal(rt["pFrameState"].phase, 77, "P()'s phase is game.fCounter");
+  rt.game.animPhase = 77;
+  rt.game.animStep = 5;
+  assert.equal(rt["pFrameState"].phase, 77, "P()'s phase is game.animPhase");
 }
 
 console.log("phase field-identity fix (P()/u()/map-marker-detail/marker-scan -> fCounter, negative-branch stays timingCounterE) OK");

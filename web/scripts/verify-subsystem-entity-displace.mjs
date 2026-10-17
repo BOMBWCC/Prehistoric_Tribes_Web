@@ -6,7 +6,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -21,8 +21,8 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { stepLegacySubsystemEntityDisplace } = loadModule("./LegacySubsystemEntityDisplace", srcDir);
-const { deriveLegacyEntityStateCode } = loadModule("./LegacySubsystemEntityStateCode", srcDir);
+const { stepLegacySubsystemEntityDisplace } = loadModule("./sim/tribe/LegacySubsystemEntityDisplace", srcDir);
+const { deriveLegacyEntityStateCode } = loadModule("./sim/tribe/LegacySubsystemEntityStateCode", srcDir);
 
 const grid = () => Array.from({ length: 20 }, () => new Int8Array(20));
 function run({ state, gridC = grid(), mover = 3, occupant = 7, commit = false, onMove }) {

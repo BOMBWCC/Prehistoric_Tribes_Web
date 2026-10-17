@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = `${new URL("../src/j2me/LegacySubsystemBOrchestrator.ts", import.meta.url).pathname}`;
+const path = `${new URL("../src/sim/tribe/LegacySubsystemBOrchestrator.ts", import.meta.url).pathname}`;
 const cache = new Map();
 function load(file) {
   if (cache.has(file)) return cache.get(file).exports;

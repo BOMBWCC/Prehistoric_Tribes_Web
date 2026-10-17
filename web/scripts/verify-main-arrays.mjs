@@ -19,7 +19,7 @@ function loadModule(path) {
 }
 
 const { LegacyMainArrays } = loadModule(
-  `${new URL("../src/j2me/LegacyMainArrays.ts", import.meta.url).pathname}`,
+  `${new URL("../src/core/LegacyMainArrays.ts", import.meta.url).pathname}`,
 );
 const arrays = new LegacyMainArrays();
 assert.deepEqual([arrays.g.length, arrays.g[0].length], [21, 11]);

@@ -17,7 +17,7 @@ function load(file) {
 }
 
 const { stepLegacySubsystemNOrchestrator } = load(
-  new URL("../src/j2me/LegacySubsystemNOrchestrator.ts", import.meta.url).pathname,
+  new URL("../src/sim/tribe/LegacySubsystemNOrchestrator.ts", import.meta.url).pathname,
 );
 const make = () => ({
   state: new Int8Array(10000), packedBytes: new Int8Array(1000), packedOffsets: new Int16Array(100),

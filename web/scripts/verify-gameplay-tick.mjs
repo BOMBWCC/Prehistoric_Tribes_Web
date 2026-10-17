@@ -2,48 +2,49 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 function loadModule(file) {
   const module = { exports: {} };
   const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int32Array });
+  vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int32Array });
   return module.exports;
 }
 
-const { LegacyGameState } = loadModule(new URL("../src/j2me/LegacyGameState.ts", import.meta.url).pathname);
-const { stepLegacyGameplayTick } = loadModule(new URL("../src/j2me/LegacyGameplayTick.ts", import.meta.url).pathname);
+const { LegacyGameState } = loadModule(new URL("../src/core/LegacyGameState.ts", import.meta.url).pathname);
+const { stepLegacyGameplayTick } = loadModule(new URL("../src/core/LegacyGameplayTick.ts", import.meta.url).pathname);
 
 const game = new LegacyGameState();
-game.vByte = 1;
-game.iByte = 0;
+game.loopMode = 1;
+game.digitKey = 0;
 game.selectionFlags[4] = true; // f.a:[Z (#123), not f.b:[Z (frameFlags)
 game.resourceByte = (offset, add) =>
   offset === 296 ? 3 : offset === 298 ? 7 : offset === 306 ? 2 : offset === 305 && add === 2 ? 9 : 0;
 const calls = [];
 stepLegacyGameplayTick(game, { loadMode: (mode) => calls.push(["load", mode]) });
-assert.equal(game.iByte, -1);
-assert.equal(game.vByte, 0);
+assert.equal(game.digitKey, -1);
+assert.equal(game.loopMode, 0);
 assert.equal(game.mByte, 1);
 assert.equal(game.entityJ, 113);
-assert.equal(game.Q, 25);
+assert.equal(game.screen, 25);
 assert.equal(game.R, 28);
 assert.deepEqual(calls, [["load", 9]]);
 
 // a[6]/a[7]/a[8] (or w == 3) skip the whole help page (offsets 126..153 jump to 385).
 {
   const blocked = new LegacyGameState();
-  blocked.vByte = 1; blocked.iByte = 0; blocked.Q = 28; blocked.selectionFlags[7] = true;
+  blocked.loopMode = 1; blocked.digitKey = 0; blocked.screen = 28; blocked.selectionFlags[7] = true;
   stepLegacyGameplayTick(blocked, { loadMode: () => { throw new Error("must not load"); } });
-  assert.equal(blocked.iByte, -1);
-  assert.equal(blocked.vByte, 1);
-  assert.equal(blocked.Q, 28);
+  assert.equal(blocked.digitKey, -1);
+  assert.equal(blocked.loopMode, 1);
+  assert.equal(blocked.screen, 28);
 }
 
 const counters = new LegacyGameState();
 for (let i = 0; i < 8; i += 1) stepLegacyGameplayTick(counters);
-assert.equal(counters.timingCounterE, 0);
+assert.equal(counters.animStep, 0);
 assert.equal(counters.oInt, 4);
 assert.equal(counters.nFlag, false);
 
@@ -51,7 +52,7 @@ assert.equal(counters.nFlag, false);
 // (cQFlag) -- not E:B (game.E, the key-repeat count). Fixed 2026-10-08.
 {
   const t = new LegacyGameState();
-  t.cEFlag = true; t.cQFlag = true; t.E = 2; t.timingCounterE = 5;
+  t.cEFlag = true; t.cQFlag = true; t.E = 2; t.animStep = 5;
   stepLegacyGameplayTick(t);
   assert.equal(t.cEFlag, false);
   assert.equal(t.cQFlag, false);
@@ -59,8 +60,8 @@ assert.equal(counters.nFlag, false);
 }
 
 const maintenance = new LegacyGameState();
-maintenance.vByte = 1;
-maintenance.iByte = 1;
+maintenance.loopMode = 1;
+maintenance.digitKey = 1;
 let maintenanceCalls = 0;
 for (let i = 0; i < 6; i += 1) {
   stepLegacyGameplayTick(maintenance, { allocateMaintenanceRecord: () => { maintenanceCalls += 1; } });
@@ -88,11 +89,11 @@ assert.equal(maintenance.dByte, 0);
   // chief-pick K:Z (#69, kFlag) alone -- split 2026-09-23.
   const kFlagCase = new LegacyGameState();
   kFlagCase.kResetFlag = true;
-  kFlagCase.kFlag = true;
+  kFlagCase.choosingChief = true;
   let iCalls = 0;
   stepLegacyGameplayTick(kFlagCase, { onI: () => { iCalls += 1; } });
   assert.equal(kFlagCase.kResetFlag, false);
-  assert.equal(kFlagCase.kFlag, true);
+  assert.equal(kFlagCase.choosingChief, true);
   assert.equal(iCalls, 1);
 }
 {

@@ -70,9 +70,11 @@ npm run dev
 ## 目录
 
 - `web/` —— 游戏本体（TypeScript + Canvas，没有使用游戏引擎）
-  - `src/j2me/` —— 原版各个方法的逐条移植
+  - `src/` —— 原版各个方法的逐条移植，按功能分目录：
+    - `platform/` J2ME 兼容层（画图、图片、按键、存储、声音、资源）；`save/` 存档格式；`core/` 运行时与游戏状态
+    - `sim/units`、`sim/tribe`、`sim/world` 单位、部落与敌方 AI、地图与寻路；`render/` 绘制；`ui/` 菜单与流程；`text/` 文字排版
   - `public/assets/` —— 从原版提取的素材（图片、地图、文字、音乐）
-  - `scripts/verify-*.mjs` —— 各个移植方法的行为测试（`node scripts/verify-xxx.mjs`）
+  - `scripts/verify-*.mjs` —— 各个移植方法的行为测试（`npm test` 全部运行）
 - `docs/translation-zh-CN.json` —— 简体中文译文，游戏直接读取这个文件
 
 ## 之后的计划

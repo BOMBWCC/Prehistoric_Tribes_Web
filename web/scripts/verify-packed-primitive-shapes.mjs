@@ -30,7 +30,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 function loadModule(specifier, fromDir) {
@@ -45,7 +45,7 @@ function loadModule(specifier, fromDir) {
   fn(module, module.exports, (spec) => loadModule(spec, path.dirname(absPath)));
   return module.exports;
 }
-const { LegacyPackedSpriteRenderer } = loadModule("./LegacyPackedSpriteRenderer", srcDir);
+const { LegacyPackedSpriteRenderer } = loadModule("./render/LegacyPackedSpriteRenderer", srcDir);
 
 const byteTables = Array.from({ length: 25 }, () => new Int8Array(256));
 const shortTables = Array.from({ length: 11 }, () => new Int16Array(256));

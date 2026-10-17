@@ -6,7 +6,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -25,7 +25,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacySubsystemEntityTypeReaction } = loadModule("./LegacySubsystemEntityTypeReaction", srcDir);
+const { stepLegacySubsystemEntityTypeReaction } = loadModule("./sim/tribe/LegacySubsystemEntityTypeReaction", srcDir);
 
 function makeTeamMarkerTable() {
   return [0, 1].map(() => Array.from({ length: 5 }, () => new Int8Array(4).fill(0).map((_, i) => (i === 2 ? -1 : 0))));

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { drawLegacy1137Composition } from "../src/j2me/Legacy1137Composition.ts";
+import { drawLegacy1137Composition } from "../src/render/Legacy1137Composition.ts";
 
 const packedBytes = new Int8Array(128);
 const packedOffsets = new Int16Array(312);

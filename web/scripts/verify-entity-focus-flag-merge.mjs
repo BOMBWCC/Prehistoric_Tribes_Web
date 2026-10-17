@@ -11,7 +11,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -30,7 +30,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // f.h()'s kFlag-reset block (offset 596..598, `putfield #49`) must clear
 // the SAME field ah()/aj()/af() write, not a separate stale duplicate.
@@ -38,8 +38,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   rt.game.entityFocusFlag = true;
   rt.game.kResetFlag = true;
-  rt.game.vByte = 1;
-  rt.game.iByte = -1;
+  rt.game.loopMode = 1;
+  rt.game.digitKey = -1;
   rt.stepGameplayFrame();
   assert.equal(rt.game.entityFocusFlag, false);
   assert.equal("FFlag" in rt.game, false);

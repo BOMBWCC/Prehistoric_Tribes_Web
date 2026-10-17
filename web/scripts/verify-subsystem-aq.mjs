@@ -5,7 +5,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -24,7 +24,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacySubsystemAq } = loadModule("./LegacySubsystemAq", srcDir);
+const { stepLegacySubsystemAq } = loadModule("./sim/tribe/LegacySubsystemAq", srcDir);
 
 function make3D(teams, rows, cols) {
   return Array.from({ length: teams }, () => Array.from({ length: rows }, () => new Int8Array(cols)));
@@ -140,13 +140,13 @@ function makeInput(overrides = {}) {
   assert.equal(input.scoutMemory[1][0][4], 77, "written at slotIndex(4), not at aO(0) -- confirms the corrected index/value order");
 }
 
-// Section 1: game.c<=A/3 skips the second aO loop (2..4) and its n(266) calls.
+// Section 1: game.missionFrame<=A/3 skips the second aO loop (2..4) and its n(266) calls.
 {
   const input = makeInput({ simulationCounter: 50 });
   input.packedOffsets[264] = 10;
   input.packedBytes[10] = 2;
   input.packedOffsets[216] = 70;
-  input.packedBytes[70] = 1000; // A = 1000*500 -- huge, so game.c(50) <= A/3 easily
+  input.packedBytes[70] = 1000; // A = 1000*500 -- huge, so game.missionFrame(50) <= A/3 easily
   input.scoutMemory[1][0][11] = 7;
   let nCalls = [];
   stepLegacySubsystemAq(input, { onN: (arg) => nCalls.push(arg) });
@@ -159,7 +159,7 @@ function makeInput(overrides = {}) {
   input.packedOffsets[264] = 10;
   input.packedBytes[10] = 2; // period1=100
   input.packedOffsets[216] = 70;
-  input.packedBytes[70] = 0; // A=0 -> game.c(50) > A/3(0)
+  input.packedBytes[70] = 0; // A=0 -> game.missionFrame(50) > A/3(0)
   input.packedOffsets[268] = 80;
   input.packedBytes[80] = 100; // (R&63)=0 < 100 -- passes
   input.scoutMemory[1][0][11] = 42; // aP
@@ -199,7 +199,7 @@ function makeInput(overrides = {}) {
   input.packedOffsets[269] = 90;
   input.packedBytes[90] = 2; // period2=100, 50%100===50
   input.packedOffsets[216] = 70;
-  input.packedBytes[70] = 0; // A=0 -> game.c(50) > A/2(0)
+  input.packedBytes[70] = 0; // A=0 -> game.missionFrame(50) > A/2(0)
   input.state[8505 + 5] = 1; // active
   input.state[8749 + 5] = 8; // kind===8
   input.packedOffsets[270] = 95;

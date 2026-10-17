@@ -5,7 +5,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -24,7 +24,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { stepLegacySubsystemAs } = loadModule("./LegacySubsystemAs", srcDir);
+const { stepLegacySubsystemAs } = loadModule("./sim/tribe/LegacySubsystemAs", srcDir);
 
 function makeInput(overrides = {}) {
   const { oByte = -1, aR = 0, qByte = 0, ...rest } = overrides;
@@ -80,7 +80,7 @@ function makeInput(overrides = {}) {
   assert.equal(atCalled, false);
 }
 
-// Section A ((game.c&63)===25): finds an eligible entity, sets Q, and
+// Section A ((game.missionFrame&63)===25): finds an eligible entity, sets Q, and
 // flags eligible team-1 units (51..100) with bit5.
 {
   const input = makeInput({ simulationCounter: 25, fByte: 100 }); // 25&63===25

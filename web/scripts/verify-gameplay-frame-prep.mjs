@@ -4,7 +4,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 
 function loadModule(file) {
   const module = { exports: {} };
@@ -15,7 +15,7 @@ function loadModule(file) {
   return module.exports;
 }
 
-const { stepLegacyGameplayFramePrep } = loadModule(path.join(srcDir, "LegacyGameplayFramePrep.ts"));
+const { stepLegacyGameplayFramePrep } = loadModule(path.join(srcDir, "render/LegacyGameplayFramePrep.ts"));
 
 function baseState(overrides = {}) {
   return {

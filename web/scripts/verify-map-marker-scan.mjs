@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = new URL("../src/j2me/LegacyMapMarkerScan.ts", import.meta.url).pathname;
+const path = new URL("../src/render/LegacyMapMarkerScan.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;

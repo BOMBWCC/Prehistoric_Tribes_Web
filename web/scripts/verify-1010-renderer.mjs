@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { drawLegacy1010 } from "../src/j2me/Legacy1010Renderer.ts";
+import { drawLegacy1010 } from "../src/render/Legacy1010Renderer.ts";
 
 // f.a(int,byte,int), bytecode/f-javap.txt line 14198. Slots: a count
 // (r = 4, s = 7), a unit (r = -2), an icon (r = 12). Slot 1 is selected.

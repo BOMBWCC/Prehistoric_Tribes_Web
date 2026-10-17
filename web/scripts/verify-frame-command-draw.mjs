@@ -3,7 +3,7 @@ import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-const source = fs.readFileSync(new URL("../src/j2me/LegacyFrameCommandDraw.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../src/render/LegacyFrameCommandDraw.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;

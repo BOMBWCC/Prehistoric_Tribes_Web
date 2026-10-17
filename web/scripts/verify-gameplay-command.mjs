@@ -12,33 +12,33 @@ function loadModule(file) {
   return module.exports;
 }
 
-const { LegacyGameState } = loadModule(new URL("../src/j2me/LegacyGameState.ts", import.meta.url).pathname);
-const { stepLegacyGameplayCommand } = loadModule(new URL("../src/j2me/LegacyGameplayCommand.ts", import.meta.url).pathname);
+const { LegacyGameState } = loadModule(new URL("../src/core/LegacyGameState.ts", import.meta.url).pathname);
+const { stepLegacyGameplayCommand } = loadModule(new URL("../src/ui/LegacyGameplayCommand.ts", import.meta.url).pathname);
 
 const game = new LegacyGameState();
-game.iByte = 3;
-game.qByte = 3;
+game.digitKey = 3;
+game.mission = 3;
 const calls = [];
 stepLegacyGameplayCommand(game, { onEntityActionStart: (...args) => calls.push(args) });
-assert.equal(game.iByte, -1);
+assert.equal(game.digitKey, -1);
 assert.deepEqual(calls, [[20, 1, 0]]);
 
 game.staticM = true;
-game.wByte = 0;
+game.barMode = 0;
 // F:B is 0 until a map's h() k:Z reset sets it to -1 (oracle 2026-10-08); this branch needs -1.
-game.FByte = -1;
-game.qByte = 7;
+game.selectionGroup = -1;
+game.mission = 7;
 game.wFlag = true;
 stepLegacyGameplayCommand(game);
-assert.equal(game.vByte, 0);
-assert.equal(game.Q, 10);
+assert.equal(game.loopMode, 0);
+assert.equal(game.screen, 10);
 assert.equal(game.R, 28);
 assert.equal(game.XFlag, false);
 
 // iByte===3, qByte!==3 else-branch: onExitPreparation then onI (private
 // void i() #610, offset 391 -- found missing entirely 2026-08-22).
-game.iByte = 3;
-game.qByte = 7;
+game.digitKey = 3;
+game.mission = 7;
 let exitPrepCalled = false;
 let iCalled = false;
 stepLegacyGameplayCommand(game, {
@@ -51,7 +51,7 @@ assert.equal(iCalled, true);
 // staticM && wByte===3: writes cSInt=0 (s:I #364, NOT the separate sByte
 // field -- a real field mix-up fixed 2026-08-18) and calls onL(-1).
 game.staticM = true;
-game.wByte = 3;
+game.barMode = 3;
 game.cSInt = 99;
 game.sByte = 42; // untouched by this branch -- confirms the fix didn't touch the wrong field
 const lCalls = [];

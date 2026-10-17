@@ -27,7 +27,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -46,8 +46,8 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
-const { markLegacySpatialRecord } = loadModule("./LegacySpatialRecordUpdate", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
+const { markLegacySpatialRecord } = loadModule("./sim/world/LegacySpatialRecordUpdate", srcDir);
 
 // Known-working placeEntity fixture (mirrors verify-entity-placement.mjs's
 // own proven pure-function setup) so canPlaceLegacyFootprint/width/height
@@ -131,7 +131,7 @@ function setupPlacementFixture(rt) {
   rt["runByteActionQueue"] = (type, x, y, value) => { calls.push([type, x, y, value]); return original(type, x, y, value); };
 
   const gridC = Array.from({ length: 8 }, () => new Int8Array(8));
-  rt.game.c = 1; // gate: f.a(BBBB) returns when c:I == 0 or u:B > 0
+  rt.game.missionFrame = 1; // gate: f.a(BBBB) returns when c:I == 0 or u:B > 0
   rt.game.uByte = 0;
 
   let threw = null;

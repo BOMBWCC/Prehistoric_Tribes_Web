@@ -11,7 +11,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -30,7 +30,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 {
   const rt = new LegacyRuntimeState();
@@ -39,12 +39,12 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.game.inputV = true;
   rt.game.E = 99;
   rt.game.wFlag = true;
-  rt.game.iByte = 77;
+  rt.game.digitKey = 77;
   rt.game.inputT = true;
   rt.game.nInt = 42;
   rt.game.Z = 5; // MERGED (2026-08-31): was rt.game.zInt, same real field (#120) -- see game.Z's own docblock.
   rt.game.oInt = 6;
-  rt.game.vByte = 3;
+  rt.game.loopMode = 3;
   rt.game.H = false;
   rt.game.vInt = 0;
   rt.beginEntityAction(4, 0, 0);
@@ -53,12 +53,12 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   assert.equal(rt.game.inputV, false);
   assert.equal(rt.game.E, 4);
   assert.equal(rt.game.wFlag, false);
-  assert.equal(rt.game.iByte, -1);
+  assert.equal(rt.game.digitKey, -1);
   assert.equal(rt.game.inputT, false);
   assert.equal(rt.game.nInt, 0);
   assert.equal(rt.game.Z, 0);
   assert.equal(rt.game.oInt, 0);
-  assert.equal(rt.game.vByte, 0);
+  assert.equal(rt.game.loopMode, 0);
   assert.equal(rt.game.H, true);
   assert.equal(rt.game.vInt, 16); // 12 + ap(4)
 }

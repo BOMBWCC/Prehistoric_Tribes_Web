@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 function loadModule(file) {
   const module = { exports: {} };
   const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array });
+  vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
   return module.exports;
 }
 
-const { stepLegacyEntityCoordinateUpdate } = loadModule(new URL("../src/j2me/LegacyEntityCoordinateUpdate.ts", import.meta.url).pathname);
+const { stepLegacyEntityCoordinateUpdate } = loadModule(new URL("../src/ui/LegacyEntityCoordinateUpdate.ts", import.meta.url).pathname);
 const dense = new Int8Array(10000);
 const packedBytes = new Int8Array(312);
 const packedOffsets = new Int16Array(312);

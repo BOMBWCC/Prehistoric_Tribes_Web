@@ -11,7 +11,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -30,12 +30,12 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // al()'s own onResetInput now fires the real i() reset via stepStateMachine's onAl.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.Q = 27;
+  rt.game.screen = 27;
   rt.game.iFlag = true;
   rt.game.staticL = false;
   rt.game.inputV = true;
@@ -52,7 +52,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 // not the orphaned game.eFlag/fFlag.
 {
   const rt = new LegacyRuntimeState();
-  rt.game.Q = 14;
+  rt.game.screen = 14;
   rt.game.iFlag = false;
   rt.game.staticL = false;
   rt.game.staticM = false;

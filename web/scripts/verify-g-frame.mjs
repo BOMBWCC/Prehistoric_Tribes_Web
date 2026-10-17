@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { stepLegacyGFrame } from "../src/j2me/LegacyGFrame.ts";
+import { stepLegacyGFrame } from "../src/ui/LegacyGFrame.ts";
 
 const state = {
   H: true, Q: 14, U: 5, V: 4, N: 0, c1: 1,

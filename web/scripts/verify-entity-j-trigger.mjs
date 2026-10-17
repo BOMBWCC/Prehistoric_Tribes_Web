@@ -10,7 +10,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -29,7 +29,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // Case A: mask bits both clear (A ends at -1 both times), x3 outside
 // [69,74] (multiplier phase skipped), x6>0 (dense-stride branch), x8>=0
@@ -84,7 +84,7 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const id = 8;
   const type = 1;
   rt.denseState[2828 + id] = type;
-  rt.game.subsystemU = 0; // team
+  rt.game.bTeam = 0; // team
 
   rt.packedOffsets[27] = 0;
   rt.packedBytes[0 + type] = 32; // bit&32!==0 -> skip override (A=1); bit&16===0 -> A=-1 later

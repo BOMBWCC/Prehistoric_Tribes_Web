@@ -9,7 +9,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 const scans = [];
@@ -29,7 +29,7 @@ function loadModule(specifier, fromDir) {
 }
 
 // Stub the scan before the method under test pulls it in.
-const lookupPath = path.resolve(srcDir, "LegacySubsystemNearbyMarkerLookup") + ".ts";
+const lookupPath = path.resolve(srcDir, "sim/tribe/LegacySubsystemNearbyMarkerLookup") + ".ts";
 cache.set(lookupPath, {
   exports: {
     stepLegacySubsystemNearbyMarkerLookup: (input) => {
@@ -40,7 +40,7 @@ cache.set(lookupPath, {
 });
 let stubFind = null;
 
-const { stepLegacySubsystemBBoolean2 } = loadModule("./LegacySubsystemBBoolean2", srcDir);
+const { stepLegacySubsystemBBoolean2 } = loadModule("./sim/tribe/LegacySubsystemBBoolean2", srcDir);
 
 const V = 4;
 

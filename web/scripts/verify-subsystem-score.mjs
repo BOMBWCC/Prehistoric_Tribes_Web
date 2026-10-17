@@ -51,7 +51,7 @@ import path from "node:path";
 import ts from "typescript";
 import vm from "node:vm";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math, RangeError });
 const cache = new Map();
 
@@ -71,7 +71,7 @@ function loadModule(specifier, fromDir) {
 }
 
 const { stepLegacySubsystemScore, computeLegacySubsystemBound, computeLegacySubsystemPairScore } =
-  loadModule("./LegacySubsystemScore", srcDir);
+  loadModule("./sim/tribe/LegacySubsystemScore", srcDir);
 
 function byteCube(depth, rows, cols) {
   return Array.from({ length: depth }, () => Array.from({ length: rows }, () => new Int8Array(cols)));

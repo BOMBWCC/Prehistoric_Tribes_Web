@@ -22,7 +22,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -41,7 +41,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // 2026-09-23: stateCommandState is now a live view of these game fields, so
 // there is nothing to push or pull -- the bag and game.* are one storage.
@@ -49,8 +49,8 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   const rt = new LegacyRuntimeState();
   const bag = rt["stateCommandState"];
   bag.I = 9; bag.K = 8; bag.J = 7; bag.L = 6;
-  assert.deepEqual([rt.game.IByte, rt.game.KByte, rt.game.JByte, rt.game.cameraSavedKByte], [9, 8, 7, 6]);
-  rt.game.IByte = 1; rt.game.KByte = 2; rt.game.JByte = 3; rt.game.cameraSavedKByte = 4;
+  assert.deepEqual([rt.game.cameraColumn, rt.game.cameraRow, rt.game.JByte, rt.game.cameraSavedKByte], [9, 8, 7, 6]);
+  rt.game.cameraColumn = 1; rt.game.cameraRow = 2; rt.game.JByte = 3; rt.game.cameraSavedKByte = 4;
   assert.deepEqual([bag.I, bag.K, bag.J, bag.L], [1, 2, 3, 4]);
 }
 

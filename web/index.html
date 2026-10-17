@@ -4,10 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <link rel="icon" href="/favicon.png" />
+    <!-- Played as a home-screen app, portrait only (phase 3): full screen, the status bar over the
+         page, whose notch strip WideScreen.ts fills with the resource bar's colour. -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tribes" />
+    <meta name="theme-color" content="#a7963f" />
     <title>Prehistoric Tribes</title>
   </head>
   <body>
     <main id="app" aria-label="Prehistoric Tribes game"></main>
+    <div class="rotate-notice" role="alert">请把手机竖过来玩</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

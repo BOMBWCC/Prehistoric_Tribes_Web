@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const sourcePath = `${new URL("../src/j2me/Audio.ts", import.meta.url).pathname}`;
+const sourcePath = `${new URL("../src/platform/Audio.ts", import.meta.url).pathname}`;
 const output = ts.transpileModule(fs.readFileSync(sourcePath, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText;

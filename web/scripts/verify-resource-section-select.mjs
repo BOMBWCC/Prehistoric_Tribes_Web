@@ -13,7 +13,7 @@ function loadModule(file) {
 }
 
 const { LegacyResourceTables, selectLegacyResourceSection } = loadModule(
-  new URL("../src/j2me/LegacyResourceTables.ts", import.meta.url).pathname,
+  new URL("../src/platform/LegacyResourceTables.ts", import.meta.url).pathname,
 );
 
 const packedBytes = new Int8Array(2000);

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
 
-const file = new URL("../src/j2me/LegacyZhText.ts", import.meta.url).pathname;
+const file = new URL("../src/text/LegacyZhText.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;

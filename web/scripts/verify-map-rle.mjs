@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = `${new URL("../src/j2me/LegacyMapRleDecoder.ts", import.meta.url).pathname}`;
+const path = `${new URL("../src/sim/world/LegacyMapRleDecoder.ts", import.meta.url).pathname}`;
 const source = fs.readFileSync(path, "utf8");
 const output = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

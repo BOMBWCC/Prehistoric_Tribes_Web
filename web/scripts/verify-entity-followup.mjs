@@ -2,18 +2,19 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 import vm from "node:vm";
+import { denseRequire } from "./dense-layout-require.mjs";
 
 function loadModule(file) {
   const module = { exports: {} };
   const output = ts.transpileModule(fs.readFileSync(file, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  vm.runInNewContext(output, { module, exports: module.exports, Int8Array });
+  vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array });
   return module.exports;
 }
 
 const { stepLegacyEntityFollowup } = loadModule(
-  new URL("../src/j2me/LegacyEntityFollowup.ts", import.meta.url).pathname,
+  new URL("../src/sim/units/LegacyEntityFollowup.ts", import.meta.url).pathname,
 );
 
 const make = () => ({

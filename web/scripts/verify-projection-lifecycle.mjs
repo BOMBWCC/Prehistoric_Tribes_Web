@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
-const root = `${new URL("../src/j2me/", import.meta.url).pathname}`; const cache = new Map();
+const root = `${new URL("../src/render/", import.meta.url).pathname}`; const cache = new Map();
 function load(name) {
   if (cache.has(name)) return cache.get(name).exports;
   const module = { exports: {} }; cache.set(name, module);

@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const source = fs.readFileSync(new URL("../src/j2me/LegacyMapRenderer.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../src/render/LegacyMapRenderer.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;

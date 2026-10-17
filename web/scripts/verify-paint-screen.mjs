@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = new URL("../src/j2me/LegacyPaintScreen.ts", import.meta.url).pathname;
+const path = new URL("../src/render/LegacyPaintScreen.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
@@ -31,7 +31,7 @@ function freshState() {
 // fields, with a:S/b:S both proven-constant-0 (zero putfield sites in
 // f-javap.txt), giving dest (-11, -8), source (0,0,251,328), transform 0,
 // anchor 0. This is the exact bug fixed 2026-08-31: the previous port
-// gated this on `game.c === -1`, a fabricated condition absent from the
+// gated this on `game.missionFrame === -1`, a fabricated condition absent from the
 // bytecode, which left Q=17 (c !== -1) with a black screen.
 {
   const graphics = mockGraphics();

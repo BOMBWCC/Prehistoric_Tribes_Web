@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const source = fs.readFileSync(new URL("../src/j2me/LegacySubsystemBVoidO.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../src/sim/tribe/LegacySubsystemBVoidO.ts", import.meta.url), "utf8");
 const transpiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(transpiled, { module, exports: module.exports });
+vm.runInNewContext(transpiled, { require: denseRequire, module, exports: module.exports });
 const { stepLegacySubsystemBVoidO } = module.exports;
 
 // Counter above 1 gets reset to 0.

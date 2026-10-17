@@ -1,8 +1,8 @@
-import { loadDelimitedResource, type DelimitedTable } from "./j2me/DelimitedResource";
-import { ImagePack } from "./j2me/ImagePack";
-import { diagnoseTableA, loadMaResource, type AResourceDiagnostic, type MaResource } from "./j2me/BinaryResource";
-import { loadMidiResource, type MidiResource } from "./j2me/Audio";
-import { loadPackedData, type PackedData } from "./j2me/PackedData";
+import { loadDelimitedResource, type DelimitedTable } from "./platform/DelimitedResource";
+import { ImagePack } from "./platform/ImagePack";
+import { diagnoseTableA, loadMaResource, type AResourceDiagnostic, type MaResource } from "./platform/BinaryResource";
+import { loadMidiResource, type MidiResource } from "./platform/Audio";
+import { loadPackedData, type PackedData } from "./platform/PackedData";
 
 export type OriginalResources = {
   readonly pi0: ImagePack;

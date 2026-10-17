@@ -3,7 +3,7 @@ import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
 
-const path = new URL("../src/j2me/LegacyMFrame.ts", import.meta.url).pathname;
+const path = new URL("../src/ui/LegacyMFrame.ts", import.meta.url).pathname;
 const source = fs.readFileSync(path, "utf8");
 const module = { exports: {} };
 vm.runInNewContext(ts.transpileModule(source, {

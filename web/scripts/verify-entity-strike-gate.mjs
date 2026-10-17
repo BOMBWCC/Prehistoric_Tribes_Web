@@ -5,13 +5,14 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const path = new URL("../src/j2me/LegacyEntityStrikeGate.ts", import.meta.url).pathname;
+const path = new URL("../src/sim/units/LegacyEntityStrikeGate.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array, Math });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array, Math });
 const { stepLegacyEntityStrikeGate } = module.exports;
 
 const V = 4;
@@ -258,6 +259,18 @@ function scratchTeamRestored(input) { return input.scratch.team === 0; }
   fighting.state[1919 + 30] = 40; fighting.state[1414 + 30] = 20; fighting.state[2828 + 30] = 7;
   stepLegacyEntityStrikeGate(fighting.input, 5, 6, 2, 0, TARGET, 0, 100, 0);
   assert.equal(fighting.calls.some((c) => c[0] === "move"), false);
+}
+
+// The web alerts' observer (not in the original) hears each blow that lands, kind / target / cell,
+// including a killing one, and never a refused one.
+{
+  const landed = fixture([1, 0, 30, 1], { onHitLanded: (...args) => landed.calls.push(["landed", ...args]) });
+  landed.state[1919 + 30] = 1; landed.state[1414 + 30] = 20; landed.state[2828 + 30] = 69;
+  stepLegacyEntityStrikeGate(landed.input, 5, 6, 2, 0, TARGET, 0, 100, 0);
+  assert.deepEqual(landed.calls.find((c) => c[0] === "landed"), ["landed", 1, 30, 5, 6]);
+
+  const refused = fixture([1, 0, TARGET, 0], { onHitLanded: () => assert.fail("a refused blow is not reported") });
+  stepLegacyEntityStrikeGate(refused.input, 5, 6, 1, 0, TARGET, 0, 100, 0);
 }
 
 console.log("a(IIIIIIII) #298 strike gate OK");

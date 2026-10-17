@@ -12,7 +12,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -36,7 +36,7 @@ const {
   releaseLegacySubsystemBTenSlot,
   releaseLegacySubsystemBTenSlotEntity,
   releaseLegacySubsystemBEntitySlot,
-} = loadModule("./LegacySubsystemBTenSlot", srcDir);
+} = loadModule("./sim/tribe/LegacySubsystemBTenSlot", srcDir);
 
 // b.a(byte)(#475): fills the first slot whose f[0][aK] < 1, zeroes f[1][aK]
 // and dense[9298+id], and returns true; returns false when all 10 are taken.

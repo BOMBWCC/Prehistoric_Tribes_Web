@@ -16,7 +16,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -35,7 +35,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 function freshRuntime() {
   const rt = new LegacyRuntimeState();
@@ -58,7 +58,7 @@ function freshRuntime() {
 // was a dead end. It must route to the complete port instead.
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 18;
+  rt.game.screen = 18;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["stepSubsystemStateCommand", -1]]);
 }
@@ -67,7 +67,7 @@ function freshRuntime() {
 // device trace shows is reused for every dialog in the game).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 17;
+  rt.game.screen = 17;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["stepSubsystemStateCommand", -1]]);
 }
@@ -75,7 +75,7 @@ function freshRuntime() {
 // Q===15 (onAq), m>0 branch: table write, onSound -> selectResourceSection(70+m).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 15;
+  rt.game.screen = 15;
   rt.game.mByte = 3;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["selectResourceSection", 73]]);
@@ -86,49 +86,49 @@ function freshRuntime() {
 // Q===15, m===-1, u===41, q<5: onAM fires first, then onGByte.
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 15;
+  rt.game.screen = 15;
   rt.game.mByte = -1;
   rt.game.uByte = 41;
-  rt.game.qByte = 0;
+  rt.game.mission = 0;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [
     ["resetMapEntryAllocation", 0],
     ["saveOriginalResourceAction", 0],
   ]);
-  assert.equal(rt.game.Q, 23);
-  assert.equal(rt.game.qByte, 1);
+  assert.equal(rt.game.screen, 23);
+  assert.equal(rt.game.mission, 1);
 }
 
 // Q===15, m===-1, u===41, q===6: onAM, then onEntitySignal -> runSceneDispatch(59).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 15;
+  rt.game.screen = 15;
   rt.game.mByte = -1;
   rt.game.uByte = 41;
-  rt.game.qByte = 6;
+  rt.game.mission = 6;
   rt.game.U = 9;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [
     ["resetMapEntryAllocation", 6],
     ["runSceneDispatch", 59],
   ]);
-  assert.equal(rt.game.Q, 18);
-  assert.equal(rt.game.qByte, 7);
+  assert.equal(rt.game.screen, 18);
+  assert.equal(rt.game.mission, 7);
 }
 
 // Q===15, m===-1, u!==41: real bytecode reads R=U (BUG FIX 2026-08-31 in
 // stepLegacyAq -- this port previously hardcoded R=5).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 15;
+  rt.game.screen = 15;
   rt.game.mByte = -1;
   rt.game.uByte = 0;
-  rt.game.qByte = 6;
+  rt.game.mission = 6;
   rt.game.U = 41;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["resetMapEntryAllocation", 5]]);
   assert.equal(rt.game.R, 41, "R must be copied from U (#105), not hardcoded to 5");
-  assert.equal(rt.game.Q, 16);
+  assert.equal(rt.game.screen, 16);
   assert.equal(rt.game.vInt, 58);
 }
 
@@ -136,7 +136,7 @@ function freshRuntime() {
 // gap, class-`a` MIDI player never ported), onAQ -> startOriginalAudio.
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 12;
+  rt.game.screen = 12;
   rt.game.Z = 1;
   rt.game.eByte = 0;
   rt.stepDefaultAo();
@@ -147,7 +147,7 @@ function freshRuntime() {
 // pure stepLegacyAs state, no callback involved.
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 12;
+  rt.game.screen = 12;
   rt.game.Z = 3;
   rt.stepDefaultAo();
   assert.deepEqual(calls, []);
@@ -158,14 +158,14 @@ function freshRuntime() {
 // counter d:I (game.dByte) and b was dropped.
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 13;
+  rt.game.screen = 13;
   rt.game.Z = 6;
-  rt.game.qByte = 7;
+  rt.game.mission = 7;
   rt.game.dByte = 2;
   rt.stepDefaultAo();
   assert.deepEqual(calls, []);
-  assert.equal(rt.game.Q, 9);
-  assert.equal(rt.game.levelBByte, 3);
+  assert.equal(rt.game.screen, 9);
+  assert.equal(rt.game.difficulty, 3);
   assert.equal(rt.game.persistedDByte, 3);
   assert.equal(rt.game.dByte, 2);
 }
@@ -175,39 +175,39 @@ function freshRuntime() {
 // (it was overwritten with b, 2026-09-27).
 {
   const { rt } = freshRuntime();
-  rt.game.Q = 13;
+  rt.game.screen = 13;
   rt.game.Z = 2;
-  rt.game.qByte = 0;
+  rt.game.mission = 0;
   rt.game.progressR = 4;
   rt.game.progressV = 8;
-  rt.game.c = -1;
+  rt.game.missionFrame = -1;
   rt.stepDefaultAo();
-  assert.equal(rt.game.Q, 8);
-  assert.equal(rt.game.levelBByte, 1);
+  assert.equal(rt.game.screen, 8);
+  assert.equal(rt.game.difficulty, 1);
   assert.equal(rt.game.progressC, 1);
-  assert.equal(rt.game.c, -1);
+  assert.equal(rt.game.missionFrame, -1);
 }
 
 // Q===13, q<7, r===0: onGByte -> saveOriginalResourceAction(0).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 13;
+  rt.game.screen = 13;
   rt.game.Z = 4;
-  rt.game.qByte = 0;
+  rt.game.mission = 0;
   rt.game.progressR = 0;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["saveOriginalResourceAction", 0]]);
-  assert.equal(rt.game.Q, 16);
+  assert.equal(rt.game.screen, 16);
   assert.equal(rt.game.vInt, 60);
 }
 
 // Q===24 (onAv): Q=15, mByte=-1, onCByte -> selectResourceSection(75).
 {
   const { rt, calls } = freshRuntime();
-  rt.game.Q = 24;
+  rt.game.screen = 24;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["selectResourceSection", 75]]);
-  assert.equal(rt.game.Q, 15);
+  assert.equal(rt.game.screen, 15);
   assert.equal(rt.game.mByte, -1);
   assert.equal(rt.game.vInt, 71);
 }
@@ -215,7 +215,7 @@ function freshRuntime() {
 // Q===25: onDShortWrite/onBooleanFlag write the shared game arrays.
 {
   const { rt } = freshRuntime();
-  rt.game.Q = 25;
+  rt.game.screen = 25;
   rt.game.Z = 0;
   rt.game.mByte = 0;
   rt.packedOffsets[307] = 700;
@@ -233,7 +233,7 @@ function freshRuntime() {
 {
   const { rt, calls } = freshRuntime();
   const Q = 50;
-  rt.game.Q = Q;
+  rt.game.screen = Q;
   rt.game.Z = 0;
   rt.packedOffsets[151] = 200; rt.packedOffsets[152] = 300; rt.packedOffsets[153] = 100;
   rt.packedBytes[300 + Q] = 0;
@@ -241,7 +241,7 @@ function freshRuntime() {
   rt.game.XFlag = false;
   rt.stepDefaultAo();
   assert.deepEqual(calls, []);
-  assert.equal(rt.game.Q, 16);
+  assert.equal(rt.game.screen, 16);
   assert.equal(rt.game.vInt, 65);
 }
 
@@ -249,17 +249,17 @@ function freshRuntime() {
 {
   const { rt, calls } = freshRuntime();
   const Q = 50;
-  rt.game.Q = Q;
+  rt.game.screen = Q;
   rt.game.Z = 0;
   rt.packedOffsets[151] = 200; rt.packedOffsets[152] = 300; rt.packedOffsets[153] = 100;
   rt.packedBytes[300 + Q] = 0;
   rt.packedBytes[200 + 0] = 9;
   rt.game.XFlag = true;
   rt.game.U = 7;
-  rt.game.qByte = 2;
+  rt.game.mission = 2;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["resetMapEntryAllocation", 2]]);
-  assert.equal(rt.game.Q, 7);
+  assert.equal(rt.game.screen, 7);
 }
 
 // value===1 (onAz + onCByte): Q=15, table write uses the NEW Q (bytecode
@@ -267,14 +267,14 @@ function freshRuntime() {
 {
   const { rt, calls } = freshRuntime();
   const Q = 51;
-  rt.game.Q = Q;
+  rt.game.screen = Q;
   rt.game.Z = 0;
   rt.packedOffsets[151] = 200; rt.packedOffsets[152] = 300; rt.packedOffsets[153] = 100;
   rt.packedBytes[300 + Q] = 0;
   rt.packedBytes[200 + 0] = 1;
   rt.stepDefaultAo();
   assert.deepEqual(calls, [["selectResourceSection", 70]]);
-  assert.equal(rt.game.Q, 15);
+  assert.equal(rt.game.screen, 15);
   assert.equal(rt.game.mByte, 1);
   assert.equal(rt.packedBytes[100 + 116 + 15], 4);
 }
@@ -284,7 +284,7 @@ function freshRuntime() {
 {
   const { rt, calls } = freshRuntime();
   const Q = 52;
-  rt.game.Q = Q;
+  rt.game.screen = Q;
   rt.game.Z = 0;
   rt.packedOffsets[151] = 200; rt.packedOffsets[152] = 300; rt.packedOffsets[153] = 100;
   rt.packedBytes[300 + Q] = 0;
@@ -306,17 +306,17 @@ function freshRuntime() {
 {
   const { rt, calls } = freshRuntime();
   const Q = 53;
-  rt.game.Q = Q;
+  rt.game.screen = Q;
   rt.game.Z = 0;
   rt.packedOffsets[151] = 200; rt.packedOffsets[152] = 300; rt.packedOffsets[153] = 100;
   rt.packedBytes[300 + Q] = 0;
   rt.packedBytes[200 + 0] = 7;
-  rt.game.qByte = 3;
+  rt.game.mission = 3;
   rt.game.tByte = 5;
   rt.game.actionWFlag = false;
   rt.stepDefaultAo();
   assert.deepEqual(calls, []);
-  assert.equal(rt.game.Q, 16, "q<7 && t>-1 takes the Q=16/vInt=64 branch");
+  assert.equal(rt.game.screen, 16, "q<7 && t>-1 takes the Q=16/vInt=64 branch");
   assert.equal(rt.game.vInt, 64);
   assert.equal(rt.game.XFlag, true);
 }

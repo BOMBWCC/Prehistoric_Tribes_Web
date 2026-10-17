@@ -16,7 +16,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -35,25 +35,25 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // Q=28, bytecode/f-javap.txt offsets 122..235: c:Z=false, y:B=z:B, A:B=B:B,
 // I:B=J:B, K:B=L:B, A:Z=true, v:B=1, i().
 {
   const rt = new LegacyRuntimeState();
   const g = rt.game;
-  g.Q = 28;
+  g.screen = 28;
   g.zByte = 3; g.BByte = 5; g.JByte = 7; g.cameraSavedKByte = 9;
-  g.yByte = 0; g.AByte = 0; g.IByte = 0; g.KByte = 0;
-  g.AFlag = false; g.cFlag = true; g.vByte = 0;
+  g.cursorColumn = 0; g.cursorRow = 0; g.cameraColumn = 0; g.cameraRow = 0;
+  g.AFlag = false; g.cFlag = true; g.loopMode = 0;
   rt.stepDefaultAd();
-  assert.equal(g.yByte, 3, "y:B = z:B must reach game.yByte");
-  assert.equal(g.AByte, 5, "A:B = B:B must reach game.AByte (a BYTE copy, not `true`)");
-  assert.equal(g.IByte, 7, "I:B = J:B must reach game.IByte");
-  assert.equal(g.KByte, 9, "K:B = L:B must reach game.KByte (L:B is cameraSavedKByte, NOT LByte)");
+  assert.equal(g.cursorColumn, 3, "y:B = z:B must reach game.cursorColumn");
+  assert.equal(g.cursorRow, 5, "A:B = B:B must reach game.cursorRow (a BYTE copy, not `true`)");
+  assert.equal(g.cameraColumn, 7, "I:B = J:B must reach game.cameraColumn");
+  assert.equal(g.cameraRow, 9, "K:B = L:B must reach game.cameraRow (L:B is cameraSavedKByte, NOT LByte)");
   assert.equal(g.AFlag, true, "A:Z = true must reach game.AFlag -- f.n()'s redraw trigger");
   assert.equal(g.cFlag, false, "c:Z = false must reach game.cFlag");
-  assert.equal(g.vByte, 1, "v:B = 1 must reach game.vByte");
+  assert.equal(g.loopMode, 1, "v:B = 1 must reach game.loopMode");
 }
 
 // Q=31, bytecode offsets 0..112. The `t < s && q < 7` arm sets T:B=0/R:B=18
@@ -61,29 +61,29 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
 {
   const rt = new LegacyRuntimeState();
   const g = rt.game;
-  g.Q = 31;
-  g.tByte = 1; g.sByte = 4; g.qByte = 2;
-  g.actionT = 9; g.progressC = 6; g.levelBByte = 0;
+  g.screen = 31;
+  g.tByte = 1; g.sByte = 4; g.mission = 2;
+  g.actionT = 9; g.progressC = 6; g.difficulty = 0;
   rt.stepDefaultAd();
-  assert.equal(g.qByte, 5, "q:B = s:B then +1 (s=4 >= 1) must reach game.qByte");
+  assert.equal(g.mission, 5, "q:B = s:B then +1 (s=4 >= 1) must reach game.mission");
   assert.equal(g.actionT, 0, "T:B = 0 must reach game.actionT");
   assert.equal(g.R, 18, "R:B = 18");
-  assert.equal(g.Q, 22, "Q:B = 22");
-  assert.equal(g.levelBByte, 6, "b:B = c:B must reach game.levelBByte");
+  assert.equal(g.screen, 22, "Q:B = 22");
+  assert.equal(g.difficulty, 6, "b:B = c:B must reach game.difficulty");
 }
 
 // The other Q=31 arm: t >= s takes T:B=2/R:B=28 and still runs the shared tail.
 {
   const rt = new LegacyRuntimeState();
   const g = rt.game;
-  g.Q = 31;
-  g.tByte = 4; g.sByte = 1; g.qByte = 2;
-  g.actionT = 9; g.progressC = 6; g.levelBByte = 0;
+  g.screen = 31;
+  g.tByte = 4; g.sByte = 1; g.mission = 2;
+  g.actionT = 9; g.progressC = 6; g.difficulty = 0;
   rt.stepDefaultAd();
   assert.equal(g.actionT, 2, "T:B = 2");
   assert.equal(g.R, 28, "R:B = 28");
-  assert.equal(g.qByte, 2, "q:B untouched on this arm");
-  assert.equal(g.levelBByte, 6, "b:B = c:B still runs -- it is the shared tail");
+  assert.equal(g.mission, 2, "q:B untouched on this arm");
+  assert.equal(g.difficulty, 6, "b:B = c:B still runs -- it is the shared tail");
 }
 
 console.log("f.aD() (stepDefaultAd) full state write-back OK");

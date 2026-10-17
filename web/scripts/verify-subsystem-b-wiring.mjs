@@ -15,7 +15,7 @@ import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
 
-const srcDir = new URL("../src/j2me/", import.meta.url).pathname;
+const srcDir = new URL("../src/", import.meta.url).pathname;
 const context = vm.createContext({ Int8Array, Int16Array, Int32Array, Array, console, Math });
 const cache = new Map();
 
@@ -34,7 +34,7 @@ function loadModule(specifier, fromDir) {
   return module.exports;
 }
 
-const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
+const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
 // onRawAction: reach stepLegacySubsystemBDecision's table-41-mismatch
 // branch (state[6464+id]===12, differing table-41 lookups for m vs the
@@ -53,10 +53,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   rt.packedBytes[200 + 5] = 1; // table41(m=5) = 1
   rt.packedBytes[200 + 12] = 0; // table41(state[6464+id]=12) = 0 -- mismatch, enters the branch
 
-  rt.game.c = 1;
-  rt.game.subsystemU = 0;
-  rt.game.outerLoopNFlag = false;
-  rt.game.outerLoopLFlag = false;
+  rt.game.missionFrame = 1;
+  rt.game.bTeam = 0;
+  rt.game.callToArmsActive = false;
+  rt.game.formUpActive = false;
   rt.game.subsystemQ = 0;
   rt.game.subsystemMByte = 5; // b.m:B (#202), "m" in stepLegacySubsystemBDecision
 
@@ -101,10 +101,10 @@ const { LegacyRuntimeState } = loadModule("./LegacyRuntimeState", srcDir);
   // hit an unrepresentative fixture gap.
   rt.packedBytes[0] = 127;
 
-  rt.game.c = 1;
-  rt.game.subsystemU = 0;
-  rt.game.outerLoopNFlag = false;
-  rt.game.outerLoopLFlag = false;
+  rt.game.missionFrame = 1;
+  rt.game.bTeam = 0;
+  rt.game.callToArmsActive = false;
+  rt.game.formUpActive = false;
   rt.game.subsystemQ = 0;
   rt.game.subsystemMByte = 0;
 

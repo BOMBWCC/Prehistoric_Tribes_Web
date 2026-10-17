@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const path = new URL("../src/j2me/LegacyCameraFrame.ts", import.meta.url).pathname;
+const path = new URL("../src/render/LegacyCameraFrame.ts", import.meta.url).pathname;
 const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports, Int8Array, Int16Array });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
 const { stepLegacyCameraLetterbox, classifyLegacyCameraCell, stepLegacyCameraCursor } = module.exports;
 
 function mockGraphics() {
@@ -25,7 +26,7 @@ function mockGraphics() {
   const graphics = mockGraphics();
   const result = stepLegacyCameraLetterbox({
     letterboxFlag: false,
-    mapPixelExtentG: 100, mapPixelExtentH: 80,
+    boxAnchorColumn: 100, boxAnchorRow: 80,
     viewportOriginI: 10, viewportOriginK: 5,
     scrollY: 20, scrollA: 15,
   }, graphics);
@@ -38,7 +39,7 @@ function mockGraphics() {
   const graphics = mockGraphics();
   const result = stepLegacyCameraLetterbox({
     letterboxFlag: true,
-    mapPixelExtentG: 100, mapPixelExtentH: 80,
+    boxAnchorColumn: 100, boxAnchorRow: 80,
     viewportOriginI: 10, viewportOriginK: 5,
     scrollY: 20, scrollA: 15,
   }, graphics);
@@ -61,7 +62,7 @@ function mockGraphics() {
   const graphics = mockGraphics();
   const result = stepLegacyCameraLetterbox({
     letterboxFlag: true,
-    mapPixelExtentG: 3, mapPixelExtentH: 4,
+    boxAnchorColumn: 3, boxAnchorRow: 4,
     viewportOriginI: 1, viewportOriginK: 1,
     scrollY: 6, scrollA: 7,
   }, graphics);

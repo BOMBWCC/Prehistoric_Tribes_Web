@@ -4,11 +4,12 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import vm from "node:vm";
 import fs from "node:fs";
+import { denseRequire } from "./dense-layout-require.mjs";
 
-const source = fs.readFileSync(new URL("../src/j2me/LegacySubsystemBClassify.ts", import.meta.url), "utf8");
+const source = fs.readFileSync(new URL("../src/sim/tribe/LegacySubsystemBClassify.ts", import.meta.url), "utf8");
 const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 const module = { exports: {} };
-vm.runInNewContext(output, { module, exports: module.exports });
+vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports });
 const { classifyLegacySubsystemB } = module.exports;
 
 // dense[1414+id] < 12 -> return 6, dense[7777+id] reset to 0.

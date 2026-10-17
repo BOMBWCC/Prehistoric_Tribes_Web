@@ -6,7 +6,7 @@ import vm from "node:vm";
 const files = ["LegacyZElementCoordinates.ts", "LegacyZElementScan.ts"];
 const module = { exports: {} };
 let output = "";
-for (const name of files) output += ts.transpileModule(fs.readFileSync(new URL(`../src/j2me/${name}`, import.meta.url).pathname, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+for (const name of files) output += ts.transpileModule(fs.readFileSync(new URL(`../src/render/${name}`, import.meta.url).pathname, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 vm.runInNewContext(output, { module, exports: module.exports, require: () => module.exports, Int8Array, Int16Array });
 const { scanLegacyZElementPrefix } = module.exports;
 

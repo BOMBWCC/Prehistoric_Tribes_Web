@@ -15,15 +15,15 @@ function loadModule(path) {
   return module.exports;
 }
 
-const { LegacyGameState } = loadModule(`${new URL("../src/j2me/LegacyGameState.ts", import.meta.url).pathname}`);
-const { stepLegacyFrame } = loadModule(`${new URL("../src/j2me/LegacyFrameStep.ts", import.meta.url).pathname}`);
+const { LegacyGameState } = loadModule(`${new URL("../src/core/LegacyGameState.ts", import.meta.url).pathname}`);
+const { stepLegacyFrame } = loadModule(`${new URL("../src/core/LegacyFrameStep.ts", import.meta.url).pathname}`);
 const game = new LegacyGameState();
-game.c = 0;
+game.missionFrame = 0;
 game.tailHCounter = 100;
 game.pendingP = true;
-game.wByte = 2;
+game.barMode = 2;
 game.uByte = 40;
-game.vByte = 1;
+game.loopMode = 1;
 const map = Array.from({ length: 96 }, () => new Int8Array(96));
 map[1][3] = -116;
 // Regression (2026-08-20): the sweep's own kept range is -116..-114
@@ -48,11 +48,11 @@ assert.deepEqual(calls, [
   "flush",
 ]);
 assert.equal(map[1][11], -117);
-assert.equal(game.c, 1);
+assert.equal(game.missionFrame, 1);
 assert.equal(game.tailHCounter, 101);
 assert.equal(game.uByte, 41);
-assert.equal(game.vByte, 0);
-assert.equal(game.Q, 24);
+assert.equal(game.loopMode, 0);
+assert.equal(game.screen, 24);
 assert.equal(game.H, true);
 assert.equal(game.vInt, 57);
 assert.equal(game.oByte, 10);
