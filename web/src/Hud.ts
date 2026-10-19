@@ -548,7 +548,9 @@ export function attachHud(
         app.style.setProperty("--hud-panels-bottom", `${layout.panelsBottom}px`);
       }
       // The pause menu's screens leave the map (v:B 0); the menu shows over them.
-      if (paused && game.loopMode === 1) paused = false; // resumed another way (keys)
+      // Resumed another way (keys) -- not while openPause() is still backing out of a selection
+      // on the map (BUG-011: that cleared the still screen and showed the original's menu).
+      if (paused && game.loopMode === 1 && !touch.busy) paused = false;
       // The still screen covers the pause menu, its prompts (Q 16) and messages (Q 21); it goes once
       // the game is back on the map or elsewhere (Quit), and while the help pages are open.
       if (help === "asked" && !inPauseMenu()) help = "shown";

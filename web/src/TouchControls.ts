@@ -66,9 +66,8 @@ export type TouchControls = {
   /** Aiming at a villager (w == 3, the store's weapons and the sanctuary's spells): the cursor goes
    *  to map tile (tx, ty), FIRE, then the right soft key back to the building's bar. */
   fireAt(tx: number, ty: number): void;
-  /** Selects our villager `id` as a tap on them on the map would (w == 1), through the original's
-   *  villager list (command 13): FIRE, FIRE on their portrait -- which also brings them out of a
-   *  building. */
+  /** Selects our villager `id` as a tap on them on the map would (w == 1); from a building's bar,
+   *  one inside is first brought out (get out!). */
   selectVillager(id: number): void;
   /** The map tile our villager `id` stands on (null inside a building). */
   villagerTile(id: number): [number, number] | null;
@@ -131,6 +130,13 @@ export function attachTouchControls(
     yield;
     keys.release(key);
     yield;
+  }
+
+  /** FIRE on its own: two FIREs less than about five ticks apart are the original's double press
+   *  (f.n:I, cleared once E:B passes 4), which ae() / d(byte) treat differently. */
+  function* tapFireAlone(): Script {
+    for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
+    yield* tapKey(OriginalKey.FIRE);
   }
 
   /** Steps a selection index toward `target` one key per press, then optionally confirms. */
@@ -328,11 +334,24 @@ export function attachTouchControls(
       const half = rows.length > 1 ? Math.abs(rows[1]! - rows[0]!) / 2 : 10;
       let best = -1;
       rows.forEach((rowY, index) => { if (Math.abs(y - (rowY + 6)) <= half && best < 0) best = index; });
-      if (best >= 0) run(navigate(() => game.Z, best, OriginalKey.UP, OriginalKey.DOWN, true));
+      if (best >= 0) run(pickRow(best));
       return;
     }
     run(tapKey(OriginalKey.FIRE)); // dialogue and story pages: next
   };
+
+  /** A tap on menu row `index`: the highlight (f.Z:I) goes straight there -- UP / DOWN only step it
+   *  by one, wrapping at f.ab (f.aB() / f.aC()) -- and FIRE confirms, once the screen takes keys
+   *  (f.n:Z). Q 12 / 13 step over rows, so they still get the presses. */
+  function* pickRow(index: number): Script {
+    if (game.screen === 12 || game.screen === 13 || index >= game.ab) {
+      yield* navigate(() => game.Z, index, OriginalKey.UP, OriginalKey.DOWN, true);
+      return;
+    }
+    for (let i = 0; i < 10 && game.nFlag; i += 1) yield;
+    game.Z = index;
+    yield* tapKey(OriginalKey.FIRE);
+  }
 
   let mapTapHandler: ((villager: number) => void) | null = null;
   const tap = (x: number, y: number, on: Gesture["on"]) => {
@@ -536,23 +555,25 @@ export function attachTouchControls(
     selectVillager(id: number) {
       if (game.loopMode !== 1) return;
       run((function* () {
+        if (!tileOf(id)) {
+          // Inside a building: its bar's FIRE, FIRE on the portrait (get out!). The original drops
+          // a selection made while they are inside as soon as they step out, so they are selected
+          // once they are on the map.
+          const slot = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR)).indexOf(-id);
+          if (game.barMode !== 2 || slot < 0) return;
+          jumpInBar(slot);
+          yield;
+          if (game.menuCursor !== slot) return;
+          yield* tapFireAlone();
+          yield* tapFireAlone();
+          for (let i = 0; i < 40 && !tileOf(id); i += 1) yield;
+        }
         yield* backOut();
-        yield* tapKey(OriginalKey.SOFT_LEFT);
-        yield; // let the bar fill f.r
-        const command = Array.from(runtime.mainArrays.r.slice(0, 8)).indexOf(13);
-        if (game.barMode !== 2 || command < 0) return;
-        jumpInBar(command);
-        yield;
-        if (game.menuCursor !== command) return;
-        yield* tapKey(OriginalKey.FIRE);
-        yield; // the list fills f.r
-        const slot = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR)).indexOf(-id);
-        if (game.barMode !== 2 || slot < 0) return;
-        jumpInBar(slot);
-        yield;
-        if (game.menuCursor !== slot) return;
-        yield* tapKey(OriginalKey.FIRE);
-        for (let i = 0; i < 3; i += 1) yield; // FIRE again at once would not be taken
+        // As a tap on them: the cursor on their tile, FIRE (read again right before, they walk).
+        for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
+        const tile = tileOf(id);
+        if (!tile) return;
+        moveCursorTo(tile[0], tile[1]);
         yield* tapKey(OriginalKey.FIRE);
       })());
     },
