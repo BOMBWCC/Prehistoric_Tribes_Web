@@ -1,3 +1,4 @@
+import { hdArt } from "../../render/HdArt";
 import type { LegacyRuntimeState } from "../../core/LegacyRuntimeState";
 import { LegacyGameState } from "../../core/LegacyGameState";
 import type { Graphics } from "../../platform/Graphics";
@@ -1117,12 +1118,15 @@ export function stepEntityAction(rt: LegacyRuntimeState, id: number, x: number, 
   // chief/selected unit's orange clothes showed yellow): the renderer kept the value from before p().
   const game = rt.game;
   let loopAn: { an: number } | null = null;
+  // The HD wide view (render/HdArt.ts): an animal's frame with an HD picture -- its sprite layers
+  // go to a scratch canvas, and the picture where they landed.
+  const hdAnimal = hdArt.active && arg5 === 108 ? hdArt.planAnimal(rt, id, x, y) : null;
   const packed = data && rt.imageGroups[0]
     ? new LegacyPackedSpriteRenderer({
         shortTables: data.shortTables,
         byteTables: data.byteTables,
         imageGroups: rt.imageGroups,
-        graphics: graphics[rt.game.targetSlot] as Graphics,
+        graphics: hdAnimal?.graphics ?? graphics[rt.game.targetSlot] as Graphics,
         get an() { return loopAn ? loopAn.an : game.anInt; },
       })
     : undefined;
@@ -1170,6 +1174,7 @@ export function stepEntityAction(rt: LegacyRuntimeState, id: number, x: number, 
         onDrawSprite: (index, x, y) => packed?.drawSprite(index, x, y),
         onDrawComposite: (index, x, y) => packed?.drawComposite(index, x, y),
       });
+      hdAnimal?.after();
       rt.game.anInt = loop.an;
       rt.game.aoInt = loop.ao;
       rt.game.apInt = loop.ap;

@@ -352,7 +352,8 @@
     "test:frame-flags-sync-wiring": "node scripts/verify-frame-flags-sync-wiring.mjs",
     "test:p-sprite-draw-wiring": "node scripts/verify-p-sprite-draw-wiring.mjs",
     "test:map-overview": "node scripts/verify-map-overview.mjs",
-    "test:zh-text": "node scripts/verify-zh-text.mjs"
+    "test:zh-text": "node scripts/verify-zh-text.mjs",
+    "export-art": "node scripts/export-art.mjs"
   },
   "devDependencies": {
     "playwright": "^1.64.1",

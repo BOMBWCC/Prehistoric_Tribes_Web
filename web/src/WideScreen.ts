@@ -1,7 +1,7 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { Graphics } from "./platform/Graphics";
 import type { LogicalCanvas } from "./platform/Canvas";
-import { renderTopBar, renderWideView, TOP_BAR_SLOT, type WideWindow } from "./render/WideView";
+import { renderWideView, TOP_BAR_SLOT, type WideWindow } from "./render/WideView";
 import { stepGameplayPaintHud } from "./render/RenderRuntime";
 import type { LegacyOffscreenImage } from "./render/LegacyOffscreenTargets";
 
@@ -11,9 +11,8 @@ import type { LegacyOffscreenImage } from "./render/LegacyOffscreenTargets";
  * 240 x 320 frame scaled to fit. On the map:
  *
  * - the map fills the screen (render/WideView.ts);
- * - at the top, the notch strip in the bar's colour, then the original's resource bar made full
- *   width (its own drawing, renderTopBar, then a plain slice of it repeated, its right end, and the
- *   game-menu icon whose button Hud.ts lays over it);
+ * - at the top, the notch strip in the bar's colour; the resource bar itself is Hud.ts's (round 3,
+ *   user 2026-10-20), BAR_CSS high;
  * - the rest of the original's HUD (paint()'s own HUD code, drawn again on a clear layer without
  *   the resource bar and the bottom bar): its upper half -- the selected villager's panel, the
  *   build-cost box -- right under the bar, its lower half -- the build cards, command bars -- at
@@ -28,7 +27,9 @@ const TILE_W = 22;
 const TILE_H = 16;
 const MARGIN = 2; // tiles drawn past each edge, so a drag between two ticks shows no black
 const HALF = 160; // HUD rows above this stay at the top of the screen, the rest at the bottom
-const BAR_H = 22; // the resource bar's height
+/** The resource bar's height in CSS pixels (Hud.ts draws it; round-3 design, 2026-10-20). */
+const BAR_CSS = 44;
+const SPEECH_BOX_ROWS = 84; // the original's dialogue box (Q 17): face, name and words, frame rows 0..83
 /** The original's bottom bars (record 4, 22 high, and record 10, 38 high with its message line):
  *  replaced by the HUD buttons and the notice feed. */
 const BOTTOM_BAR_SLOTS = [1, 9];
@@ -45,11 +46,7 @@ const BUILD_COST_SLOT = 8;
  *  where the player picks). */
 const CANDIDATE_PANEL_SLOT = 4;
 const CANDIDATE_ROW_SLOT = 5;
-/** The bar's plain stretch (x 233..240 of its 262 columns), repeated to widen it, and its right end. */
-const BAR_FILL = { x: 233, width: 8 };
-const BAR_END = { x: 241, width: 10 };
-const BAR_COLOUR = "#a7963f";
-const MENU_W = 22; // the menu icon's area at the bar's right end, in game pixels
+const BAR_COLOUR = "#bfb04d";
 
 export type ScreenPoint = { x: number; y: number; on: "screen" | "top" | "map" | "bottom" };
 
@@ -63,7 +60,6 @@ export class WideScreen {
   private cssSize = { width: 240, height: 320 };
   /** Safe-area insets (notch, home indicator) in CSS pixels. */
   private safe = { top: 0, bottom: 0 };
-  private bar: ReturnType<typeof renderTopBar> = null;
   private scale = 1; // device pixels per game pixel
   private width = 240; // screen size in game pixels
   private height = 320;
@@ -150,6 +146,11 @@ export class WideScreen {
     this.height = Math.floor(h / this.scale);
   }
 
+  /** A dialogue scene (Q 17), shown as the original's frame. */
+  private get dialogue(): boolean {
+    return this.runtime.game.loopMode !== 1 && this.runtime.game.screen === 17;
+  }
+
   private get onMap(): boolean {
     return this.runtime.game.loopMode === 1 && !!this.runtime.activeMap;
   }
@@ -181,9 +182,9 @@ export class WideScreen {
       const record = this.runtime.packedBytes[base195 + slot] ?? 0;
       barRows = Math.max(barRows, 320 - (g.oElementRecordInts[record] ?? 320));
     }
-    const upperRows = this.buildCardsOpen || (this.choosingChief && !this.candidatePanel) ? 0 : g.selectionFlags[TOP_BAR_SLOT] ? Math.max(0, top - BAR_H) : top;
+    const upperRows = this.buildCardsOpen || (this.choosingChief && !this.candidatePanel) ? 0 : g.selectionFlags[TOP_BAR_SLOT] ? Math.max(0, top - this.barRows()) : top;
     const lowerRows = Math.max(0, 320 - panel - barRows);
-    const upper = barTop + BAR_H;
+    const upper = barTop + this.barRows();
     const lower = this.height - safeBottom + barRows - (320 - HALF);
     return { barTop, upper, lower, areaTop: upper + upperRows, areaBottom: this.height - safeBottom - lowerRows, top, upperRows, lowerRows };
   }
@@ -301,7 +302,6 @@ export class WideScreen {
     };
     const image = renderWideView(this.runtime, window, this.touchPlay);
     this.wide = image ? { image, window } : null;
-    this.bar = renderTopBar(this.runtime);
     // The HUD again, onto a clear layer, without the bars: both draws only read the game state.
     const overlay = this.overlay.getContext("2d")!;
     overlay.clearRect(0, 0, 240, 320);
@@ -340,32 +340,21 @@ export class WideScreen {
     }
     c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
     const { image, window } = this.wide;
-    c.drawImage(image.element, Math.round(window.column * TILE_W - this.viewX - 11), Math.round(window.row * TILE_H - this.viewY - 8));
+    // The HD wide view (image.scale > 1) is larger than the screen shows it: smooth when shrinking.
+    c.imageSmoothingEnabled = image.scale > this.scale;
+    c.imageSmoothingQuality = "high";
+    c.drawImage(image.element, Math.round(window.column * TILE_W - this.viewX - 11), Math.round(window.row * TILE_H - this.viewY - 8), image.width, image.height);
+    c.imageSmoothingEnabled = false;
     const { barTop, upper, lower } = this.layout();
     c.drawImage(this.overlay, 0, 0, 240, HALF, 0, upper, 240, HALF);
     c.drawImage(this.overlay, 0, HALF, 240, 320 - HALF, 0, lower, 240, 320 - HALF);
-    this.drawBar(barTop);
+    c.fillStyle = BAR_COLOUR; // the notch strip; the bar under it is Hud.ts's
+    c.fillRect(0, 0, this.width, barTop);
   }
 
-  /** The notch strip and the full-width resource bar with the menu icon at its right end. */
-  private drawBar(barTop: number): void {
-    const c = this.context;
-    c.fillStyle = BAR_COLOUR;
-    c.fillRect(0, 0, this.width, barTop);
-    if (!this.bar) return;
-    const { image, y } = this.bar;
-    // f.paint() shows the bar's x 11.. at screen x 0.
-    c.drawImage(image.element, 11, y, 240, BAR_H, 0, barTop, 240, BAR_H);
-    for (let x = 240; x < this.width - BAR_END.width; x += BAR_FILL.width) {
-      c.drawImage(image.element, BAR_FILL.x, y, BAR_FILL.width, BAR_H, x, barTop, BAR_FILL.width, BAR_H);
-    }
-    c.drawImage(image.element, BAR_END.x, y, BAR_END.width, BAR_H, this.width - BAR_END.width, barTop, BAR_END.width, BAR_H);
-    // The menu icon: three dark bars in the bar's own browns (to be redrawn with the other icons).
-    const x = this.width - BAR_END.width - MENU_W + 4;
-    c.fillStyle = "#5b3d12";
-    for (let i = 0; i < 3; i += 1) c.fillRect(x, barTop + 4 + i * 4, 12, 2);
-    c.fillStyle = "#e9dc9a";
-    for (let i = 0; i < 3; i += 1) c.fillRect(x, barTop + 6 + i * 4, 12, 1);
+  /** The resource bar's height in game pixels. */
+  private barRows(): number {
+    return Math.max(1, Math.round((BAR_CSS * (window.devicePixelRatio || 1)) / this.scale));
   }
 
   /** A pointer position as a point of the 240 x 320 frame (map points may lie outside it). */
@@ -392,15 +381,16 @@ export class WideScreen {
    * height of the panels at the bottom (above the home indicator), and the menu icon's area at the
    * bar's right end. Null off the map.
    */
-  hudLayout(): { barBottom: number; panelsBottom: number; bottomPanels: number; menu: { width: number; height: number } } | null {
+  hudLayout(): { barTop: number; barBottom: number; panelsBottom: number; bottomPanels: number; safeBottom: number } | null {
     if ((!this.onMap && !this.frozen) || !this.wide) return null;
-    const { upper, areaTop, lowerRows } = this.layout();
+    const { barTop, upper, areaTop, lowerRows } = this.layout();
     const k = this.scale / (window.devicePixelRatio || 1);
     return {
+      barTop: barTop * k,
       barBottom: upper * k,
       panelsBottom: areaTop * k,
       bottomPanels: lowerRows * k,
-      menu: { width: (MENU_W + BAR_END.width) * k, height: BAR_H * k },
+      safeBottom: this.safe.bottom,
     };
   }
 
@@ -416,6 +406,9 @@ export class WideScreen {
     const bottom = Math.round(this.safe.bottom * (window.devicePixelRatio || 1));
     let s = w / 240;
     if (320 * s > h - bottom) s = (h - bottom) / 320;
+    // A dialogue (Q 17; round 4): the frame at the top, StoryHud's box at the bottom under it.
+    const top = Math.round(this.safe.top * (window.devicePixelRatio || 1));
+    if (this.dialogue) return { x: Math.round((w - 240 * s) / 2), y: Math.min(top, Math.round(h - bottom - 320 * s)), s };
     return { x: Math.round((w - 240 * s) / 2), y: Math.round(h - bottom - 320 * s), s };
   }
 
@@ -432,7 +425,7 @@ export class WideScreen {
     };
     c.fillStyle = pixel(0);
     c.fillRect(0, 0, this.element.width, y);
-    c.fillStyle = pixel(319);
+    c.fillStyle = this.dialogue ? "#000" : pixel(319);
     c.fillRect(0, y + 320 * s, this.element.width, this.element.height - y - 320 * s);
     c.drawImage(frame, 0, 0, 240, 320, x, y, 240 * s, 320 * s);
   }
@@ -452,6 +445,12 @@ export class WideScreen {
     c.imageSmoothingEnabled = false;
     c.drawImage(this.frame.element, 0, 0);
     if (this.splash) return copy;
+    // While a dialogue shows its words (StoryHud), the original's speech box (rows 0..83) is not.
+    const g = this.runtime.game;
+    if (this.dialogue && g.resourceSectionW === g.vInt) {
+      c.fillStyle = "#000";
+      c.fillRect(0, 0, 240, SPEECH_BOX_ROWS);
+    }
     c.drawImage(copy, 24, 296, 24, 24, 0, 296, 24, 24);
     c.drawImage(copy, 192, 296, 24, 24, 216, 296, 24, 24);
     if (this.runtime.game.screen === 0) {

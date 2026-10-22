@@ -1,3 +1,4 @@
+import { hdArt } from "./HdArt";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import type { AnchorValue } from "../platform/anchors";
 import { LegacyGameState } from "../core/LegacyGameState";
@@ -733,6 +734,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
         onPalette: (value) => {
           const image = rt.imageGroups[2]?.get(value)?.image;
           if (image) rt.pi8Slot0 = image;
+          rt.shownPicture = value;
         },
         onImage: (_group, _index, imageX, imageY, anchor) => {
           const image = rt.pi8Slot0 ?? rt.imageGroups[2]?.get(0)?.image;
@@ -790,6 +792,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onCompose: (record, composeX, composeY, width, height, align, font, row, compose) => {
       rt.frameHelperCalls.push({ kind: "frame-compose", record, x: composeX, y: composeY, width, height, align, font, row });
+      rt.shownTextRecord = record >= 71 ? record + (rt.packedBytes[rt.packedOffsets[309] + rt.resourceTables.sectionArg] & 0xff) : record;
       // f.a(BII) offsets 962..991: a new text (w != v) starts at row 0;
       // z:I = y:I; c.a(Graphics, y) then draws from row y (the scroll).
       // CORRECTED 2026-09-30: y was never reset and rows always started at 0.
@@ -1082,9 +1085,22 @@ export function drawMapMarker(rt: LegacyRuntimeState, value: number, arg2: numbe
   for (const write of result.scratchGWrites) {
     rt.entityMarkerG[write.index] = write.value;
   }
+  // The HD wide view (render/HdArt.ts): a building or map object with an HD picture draws that
+  // instead; the original's pieces still go through, onto a measuring or discarded canvas.
+  const building = value < 0 && value >= -60 ? result.local3 : 0;
+  const plan = hdArt.active && packed
+    ? hdArt.planMarker(building, result.local4, result.local7, result.resource, result.local7, result.local10, result.local11, result.arg2 !== 0)
+    : null;
+  if (plan) packed = plan.packed;
+  plan?.before();
   if (result.arg2 === 0) {
     if (packed) {
-      drawLegacyMapMarkerPieces(result, ah, ai, data.shortTables, data.byteTables, (record, x, y) => packed.drawComposite(record, x, y));
+      const pieces = packed;
+      drawLegacyMapMarkerPieces(result, ah, ai, data.shortTables, data.byteTables, (record, x, y) => pieces.drawComposite(record, x, y));
+      const ground = plan?.original ? hdArt.ground : null;
+      if (ground) {
+        drawLegacyMapMarkerPieces(result, ah, ai, data.shortTables, data.byteTables, (record, x, y) => ground.drawComposite(record, x, y));
+      }
     }
   } else {
     stepLegacyMapMarkerDetail(
@@ -1141,6 +1157,7 @@ export function drawMapMarker(rt: LegacyRuntimeState, value: number, arg2: numbe
       },
     );
   }
+  plan?.after();
   for (let index = 0; index < 8; index += 1) {
     rt.entityMarkerG[index] = 0;
     rt.entityMarkerH[index] = 0;

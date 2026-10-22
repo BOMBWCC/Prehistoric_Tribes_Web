@@ -1,6 +1,7 @@
 import { Anchor } from "../platform/anchors";
 import type { Graphics } from "../platform/Graphics";
 import type { ImagePack } from "../platform/ImagePack";
+import { hdArt } from "./HdArt";
 
 export type LegacyPackedSpriteInput = {
   readonly shortTables: readonly Int16Array[];
@@ -9,6 +10,8 @@ export type LegacyPackedSpriteInput = {
   readonly graphics: Graphics;
   /** Original f.an; -1 means no alternate image-family remap. */
   readonly an?: number;
+  /** The HD wide view (render/HdArt.ts): only pieces of these sheets are drawn. */
+  readonly onlySheets?: ReadonlySet<number>;
 };
 
 /**
@@ -101,6 +104,7 @@ export class LegacyPackedSpriteRenderer {
       else if (an !== 0 && an !== 4 && type === 9) { type = an; remapped = true; }
     }
 
+    if (this.input.onlySheets && !this.input.onlySheets.has(type)) return;
     const sx = unsigned(this.j[21]?.[index] ?? 0) & 127;
     const sy = unsigned(this.j[22]?.[index] ?? 0);
     const width = unsigned(this.j[23]?.[index] ?? 0);
@@ -108,7 +112,10 @@ export class LegacyPackedSpriteRenderer {
     if (type < 27) {
       const group = remapped ? 1 : 0;
       const image = this.input.imageGroups[group]?.get(type)?.image;
-      if (image) this.input.graphics.drawRegion(image, sx, sy, width, height, 0, x + 11, y + 8, Anchor.LEFT | Anchor.TOP);
+      if (!image) return;
+      // The HD wide view (render/HdArt.ts): this piece's HD picture, if there is one.
+      if (hdArt.active && hdArt.drawPiece(this.input.graphics, index, type, remapped, image, sx, sy, width, height, x + 11, y + 8)) return;
+      this.input.graphics.drawRegion(image, sx, sy, width, height, 0, x + 11, y + 8, Anchor.LEFT | Anchor.TOP);
       return;
     }
     // CORRECTION (2026-09-09, same day): class f has TWO parallel families of

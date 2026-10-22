@@ -1,11 +1,11 @@
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { Graphics } from "../platform/Graphics";
+import { hdArt } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
 import { drawImageHelper, renderMap, stepCameraFrame, stepGameplayOuterLoop, stepLegacyC2 } from "./RenderRuntime";
 
 /**
- * The larger view (phase 3, user 2026-10-17; not in the original), and the top bar drawn on its
- * own (renderTopBar). The game itself keeps its 11 x 18
+ * The larger view (phase 3, user 2026-10-17; not in the original). The game itself keeps its 11 x 18
  * tile camera; after each paint this draws a bigger window of the map -- terrain, units, fog, the
  * cursor -- with the original's own drawing code (f.o(), f.u(), c(int,int), f.w()'s box frame and cursor corners) into an
  * image of its own, by moving the camera and view size for the length of the draw.
@@ -94,38 +94,9 @@ export type WideWindow = {
 };
 
 let image: LegacyOffscreenImage | null = null;
-let barImage: LegacyOffscreenImage | null = null;
 
 /** The HUD slot of the top resource bar (record 2, f.paint() draws it at the top). */
 export const TOP_BAR_SLOT = 0;
-
-/**
- * Draws the top resource bar whole into an image of its own, whatever the HUD currently shows
- * (a selected villager's panel replaces the bar in the original): f.a(byte,int,int) for command 0
- * with its "first draw" flag (f.b:[Z][0]) set, so every row is drawn, as when the bar appears.
- * Returns the image and the bar's rows in it (f.paint() shows x 0..262 of them at x -11).
- */
-export function renderTopBar(rt: LegacyRuntimeState): { image: LegacyOffscreenImage; y: number; height: number } | null {
-  const targets = rt.offscreenTargets;
-  if (!targets || !rt.packedData) return null;
-  barImage ??= new LegacyOffscreenImage(264, 352);
-  const g = rt.game;
-  const record = rt.packedBytes[(rt.packedOffsets[195] ?? 0) + TOP_BAR_SLOT] ?? 0;
-  const y = g.frameRecordInts[record] ?? 0;
-  const height = g.frameRecordHeights[record] ?? 0;
-  const saved = snapshot(rt);
-  const originals = [...targets.graphics];
-  try {
-    for (let i = 0; i < 4; i += 1) targets.graphics[i as 0 | 1 | 2 | 3] = barImage.graphics;
-    g.frameFlags[TOP_BAR_SLOT] = true;
-    // The HUD scan passes the record's source row less the composite's 8-pixel margin.
-    rt.drawFrameCommandPrimitive(TOP_BAR_SLOT, 0, y - 8);
-  } finally {
-    originals.forEach((graphics, i) => { targets.graphics[i as 0 | 1 | 2 | 3] = graphics; });
-    restore(saved);
-  }
-  return { image: barImage, y, height };
-}
 
 /**
  * Draws `window` of the map and returns the image: tile (column, row) of the window is at
@@ -136,7 +107,8 @@ export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touch
   if (!targets || !rt.activeMap || !rt.packedData) return null;
   const width = window.columns * 22 + 22;
   const height = window.rows * 16 + 16;
-  if (!image || image.width !== width || image.height !== height) image = new LegacyOffscreenImage(width, height);
+  const scale = hdArt.scale(rt);
+  if (!image || image.width !== width || image.height !== height || image.scale !== scale) image = new LegacyOffscreenImage(width, height, scale);
   image.graphics.setColor(0);
   image.graphics.fillRect(0, 0, width, height);
 
@@ -155,6 +127,7 @@ export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touch
     g.viewRows = window.rows;
     g.targetSlot = slot;
     targets.graphics[slot] = image.graphics;
+    if (scale > 1) hdArt.begin(rt, image.graphics);
     // f.m()'s order: w() -- the box-select frame and the cursor corners --, the units and fog
     // (u()), then c(int,int).
     renderMap(rt, { fromColumn: 0, toColumn: window.columns, fromRow: 0, toRow: window.rows }, slot, null);
@@ -162,6 +135,7 @@ export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touch
     stepGameplayOuterLoop(rt, image.graphics);
     stepLegacyC2(rt, g.cursorColumn * 22, g.cursorRow * 16, touchCursor);
   } finally {
+    hdArt.end();
     targets.graphics[slot] = original;
     restore(saved);
   }
@@ -183,7 +157,7 @@ export function renderPortrait(rt: LegacyRuntimeState, id: number): HTMLCanvasEl
 
 /** Runs one of the original's draws into a private image of `size` x `size` (the game state put
  *  back after it), trimmed to the drawn pixels. */
-function renderPicture(rt: LegacyRuntimeState, size: number, draw: () => void): HTMLCanvasElement | null {
+export function renderPicture(rt: LegacyRuntimeState, size: number, draw: () => void): HTMLCanvasElement | null {
   const targets = rt.offscreenTargets;
   if (!targets || !rt.packedData) return null;
   const picture = new LegacyOffscreenImage(size, size);

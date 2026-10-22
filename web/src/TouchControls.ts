@@ -77,6 +77,11 @@ export type TouchControls = {
   setMapTapHandler(handler: ((villager: number) => void) | null): void;
   /** Closes any open bar, the build cards or a selection (right soft key until w == 0). */
   closeBars(): void;
+  /** The start menu's choices (round 4) played into the original's menus from the main menu (Q 0):
+   *  PLAY, then campaign / custom (Q 2), continue / new game (Q 3), yes to every question (Q 16:
+   *  the lost saves, "enable tutorial?"), the difficulty (Q 13 row 1 easy, 2 hard) and the map
+   *  (Q 9), as each comes, until the game or the story (Q 18) is on. */
+  startGame(plan: { custom: boolean; resume: boolean; difficulty: 1 | 2; map: number }): void;
   /** Start-up (user, 2026-10-17): answers the language list (Q 14, row `language`) and the
    *  "play music?" question (Q 16: left soft key yes, right soft key no) as they come. */
   answerStartQuestions(language: number, music: boolean): void;
@@ -223,6 +228,19 @@ export function attachTouchControls(
     if (villager && !(game.barMode === 1 && villager.id === game.selectedId)) {
       moveCursorTo(villager.tx, villager.ty);
       run(tapKey(OriginalKey.FIRE));
+      return;
+    }
+    // A building is selected with one tap too (user, 2026-10-21), when no villager is selected (with
+    // villagers selected a tap on it is an order: two taps, as above); from another building's bar,
+    // that bar is closed first.
+    const cell = unitAt(tx, ty);
+    const buildingBar = game.barMode === 2 && !!game.selectionFlags[2];
+    if (cell < 0 && cell >= -60 && (game.barMode === 0 || buildingBar)) {
+      run((function* () {
+        if (buildingBar) yield* backOut();
+        moveCursorTo(tx, ty);
+        yield* tapKey(OriginalKey.FIRE);
+      })());
       return;
     }
     // First tap: the cursor jumps to the tile.
@@ -579,6 +597,24 @@ export function attachTouchControls(
     },
     setMapTapHandler(handler: ((villager: number) => void) | null) { mapTapHandler = handler; },
     closeBars() { run(backOut()); },
+    startGame(plan) {
+      const rows: Record<number, number> = { 0: 0, 2: plan.custom ? 1 : 0, 3: plan.resume ? 0 : 1, 13: plan.difficulty, 9: plan.map };
+      run((function* () {
+        for (let i = 0; i < 1000 && game.loopMode !== 1 && game.screen !== 18; i += 1) {
+          const at = game.screen;
+          if (at === 16) {
+            for (let j = 0; j < 6; j += 1) yield; // the question takes keys after its first ticks
+            yield* tapKey(OriginalKey.SOFT_LEFT);
+          } else if (rows[at] !== undefined && runtime.touchMenuQ === at) {
+            yield* pickRow(rows[at]!);
+          } else {
+            yield;
+            continue;
+          }
+          for (let j = 0; j < 100 && game.screen === at; j += 1) yield;
+        }
+      })());
+    },
     answerStartQuestions(language: number, music: boolean) {
       run((function* () {
         // The list ignores keys for its first ticks (f.n:Z): wait for its rows, then pick.

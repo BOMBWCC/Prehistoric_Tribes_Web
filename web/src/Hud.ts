@@ -3,10 +3,12 @@ import { OriginalKey } from "./platform/Input";
 import { originalIcon, originalItemIcon } from "./OriginalIcons";
 import { capitalise, originalText } from "./OriginalText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, UNIT_NAME } from "./core/DenseLayout";
-import { renderBuildingPicture, renderPortrait } from "./render/WideView";
+import { BLD_KIND, UNIT_AGE, UNIT_GENDER, UNIT_NAME, UNIT_TYPE } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
+
+/** The round-3 UI's pictures (scripts/import-hd.mjs copies them from design/). */
+const UI = "hd/ui/";
 
 /**
  * The touch HUD (phase 3, approved by the user 2026-10-17; not in the original), replacing the row
@@ -17,21 +19,17 @@ import type { WideScreen } from "./WideScreen";
  *   Settings, Help, Quit; each runs the original's own menu item (its yes / no prompts become a
  *   confirmation box with the original's text, its "game saved." a notice). Tapping elsewhere or
  *   the icon again closes it and the game goes on (the original's RESUME);
- * - bottom right: the round function button; its menu rises from it as loosely placed icons
- *   (bottom to top: build, map, call to arms, squad 1, squad 2, form up, villagers -- the original's
- *   own pictures where it has one, a short text until art exists; a long press shows the name).
- *   Build / form up / call to arms / villagers open the original's command bar on that item. The
- *   squads are the original's 7 / 9 groups;
+ * - the top bar: HD counters (round 3);
+ * - bottom right, for the right thumb (round 3): the build button (it opens the original's build
+ *   cards, shown as the build list in the bottom sheet), the command button above it (call to arms,
+ *   form up, the map -- the original's command bar items) and the squads at the right edge (the
+ *   original's 7 / 9 groups); icons only, a long press shows a name;
  * - left of it, only when they apply: cancel (the right soft key until nothing is open: cancels the
- *   selection, closes a bar or the build cards), left / right while a bar is open;
- * - the build list: while the original's build cards are up, their buildings stand in a column
- *   left of the function button (pictures from the placement preview, the level-1 price, red when
- *   the stock is short; no names yet -- the user has not decided whether to show them); a tap
- *   picks that card (left / right to it, FIRE) and placing starts;
- * - placing a building: the function button turns into "back" (right soft key), and a tick at the
+ *   selection, closes a bar), left / right while a bar is open;
+ * - placing a building: ✕ (back, right soft key) where the build button was, and a tick at the
  *   footprint's corner places it (FIRE) -- shown only where the original allows the building;
- * - a building's bar (a double tap on it) as the building menu above the function button, which
- *   turns into ✓ (with ✗ left of it); a weapon or spell for a villager is aimed by tapping one.
+ * - a building's bar (one tap on it) as the building panel in the bottom sheet, ✓ left of its ✕
+ *   when something waits for confirming; a weapon or spell for a villager is aimed by tapping one.
  * Every control only presses the original's keys, so the keyboard and the game logic are unchanged.
  */
 
@@ -57,12 +55,52 @@ export function attachHud(
     return element;
   };
 
-  // ---- top right: the game menu, which pauses the game ----
+  // ---- the top bar (round 3, user 2026-10-20): the HD bar, its resource icons and digits (people
+  // up to 99 / 99, each resource up to 999) -- the original's f.a(byte,int,int) for command 0 shows
+  // a:[[S row 0 at t146[0..4] (people, food, wood, stone, bones) and the living space, row 0 [16] ----
+  const bar = document.createElement("div");
+  bar.className = "hud-bar";
+  bar.hidden = true;
+  bar.innerHTML = `<img class="hud-bar-bg" src="${UI}bar-bg.png" alt=""><img class="hud-bar-deco left" src="${UI}deco-top-left.png" alt=""><img class="hud-bar-deco right" src="${UI}deco-top-right.png" alt="">`;
+  const counters = ([["people", "人口"], ["food", "食物"], ["wood", "木材"], ["stone", "石头"], ["bones", "骨头"]] as const).map(([icon, name]) => {
+    const group = document.createElement("div");
+    group.className = `hud-count ${icon}`;
+    group.setAttribute("role", "img");
+    group.innerHTML = `<img src="${UI}icon-${icon}.png" alt="">`;
+    const digits = document.createElement("span");
+    group.append(digits);
+    bar.append(group);
+    return { group, digits, name, text: "" };
+  });
+  const drawCounts = () => {
+    const row = runtime.mainArrays.aShort[0];
+    const table = runtime.packedOffsets[146] ?? 0;
+    const value = (i: number) => row?.[runtime.packedBytes[table + i] ?? 0] ?? 0;
+    const texts = [
+      `${Math.min(99, value(0))}/${Math.min(99, row?.[16] ?? 0)}`,
+      ...[1, 2, 3, 4].map((i) => String(Math.min(999, Math.max(0, value(i))))),
+    ];
+    counters.forEach((counter, i) => {
+      const text = texts[i]!;
+      if (text === counter.text) return;
+      counter.text = text;
+      counter.group.setAttribute("aria-label", `${counter.name} ${text}`);
+      counter.digits.innerHTML = Array.from(text, (c) => `<img src="${UI}digit-${c === "/" ? "slash" : c}.png" alt="">`).join("");
+    });
+  };
+
+  // ---- top right: the game menu, which pauses the game: a stone plate (pressed while open), the
+  // items as plates with glyphs dropping down under it ----
   const menuButton = button("hud-menu-button", "", "游戏菜单");
+  menuButton.innerHTML = `<img class="up" src="${UI}plate-normal.png" alt=""><img class="down" src="${UI}plate-pressed.png" alt=""><img class="glyph" src="${UI}glyph-menu.png" alt="">`;
   const menuList = document.createElement("div");
-  menuList.className = "hud-popup hud-menu";
+  menuList.className = "hud-menu";
   menuList.hidden = true;
-  hud.append(menuButton, menuList);
+  const menuShade = document.createElement("div");
+  menuShade.className = "hud-menu-shade";
+  menuShade.hidden = true;
+  // The list drops from under the bar (drawn over it), the button sits on the bar.
+  hud.append(menuShade, menuList, bar, menuButton);
   /** The pause menu's screens (Q 10 with a save, 11 without). */
   const inPauseMenu = () => game.screen === 10 || game.screen === 11;
   let paused = false;
@@ -101,88 +139,22 @@ export function attachHud(
   };
   const run = (item: PauseItem) => touch.pauseMenu(item, (record) => notify(originalText(runtime, "t", record)));
   const message = (record: number) => originalText(runtime, "t", record);
-  const menuItems: { label: string; act: () => void; enabled?: () => boolean }[] = [
-    { label: "保存", act: () => (game.screen === 10 ? ask(message(64), () => run("save")) : run("save")) },
-    { label: "读取", enabled: () => game.screen === 10, act: () => ask(message(63), () => { paused = false; menuList.hidden = true; run("load"); }) },
-    { label: "设置", act: openSettings },
+  const menuItems: { label: string; glyph: string; act: () => void; enabled?: () => boolean }[] = [
+    { label: "保存", glyph: "save", act: () => (game.screen === 10 ? ask(message(64), () => run("save")) : run("save")) },
+    { label: "读取", glyph: "load", enabled: () => game.screen === 10, act: () => ask(message(63), () => { paused = false; menuList.hidden = true; run("load"); }) },
+    { label: "设置", glyph: "settings", act: openSettings },
     // Help shows the original's help pages (to be rewritten); back from them, the menu returns.
-    { label: "帮助", act: () => { help = "asked"; screen.frozen = false; run("help"); } },
-    { label: "退出", act: () => ask(message(65), () => { paused = false; menuList.hidden = true; run("quit"); }) },
+    { label: "帮助", glyph: "help", act: () => { help = "asked"; screen.frozen = false; run("help"); } },
+    { label: "退出", glyph: "quit", act: () => ask(message(65), () => { paused = false; menuList.hidden = true; run("quit"); }) },
   ];
   const menuEntries = menuItems.map((item) => {
-    const entry = button("hud-popup-item", item.label);
+    const entry = button("hud-menu-item", "", item.label);
+    entry.innerHTML = `<img class="up" src="${UI}plate-normal.png" alt=""><img class="down" src="${UI}plate-pressed.png" alt=""><img class="glyph" src="${UI}glyph-${item.glyph}.png" alt="">`;
     entry.addEventListener("click", item.act);
     menuList.append(entry);
     return { entry, item };
   });
 
-  // ---- bottom right: the function button and its icon menu ----
-  const fab = button("hud-fab", "功能", "功能菜单");
-  const fabMenu = document.createElement("div");
-  fabMenu.className = "hud-fab-menu";
-  fabMenu.hidden = true;
-  hud.append(fabMenu, fab);
-  fab.addEventListener("click", () => {
-    if (choosing) { confirmChief(); return; }
-    if (picking) { confirmPick(); return; }
-    if (screen.buildingMenuOpen) { selectChosen(); return; }
-    // While placing a building it is the way back (the right soft key: back to the build cards).
-    if (game.barMode === 3) { touch.pressKey(OriginalKey.SOFT_RIGHT); return; }
-    fabMenu.hidden = !fabMenu.hidden;
-    if (!fabMenu.hidden) drawFnButtons();
-  });
-  document.addEventListener("pointerdown", (event) => {
-    const target = event.target as Node;
-    if (!fabMenu.hidden && !fabMenu.contains(target) && target !== fab) fabMenu.hidden = true;
-  });
-
-  /** One icon of the menu: an original sub-record picture or, until art exists, a short text. */
-  type FnItem = {
-    name: () => string;
-    icon?: () => number;
-    text?: string;
-    /** Tap; return false to keep the menu open. */
-    act: () => void | boolean;
-    /** Long press; return true when it did something (otherwise the name is shown). */
-    hold?: () => boolean;
-    badge?: () => string;
-    active?: () => boolean;
-    enabled?: () => boolean;
-  };
-  const squadCount = (row: number) => {
-    const members = runtime.mainArrays.aByte[row];
-    let count = 0;
-    for (let i = 0; i < 50; i += 1) if ((members?.[i] ?? 0) !== 0) count += 1;
-    return count;
-  };
-  /** The original's 7 / 9 groups (f.a:[[B rows 2 / 3): a tap selects a stored squad, or stores
-   *  the selected villagers in an empty one; a long press with villagers selected stores them
-   *  (the key held 5 ticks, which f.h() counts as a hold). */
-  const squad = (number: 1 | 2): FnItem => {
-    const key = number === 1 ? OriginalKey.DIGIT_7 : OriginalKey.DIGIT_9;
-    const row = number + 1;
-    const store = () => { touch.pressKey(key, 5); return true; };
-    return {
-      name: () => `小队${number}`,
-      icon: () => (squadCount(row) > 0 ? 13 : -1),
-      text: `队${number}`,
-      badge: () => (squadCount(row) > 0 ? String(squadCount(row)) : ""),
-      active: () => game.selectionGroup === row,
-      enabled: () => squadCount(row) > 0 || game.barMode === 1,
-      act: () => (squadCount(row) > 0 ? touch.pressKey(key) : store()),
-      hold: () => game.barMode === 1 && store(),
-    };
-  };
-  // Bottom to top, as the user listed them (2026-10-17).
-  const fnItems: FnItem[] = [
-    { name: () => "建造", icon: () => 10, act: () => touch.command([10]) },
-    { name: () => "地图", text: "地图", act: () => touch.pressKey(OriginalKey.DIGIT_3) },
-    { name: () => (game.callToArmsActive ? "取消备战" : "全员备战"), icon: () => (game.callToArmsActive ? 15 : 12), act: () => touch.command([12, 15]) },
-    squad(1),
-    squad(2),
-    { name: () => (game.formUpActive ? "取消集结" : "集结"), icon: () => (game.formUpActive ? 14 : 11), act: () => touch.command([11, 14]) },
-    { name: () => "村民", icon: () => 13, act: () => touch.command([13]) },
-  ];
   const tip = document.createElement("div");
   tip.className = "hud-tip";
   tip.hidden = true;
@@ -212,47 +184,143 @@ export function attachHud(
     entry.addEventListener("contextmenu", (event) => event.preventDefault());
     return () => held;
   };
-  const fnButtons = fnItems.map((item, index) => {
-    const entry = document.createElement("button");
-    entry.type = "button";
-    entry.className = "hud-fn";
-    entry.style.setProperty("--i", String(index));
-    const picture = document.createElement("img");
-    picture.alt = "";
-    const label = document.createElement("span");
-    const badge = document.createElement("b");
-    entry.append(picture, label, badge);
-    fabMenu.append(entry);
-    const held = longPress(entry, item.name, () => { if (!item.hold?.()) return false; fabMenu.hidden = true; return true; });
-    entry.addEventListener("click", () => {
-      if (held()) return;
-      if (item.act() !== false) fabMenu.hidden = true;
-    });
-    return { entry, item, picture, label, badge };
+
+  const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.png" alt="">`;
+  /** HD digits for a number badge. */
+  const digits = (text: string) => Array.from(text, (c) => img(`digit-${c === "/" ? "slash" : c}`)).join("");
+
+  // ---- bottom right (round 3, user 2026-10-21/22; mock-up "命令与小队"): the build button, the
+  // command button above it, the squads at the right edge. Everything for the right thumb. ----
+  const buildButton = button("hud-build-button", "", "建造");
+  buildButton.innerHTML = img("build-a", "up") + img("build-b", "down");
+  buildButton.addEventListener("click", () => touch.command([10]));
+
+  // ✓ / ✕ where something waits for confirming or going back: choosing a chief, aiming a weapon or
+  // spell, the building menu (select the villager), placing (back to the build list).
+  const fab = button("hud-fab", "", "确定");
+  fab.innerHTML = img("btn-tick", "tick") + img("btn-x", "back");
+  fab.addEventListener("click", () => {
+    if (choosing) { confirmChief(); return; }
+    if (picking) { confirmPick(); return; }
+    // While placing it is the way back (the right soft key: back to the build cards).
+    if (game.barMode === 3) touch.pressKey(OriginalKey.SOFT_RIGHT);
   });
-  const drawFnButtons = () => {
-    for (const { entry, item, picture, label, badge } of fnButtons) {
-      entry.setAttribute("aria-label", item.name());
-      entry.disabled = item.enabled ? !item.enabled() : false;
-      entry.classList.toggle("active", item.active?.() ?? false);
-      const icon = item.icon && item.icon() >= 0 ? originalIcon(runtime, item.icon()) : null;
-      if (icon) {
-        if (picture.dataset.src !== icon.url) {
-          picture.src = icon.url;
-          picture.dataset.src = icon.url;
-          picture.width = icon.width * 2;
-          picture.height = icon.height * 2;
-        }
-        picture.hidden = false;
-        label.textContent = item.text && item.badge ? String(item.text.slice(-1)) : "";
-      } else {
-        picture.hidden = true;
-        label.textContent = item.text ?? item.name();
-      }
-      badge.textContent = item.badge?.() ?? "";
-      badge.hidden = badge.textContent === "";
+
+  // The command button: unfolds call to arms, form up, the map upwards; lit (with the running
+  // command's icon at its corner) while call to arms or form up is on. The same item cancels it.
+  const cmdButton = button("hud-cmd", "", "命令");
+  cmdButton.innerHTML = img("cmd-plate") + img("cmd-horn", "glyph") + img("cmd-arms", "badge");
+  const cmdShade = document.createElement("div");
+  cmdShade.className = "hud-cmd-shade";
+  cmdShade.hidden = true;
+  const cmdMenu = document.createElement("div");
+  cmdMenu.className = "hud-cmd-menu";
+  cmdMenu.hidden = true;
+  const closeCommands = () => { cmdMenu.hidden = true; cmdShade.hidden = true; };
+  cmdButton.addEventListener("click", () => { cmdMenu.hidden = !cmdMenu.hidden; cmdShade.hidden = cmdMenu.hidden; });
+  cmdShade.addEventListener("click", closeCommands);
+  const commands = [
+    { glyph: "cmd-arms", name: () => (game.callToArmsActive ? "回去干活" : "全员备战"), active: () => game.callToArmsActive, act: () => touch.command([12, 15]) },
+    { glyph: "cmd-rally", name: () => (game.formUpActive ? "解散" : "集结"), active: () => game.formUpActive, act: () => touch.command([11, 14]) },
+    { glyph: "cmd-map", name: () => "小地图", active: () => false, act: () => touch.pressKey(OriginalKey.DIGIT_3) },
+  ].map((command, index) => {
+    const entry = button("hud-cmd-item", "", command.name());
+    entry.innerHTML = img("cmd-plate") + img(command.glyph, "glyph");
+    entry.style.setProperty("--i", String(index));
+    entry.addEventListener("click", () => { closeCommands(); command.act(); });
+    cmdMenu.append(entry);
+    return { entry, command };
+  });
+  const drawCommands = () => {
+    const running = game.callToArmsActive ? "cmd-arms" : game.formUpActive ? "cmd-rally" : "";
+    cmdButton.classList.toggle("lit", running !== "");
+    const badge = cmdButton.querySelector<HTMLImageElement>(".badge")!;
+    badge.hidden = running === "";
+    if (running && !badge.src.endsWith(`${running}.png`)) badge.src = `${UI}${running}.png`;
+    for (const { entry, command } of commands) {
+      entry.setAttribute("aria-label", command.name());
+      entry.classList.toggle("active", command.active());
     }
   };
+
+  const squadCount = (row: number) => {
+    const members = runtime.mainArrays.aByte[row];
+    let count = 0;
+    for (let i = 0; i < 50; i += 1) if ((members?.[i] ?? 0) !== 0) count += 1;
+    return count;
+  };
+  // The squads (the original's 7 / 9 groups, f.a:[[B rows 2 / 3; user's design 2026-10-21): a head
+  // with the head count at the right edge for each stored squad; a tap selects it. With villagers
+  // selected and a squad free, a dashed "+" stores them there (the key held 5 ticks, which f.h()
+  // counts as a hold). A long press on a squad: replace it with the selection, or disband it.
+  const SQUADS = [
+    { row: 2, key: OriginalKey.DIGIT_7 },
+    { row: 3, key: OriginalKey.DIGIT_9 },
+  ];
+  type Squad = (typeof SQUADS)[number];
+  const store = (squad: Squad) => touch.pressKey(squad.key, 5);
+  const squadBox = document.createElement("div");
+  squadBox.className = "hud-squads";
+  const squadPop = document.createElement("div");
+  squadPop.className = "hud-squad-pop";
+  squadPop.hidden = true;
+  const replaceButton = button("hud-squad-action", "", "替换：用选中的人覆盖这一队");
+  replaceButton.innerHTML = img("cmd-replace");
+  const disbandButton = button("hud-squad-action", "", "解散这一队");
+  disbandButton.innerHTML = img("cmd-disband");
+  squadPop.append(replaceButton, disbandButton);
+  let popFor: Squad | null = null;
+  const closePop = () => { squadPop.hidden = true; popFor = null; };
+  replaceButton.addEventListener("click", () => { if (popFor) store(popFor); closePop(); });
+  // Not in the original (it only stores and recalls): the squad's member row is cleared.
+  disbandButton.addEventListener("click", () => {
+    if (popFor) {
+      runtime.mainArrays.aByte[popFor.row]?.fill(0);
+      if (game.selectionGroup === popFor.row) touch.closeBars();
+    }
+    closePop();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target as Node;
+    if (!squadPop.hidden && !squadPop.contains(target) && !squadBox.contains(target)) closePop();
+  });
+  const squadChips = SQUADS.map((squad, index) => {
+    const chip = button("hud-squad", "", `小队${index + 1}`);
+    chip.innerHTML = `${img("pt-man", "head")}<span class="count"></span>`;
+    const held = longPress(chip, () => `小队${index + 1}`, () => {
+      popFor = squad;
+      replaceButton.hidden = game.barMode !== 1;
+      const box = chip.getBoundingClientRect();
+      const area = hud.getBoundingClientRect();
+      squadPop.style.top = `${box.top - area.top + box.height / 2}px`;
+      squadPop.style.right = `${area.right - box.left + 8}px`;
+      squadPop.hidden = false;
+      return true;
+    });
+    chip.addEventListener("click", () => { if (!held()) touch.pressKey(squad.key); });
+    squadBox.append(chip);
+    return { chip, squad, count: chip.querySelector<HTMLElement>(".count")!, shown: "" };
+  });
+  const plusChip = button("hud-squad plus", "", "把选中的人存成一队");
+  plusChip.innerHTML = `${img("pt-man", "head")}<b>+</b>`;
+  plusChip.addEventListener("click", () => {
+    const free = SQUADS.find((squad) => squadCount(squad.row) === 0);
+    if (free && game.barMode === 1) store(free);
+  });
+  squadBox.append(plusChip);
+  const drawSquads = () => {
+    for (const entry of squadChips) {
+      const count = squadCount(entry.squad.row);
+      entry.chip.hidden = count === 0;
+      entry.chip.classList.toggle("active", game.selectionGroup === entry.squad.row);
+      entry.chip.classList.toggle("held", popFor === entry.squad);
+      const text = String(count);
+      if (text !== entry.shown) { entry.shown = text; entry.count.innerHTML = digits(text); }
+    }
+    plusChip.hidden = !(game.barMode === 1 && SQUADS.some((squad) => squadCount(squad.row) === 0));
+  };
+
+  hud.append(cmdShade, squadBox, squadPop, cmdMenu, cmdButton, buildButton, fab);
 
   // ---- left of it: the actions that apply right now ----
   const actions = document.createElement("div");
@@ -271,61 +339,78 @@ export function attachHud(
   cancel.addEventListener("click", () => (picking ? touch.pressKey(OriginalKey.SOFT_RIGHT) : touch.closeBars()));
   cancelBox.addEventListener("click", () => touch.cancelBox());
 
-  // ---- the build list: while the original's build cards are up (WideScreen hides them), their
-  // buildings as a column left of the function button, bottom to top; a tap picks the card ----
+  // ---- the bottom sheet (round 3): one panel for the build list (and, later, the building and
+  // villager panels), sliding up from the bottom, a ✕ at its top right ----
+  const sheet = document.createElement("div");
+  sheet.className = "hud-sheet";
+  sheet.hidden = true;
+  sheet.innerHTML = img("deco-grass", "deco bottom") + img("deco-vine", "deco top");
+  const sheetClose = button("hud-sheet-close", "", "关闭");
+  sheetClose.innerHTML = img("btn-close");
+  // Backs out of the build cards and the command bar they came from (right soft key, each).
+  sheetClose.addEventListener("click", () => {
+    if (confirming) { confirming = false; return; }
+    touch.closeBars();
+  });
+  hud.append(sheet);
+
+  // The build list: the original's build cards' buildings (WideScreen hides the cards), left to right
+  // in their order, one size each, the price as a badge at the top right (red when the stock is
+  // short -- it does not stop the placing, user 2026-10-17), pages swiped sideways; a tap picks the
+  // card (left / right to it, FIRE) and placing starts.
+  const BUILDING_ICONS = ["armoury", "gym", "hut", "chiefs-hut", "kitchen", "range", "store", "disco", "sanctuary", "pia-center", "nursery", "tower"];
   const buildList = document.createElement("div");
-  buildList.className = "hud-build";
-  buildList.hidden = true;
-  hud.append(buildList);
-  const pictures = new Map<number, string>();
-  const picture = (kind: number) => {
-    if (!pictures.has(kind)) pictures.set(kind, renderBuildingPicture(runtime, kind)?.toDataURL() ?? "");
-    return pictures.get(kind)!;
-  };
-  /** Level-1 price of a building kind: rows 10 (wood) and 11 (stone) of t138, as the card's cost
-   *  box shows them (hut 15 / 5, store 25 / 20). */
+  buildList.className = "hud-sheet-list";
+  const pageDots = document.createElement("div");
+  pageDots.className = "hud-sheet-dots";
+  sheet.append(buildList, pageDots, sheetClose);
+  /** Level-1 price of a building kind: t138 rows 10 wood, 11 stone, 12 bones (hut 15 / 5). */
   const price = (kind: number) => {
     const table = runtime.packedOffsets[T_BUILDING] ?? 0;
-    return { wood: runtime.packedBytes[table + 10 * 26 + kind] ?? 0, stone: runtime.packedBytes[table + 11 * 26 + kind] ?? 0 };
+    return [10, 11, 12].map((row) => runtime.packedBytes[table + row * 26 + kind] ?? 0);
   };
-  /** The tribe's stock (f.a:[[S row 0: 2 wood, 3 stone -- the top bar's counters). */
-  const stock = () => ({ wood: runtime.mainArrays.aShort[0]?.[2] ?? 0, stone: runtime.mainArrays.aShort[0]?.[3] ?? 0 });
+  /** The tribe's stock (f.a:[[S row 0: 2 wood, 3 stone, 4 bones -- the top bar's counters). */
+  const stock = () => [2, 3, 4].map((i) => runtime.mainArrays.aShort[0]?.[i] ?? 0);
+  const RESOURCES = ["wood", "stone", "bones"];
   let shownKinds = "";
+  let shownCosts = "";
   const drawBuildList = () => {
     const kinds = screen.buildKinds();
     const key = kinds.join(",");
     if (key !== shownKinds) {
       shownKinds = key;
+      shownCosts = "";
+      buildList.scrollLeft = 0;
       buildList.replaceChildren(...kinds.map((kind, index) => {
         const entry = document.createElement("button");
         entry.type = "button";
-        entry.className = "hud-build-item";
+        entry.className = "hud-card";
         entry.setAttribute("aria-label", capitalise(originalText(runtime, "s", kind)));
         entry.dataset.kind = String(kind);
-        const image = document.createElement("img");
-        image.alt = "";
-        image.src = picture(kind);
-        const cost = document.createElement("span");
-        entry.append(image, cost);
+        entry.innerHTML = `<span class="pic">${img(`ub-${BUILDING_ICONS[kind]}`)}</span><span class="cost"></span>`;
         entry.addEventListener("click", () => touch.pickInBar(index));
         return entry;
       }));
     }
     const have = stock();
-    for (const entry of Array.from(buildList.children) as HTMLElement[]) {
-      const { wood, stone } = price(Number(entry.dataset.kind));
-      const cost = entry.querySelector("span")!;
-      // The original's own wood and stone pictures (sub-records 44 / 45) with the amounts; an
-      // amount the stock cannot cover is red (it does not stop the placing, user 2026-10-17).
-      const part = (subrecord: number, amount: number, short: boolean) => {
-        const picture = originalIcon(runtime, subrecord);
-        const image = picture ? `<img src="${picture.url}" alt="">` : "";
-        return `<i class="${short ? "short" : ""}">${image}${amount}</i>`;
-      };
-      cost.innerHTML = `${part(44, wood, have.wood < wood)} ${part(45, stone, have.stone < stone)}`;
-      cost.setAttribute("aria-label", `木 ${wood}，石 ${stone}`);
+    const costs = kinds.map((kind) => price(kind).join("/")).join(",") + "|" + have.join(",");
+    if (costs !== shownCosts) {
+      shownCosts = costs;
+      for (const entry of Array.from(buildList.children) as HTMLElement[]) {
+        const need = price(Number(entry.dataset.kind));
+        entry.querySelector(".cost")!.innerHTML = need
+          .map((amount, i) => (amount > 0 ? `<span class="${amount > have[i]! ? "short" : ""}">${img(`icon-${RESOURCES[i]}`)}<span class="n">${digits(String(amount))}</span></span>` : ""))
+          .join("");
+      }
     }
+    // One dot per page of cards.
+    const perPage = Math.max(1, Math.floor(buildList.clientWidth / 97));
+    const pages = Math.ceil(kinds.length / perPage);
+    const page = Math.round(buildList.scrollLeft / (perPage * 97));
+    if (pageDots.childElementCount !== pages) pageDots.replaceChildren(...Array.from({ length: pages }, () => document.createElement("i")));
+    Array.from(pageDots.children).forEach((dot, i) => dot.classList.toggle("on", i === page));
   };
+  buildList.addEventListener("scroll", () => drawBuildList());
 
   // ---- choosing a new chief (the original's K:Z with its row of candidates, w == 2, f.r:[B = -id):
   // the game goes on (user, 2026-10-17); a tap on a villager moves the row's cursor to them, so the original's panel
@@ -354,68 +439,98 @@ export function attachHud(
     if (index >= 0) touch.pickInBar(index, 2);
   };
 
-  // ---- the building menu (user, 2026-10-17): the original's bar for a building (f.r:[B, filled by
-  // f.Z() from aa(), ab(), ac()) as a column above the function button, bottom to top in the bar's
-  // order: the building's own items, the villagers inside, upgrade / repair or their cancels,
-  // demolish. A tap does what FIRE on that item does; a villager's portrait only shows them (the
-  // original's panel), and ✓ then selects them as a tap on the map does (user, 2026-10-17: the menu
-  // closes, the villager can be sent anywhere); demolish asks first;
-  // the armoury's weapons change their count by a sideways swipe (UP / DOWN). ----
+  // ---- the building panel (round 3, user 2026-10-20/21): a building selected with one tap shows
+  // its bar (f.r:[B, filled by f.Z() from aa(), ab(), ac()) in the bottom sheet, left to right:
+  // demolish, repair, upgrade (or their cancels), the building's own items, the villagers inside
+  // (heads whose hat shows the job). A tap does what FIRE on that item does; a villager's portrait
+  // only shows them (the original's panel) and ✓ then selects them as a tap on the map does;
+  // demolish turns the sheet into the question with ✓ / ✕; the armoury's weapons change their
+  // count by a sideways swipe (UP / DOWN). The chief's camp shows the faint "nothing to do here". ----
   const ARMOURY = 0;
+  const CHIEFS_HUT = 3;
   const label = (record: number) => capitalise(originalText(runtime, "s", record));
   const barCodes = () => Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
   const buildingKind = () => runtime.denseState[BLD_KIND + game.qCounter] ?? 0;
   /** The names the bar's items have in the original's labels: weapons and traps /s 12.., the
    *  commands /s 21.. (code 10 is "build"); a villager's name /s 108 + their name index. */
   const itemName = (code: number) => (code < 0 ? label(108 + (runtime.denseState[UNIT_NAME - code] ?? 0)) : label(code <= 8 ? code + 12 : code + 11));
-  const itemPicture = (code: number) => {
-    if (code < 0) {
-      const portrait = renderPortrait(runtime, -code);
-      return portrait ? { url: portrait.toDataURL(), width: portrait.width, height: portrait.height } : null;
-    }
-    return code <= 8 ? originalItemIcon(runtime, code) : originalIcon(runtime, code);
+  /** The panel icon of a bar code (design/panels). */
+  const PANEL_ICONS: Record<number, string> = {
+    0: "club", 1: "stone", 2: "spear", 3: "stone-axe", 4: "bone-mace", 5: "tomahawk", 6: "net-trap", 7: "spring-trap", 8: "pit-trap",
+    16: "upgrade", 17: "demolish", 19: "healing", 20: "defence", 21: "love-potion", 22: "disease",
+    26: "repair", 27: "cancel-upgrade", 28: "cancel-repair", 29: "unload",
   };
-  const buildingMenu = document.createElement("div");
-  buildingMenu.className = "hud-bmenu";
-  buildingMenu.hidden = true;
-  hud.append(buildingMenu);
+  /** Left-to-right group of a bar code: demolish, repair, upgrade, own items, villagers. */
+  const group = (code: number) => (code === 17 ? 0 : code === 26 || code === 28 ? 1 : code === 16 || code === 27 ? 2 : code < 0 ? 4 : 3);
+  /** A villager's head in building `kind`'s panel: the chief's horns, a child; whoever works in a
+   *  kitchen the cook's hat (a man's or a woman's), on a site (kinds 12..19) the builder's hard
+   *  hat; else by gender (dense 1515, 0 a man). */
+  const portrait = (id: number, kind: number) => {
+    const e = runtime.denseState;
+    if (id === (runtime.mainArrays.aShort[0]?.[17] ?? 0)) return "pt-chief";
+    if ((e[UNIT_TYPE + id] ?? 0) === 17 || (e[UNIT_AGE + id] ?? 20) < 12) return "pt-child";
+    const man = (e[UNIT_GENDER + id] ?? 0) === 0;
+    if (kind === 4) return man ? "pt-cook" : "pt-cook-woman";
+    if (kind >= 12) return "pt-builder";
+    return man ? "pt-man" : "pt-woman";
+  };
+  const panelRow = document.createElement("div");
+  panelRow.className = "hud-sheet-row";
+  const confirmRow = document.createElement("div");
+  confirmRow.className = "hud-sheet-confirm";
+  confirmRow.innerHTML = `${img("demolish")}<span>是否确认拆除？</span>`;
+  const sheetTick = button("hud-sheet-tick", "", "确定");
+  sheetTick.innerHTML = img("btn-tick");
+  sheet.append(panelRow, confirmRow, sheetTick);
+  let confirming = false;
+  sheetTick.addEventListener("click", () => {
+    if (confirming) {
+      confirming = false;
+      const at = barCodes().indexOf(17);
+      if (at >= 0 && screen.buildingMenuOpen) touch.pickInBar(at, 2); // FIRE: w = 4 ... FIRE: l(-2)
+      return;
+    }
+    selectChosen();
+  });
   let shownBar = "";
   const tapBarItem = (index: number, code: number) => {
     if (code < 0 || (buildingKind() === ARMOURY && code <= 5)) { touch.pickInBar(index, 0); return; }
-    if (code === 17) {
-      ask(`${label(28)}：${label(buildingKind())}？`, () => {
-        const at = barCodes().indexOf(17);
-        if (at >= 0 && screen.buildingMenuOpen) touch.pickInBar(at, 2); // FIRE: w = 3 ... FIRE: l(-2)
-      });
-      return;
-    }
+    if (code === 17) { confirming = true; return; }
     touch.pickInBar(index);
   };
   const drawBuildingMenu = () => {
     const codes = barCodes();
+    const kind = buildingKind();
     const key = `${game.qCounter}:${codes.join(",")}`;
     if (key !== shownBar) {
       shownBar = key;
-      const kind = buildingKind();
-      buildingMenu.replaceChildren(...codes.map((code, index) => {
+      confirming = false;
+      const entries = codes
+        .map((code, index) => ({ code, index }))
+        .filter(({ code }) => !(kind === CHIEFS_HUT && code === 17))
+        .sort((a, b) => group(a.code) - group(b.code) || a.index - b.index);
+      const items: HTMLElement[] = [];
+      if (kind === CHIEFS_HUT) {
+        const nothing = document.createElement("span");
+        nothing.className = "hud-item nothing";
+        nothing.setAttribute("role", "img");
+        nothing.setAttribute("aria-label", "这里没什么可做");
+        nothing.innerHTML = img("nothing");
+        items.push(nothing);
+      }
+      entries.forEach(({ code, index }, n) => {
+        if (n > 0 && group(entries[n - 1]!.code) <= 2 && group(code) > 2) {
+          const sep = document.createElement("span");
+          sep.className = "hud-sep";
+          items.push(sep);
+        }
         const entry = document.createElement("button");
         entry.type = "button";
-        entry.className = "hud-fn";
+        entry.className = "hud-item";
+        entry.dataset.index = String(index);
+        entry.dataset.code = String(code);
         entry.setAttribute("aria-label", itemName(code));
-        const icon = itemPicture(code);
-        const image = document.createElement("img");
-        image.alt = "";
-        if (icon) {
-          image.src = icon.url;
-          // The pictures are 2x; a portrait fills the button (trimmed to about 16 x 20).
-          image.width = icon.width * 2;
-          image.height = icon.height * 2;
-        }
-        const name = document.createElement("span");
-        if (!icon) name.textContent = itemName(code).slice(0, 2);
-        const badge = document.createElement("b");
-        badge.hidden = true;
-        entry.append(image, name, badge);
+        entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>`;
         const held = longPress(entry, () => itemName(code));
         let swiped = false;
         if (kind === ARMOURY && code >= 0 && code <= 5) {
@@ -437,17 +552,23 @@ export function attachHud(
           entry.addEventListener("pointercancel", stop);
         }
         entry.addEventListener("click", () => { if (!held() && !swiped) tapBarItem(index, code); });
-        return entry;
-      }));
+        items.push(entry);
+      });
+      panelRow.replaceChildren(...items);
     }
     const counts = runtime.mainArrays.s;
-    Array.from(buildingMenu.children).forEach((entry, index) => {
-      const code = codes[index] ?? 0;
-      entry.classList.toggle("active", index === game.menuCursor);
-      const badge = entry.querySelector("b")!;
-      badge.textContent = code >= 0 && code <= 8 ? String(counts[index] ?? 0) : "";
-      badge.hidden = badge.textContent === "";
-    });
+    for (const entry of Array.from(panelRow.querySelectorAll<HTMLElement>("button.hud-item"))) {
+      const index = Number(entry.dataset.index);
+      const code = Number(entry.dataset.code);
+      entry.classList.toggle("active", index === game.menuCursor && (code < 0 || (kind === ARMOURY && code <= 5)));
+      const n = entry.querySelector<HTMLElement>(".n")!;
+      const text = code >= 0 && code <= 8 ? String(counts[index] ?? 0) : "";
+      if (n.dataset.text !== text) { n.dataset.text = text; n.innerHTML = text ? digits(text) : ""; }
+    }
+    show(panelRow, !confirming);
+    show(confirmRow, confirming);
+    // ✓ left of ✕: confirming the demolish, or selecting the villager whose portrait is chosen.
+    show(sheetTick, confirming || (barCodes()[game.menuCursor] ?? 0) < 0);
   };
   /** ✓ with a villager's portrait chosen: that villager is selected. */
   const selectChosen = () => {
@@ -541,9 +662,8 @@ export function attachHud(
       const layout = screen.hudLayout();
       const onMap = layout !== null && game.loopMode === 1 && !choosing;
       if (layout) {
-        // The menu button is a clear hit area over the icon WideScreen draws at the bar's end.
-        hud.style.setProperty("--hud-menu-w", `${layout.menu.width}px`);
-        hud.style.setProperty("--hud-menu-h", `${layout.menu.height}px`);
+        hud.style.setProperty("--hud-bar-top", `${layout.barTop}px`);
+        hud.style.setProperty("--hud-safe-bottom", `${layout.safeBottom}px`);
         hud.style.setProperty("--hud-bottom", `${layout.bottomPanels}px`);
         app.style.setProperty("--hud-panels-bottom", `${layout.panelsBottom}px`);
       }
@@ -559,43 +679,46 @@ export function attachHud(
         screen.frozen = false;
         stillIsMine = false;
       }
-      show(menuButton, layout !== null && !choosing);
+      // The bar stays over the game menu's still screen (the original's own bar was part of it).
+      show(menuButton, (layout !== null || paused) && !choosing);
       menuList.hidden = !(paused && inPauseMenu() && help === "no");
+      menuShade.hidden = menuList.hidden;
+      menuButton.classList.toggle("open", paused);
+      show(bar, layout !== null || paused);
+      if (layout) drawCounts();
       for (const { entry, item } of menuEntries) entry.disabled = item.enabled ? !item.enabled() : false;
-      show(fab, onMap || choosing);
+      const w = game.barMode;
+      const building = onMap && screen.buildCardsOpen;
+      const menu = onMap && screen.buildingMenuOpen;
+      // The plain map (nothing open, at most villagers selected): build, commands, squads.
+      const plain = onMap && (w === 0 || w === 1) && !picking && !menu;
+      show(buildButton, plain);
+      show(cmdButton, plain);
+      show(squadBox, plain);
+      if (!plain) { closeCommands(); closePop(); }
+      if (plain) { drawCommands(); drawSquads(); }
+      show(sheet, building || menu);
+      show(buildList, building);
+      show(pageDots, building);
+      if (building) drawBuildList();
+      if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(sheetTick, false); }
+      // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
+      const tick = choosing || picking;
+      show(fab, tick || (onMap && w === 3));
+      fab.classList.toggle("is-tick", tick);
+      fab.setAttribute("aria-label", choosing ? "定为族长" : tick ? "确定" : "返回");
+      fab.disabled = choosing ? candidate === 0 : picking ? pickTarget === 0 : false;
       if (choosing) {
-        fab.textContent = "确定";
-        fab.setAttribute("aria-label", "定为族长");
-        fab.disabled = candidate === 0;
-        fabMenu.hidden = true;
         show(actions, false);
-        show(buildList, false);
         return;
       }
-      fab.disabled = false;
-      if (!onMap) fabMenu.hidden = true;
-      show(actions, onMap);
+      show(actions, onMap && !building && !menu);
       if (!onMap) return;
-      if (!fabMenu.hidden) drawFnButtons();
-      const w = game.barMode;
-      const building = screen.buildCardsOpen;
-      const menu = screen.buildingMenuOpen;
-      show(buildList, building);
-      if (building) drawBuildList();
-      show(buildingMenu, menu);
       if (menu) drawBuildingMenu();
-      else shownBar = "";
       show(left, w === 2 && !building && !menu);
       show(right, w === 2 && !building && !menu);
       show(cancelBox, touch.boxing);
       show(cancel, !touch.boxing && ((w !== 0 && w !== 3) || picking));
-      // ✓ / ✗ for the building menu and for aiming at a villager (user, 2026-10-17).
-      const tick = menu || picking;
-      fab.textContent = tick ? "✓" : w === 3 ? "返回" : "功能";
-      fab.classList.toggle("tick", tick);
-      fab.setAttribute("aria-label", menu ? "选中这个村民" : picking ? "确定" : w === 3 ? "返回" : "功能菜单");
-      fab.disabled = menu ? (barCodes()[game.menuCursor] ?? 0) >= 0 : picking ? pickTarget === 0 : false;
-      if (w === 3 || menu) fabMenu.hidden = true;
       cancel.setAttribute("aria-label", w === 1 ? "取消选择" : "取消");
     },
   };

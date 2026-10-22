@@ -110,6 +110,16 @@ export class Graphics {
     );
   }
 
+  /** HD art (render/HdArt.ts): `image` stretched over (x, y, width, height). */
+  drawScaled(image: CanvasImageSource, x: number, y: number, width: number, height: number): void {
+    this.context.drawImage(image, x + this.translation.x, y + this.translation.y, width, height);
+  }
+
+  /** HD art: a region of an upscaled sheet over (x, y, width, height). */
+  drawRegionScaled(image: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, x: number, y: number, width: number, height: number): void {
+    this.context.drawImage(image, sx, sy, sw, sh, x + this.translation.x, y + this.translation.y, width, height);
+  }
+
   private resolveAnchor(
     x: number,
     y: number,

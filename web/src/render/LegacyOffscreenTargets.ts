@@ -5,13 +5,16 @@ export class LegacyOffscreenImage implements DrawableImage {
   readonly element: HTMLCanvasElement;
   readonly graphics: Graphics;
 
-  constructor(readonly width: number, readonly height: number) {
+  /** `scale` > 1 (the HD wide view): the canvas is that many times larger; drawing still uses the
+   *  original's coordinates (width x height). */
+  constructor(readonly width: number, readonly height: number, readonly scale = 1) {
     this.element = document.createElement("canvas");
-    this.element.width = width;
-    this.element.height = height;
+    this.element.width = width * scale;
+    this.element.height = height * scale;
     const context = this.element.getContext("2d");
     if (!context) throw new Error("Canvas 2D context is unavailable");
     context.imageSmoothingEnabled = false;
+    if (scale !== 1) context.scale(scale, scale);
     this.graphics = new Graphics(context);
   }
 }

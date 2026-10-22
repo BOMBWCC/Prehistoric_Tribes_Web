@@ -56,6 +56,9 @@ export type LegacyMapMarkerDispatchResult = {
   readonly local4: number;
   readonly local10: number;
   readonly local11: number;
+  /** The row of the picture table (b[0] / j[0]) N and O were read from: its map-object id is
+   *  1000 + resource (the HD art's key, render/HdArt.ts). */
+  readonly resource: number;
   /** Entity branch only: the cell's column/row offset inside the footprint (0 otherwise). */
   readonly local8: number;
   readonly local9: number;
@@ -107,6 +110,7 @@ export function prepareLegacyMapMarkerDispatch(
   let local9 = 0;
   let N = 0;
   let O = 0;
+  let resource = 0;
   const scratchGWrites: { index: number; value: number }[] = [];
 
   if (classifyLegacyCameraCell(marker) === 2) {
@@ -115,6 +119,7 @@ export function prepareLegacyMapMarkerDispatch(
       local4 = state.dense[RES_KIND + local3] ?? 0;
       local7 = state.dense[RES_LOOK + local3] ?? 0;
       N = state.shortTables[0]?.[local4 + 26] ?? 0;
+      resource = local4 + 26;
       O = state.byteTables[0]?.[local4 + 26] ?? 0;
     } else {
       const classify2 = classifyLegacyMarkerRange(marker);
@@ -124,6 +129,7 @@ export function prepareLegacyMapMarkerDispatch(
           local7 = 0;
           local4 = marker - 1000;
           N = state.shortTables[0]?.[local4] ?? 0;
+          resource = local4;
           O = state.byteTables[0]?.[local4] ?? 0;
         } else if (marker < 175) {
           // Falls straight through to the shared continuation with
@@ -133,6 +139,7 @@ export function prepareLegacyMapMarkerDispatch(
         } else {
           local4 = marker - 180 + 34;
           N = state.shortTables[0]?.[local4] ?? 0;
+          resource = local4;
           O = state.byteTables[0]?.[local4] ?? 0;
           local11 += state.aQ;
           local7 = 0;
@@ -145,6 +152,7 @@ export function prepareLegacyMapMarkerDispatch(
         local4 = 23;
         local7 = 0;
         N = state.shortTables[0]?.[local4 + 1] ?? 0;
+        resource = local4 + 1;
         O = state.byteTables[0]?.[local4 + 1] ?? 0;
         local3 = 0;
       } else {
@@ -169,6 +177,7 @@ export function prepareLegacyMapMarkerDispatch(
         }
         while (local4 > 22) local4 -= 3;
         N = state.shortTables[0]?.[local4 + 1] ?? 0;
+        resource = local4 + 1;
         O = state.byteTables[0]?.[local4 + 1] ?? 0;
         local3 = 0;
       }
@@ -183,6 +192,7 @@ export function prepareLegacyMapMarkerDispatch(
     local10 -= local8 * 22;
     local11 -= local9 * 16;
     N = state.shortTables[0]?.[local4 + 1] ?? 0;
+    resource = local4 + 1;
     O = state.byteTables[0]?.[local4 + 1] ?? 0;
 
     if (arg2 === 0) {
@@ -211,7 +221,7 @@ export function prepareLegacyMapMarkerDispatch(
     }
   }
 
-  return { N, O, local3, local7, local4, local10, local11, local8, local9, arg2, scratchGWrites };
+  return { N, O, local3, local7, local4, local10, local11, resource, local8, local9, arg2, scratchGWrites };
 }
 
 /**

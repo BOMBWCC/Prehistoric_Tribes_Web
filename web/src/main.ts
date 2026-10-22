@@ -1,7 +1,5 @@
 import "./styles.css";
-import { Anchor } from "./platform/anchors";
 import { LogicalCanvas } from "./platform/Canvas";
-import { ImageResource } from "./platform/Image";
 import { loadOriginalResources } from "./ResourceBootstrap";
 import { FixedLoop } from "./platform/FixedLoop";
 import { attachOriginalKeyboard, KeyState } from "./platform/Input";
@@ -12,7 +10,10 @@ import { WideScreen } from "./WideScreen";
 import { attachSettings } from "./Settings";
 import { attachAlerts } from "./Alerts";
 import { attachHud } from "./Hud";
-import { attachMenuHud, savedLanguage, savedMusic } from "./MenuHud";
+import { hdArt } from "./render/HdArt";
+import { attachMenuHud } from "./MenuHud";
+import { attachStartMenu, savedLanguage, savedMusic } from "./StartMenu";
+import { attachStoryHud } from "./StoryHud";
 // The Chinese strings; docs/translation-zh-CN.json is their single source.
 import zhTranslation from "../../docs/translation-zh-CN.json";
 
@@ -71,6 +72,8 @@ window.addEventListener("pointerdown", () => { screen.touchPlay = true; });
 const notify = attachAlerts(app, runtime, touch);
 const hud = attachHud(app, runtime, screen, touch, attachSettings(app, screen, runtime), notify);
 const menuHud = attachMenuHud(app, runtime, screen, touch);
+const startMenu = attachStartMenu(app, runtime, screen, touch);
+const storyHud = attachStoryHud(app, runtime, screen, touch);
 // Pinch and double-tap zoom on iOS Safari, which ignores the viewport's user-scalable=no.
 for (const type of ["gesturestart", "gesturechange", "dblclick"]) {
   document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
@@ -86,14 +89,10 @@ const originalKeys = [
   "DIGIT_0", "DIGIT_1", "DIGIT_3", "DIGIT_7", "DIGIT_9",
 ] as const;
 
-/** The game's own splash only (user, 2026-10-17: no publisher logos, l0 / l1); it stays while the
- *  resources load and the start-up questions are answered. */
+/** The splash (user, 2026-10-17: no publisher logos, l0 / l1; round 4: the HD picture, StartMenu)
+ *  stays while the resources load and the start-up questions are answered. */
 async function showSplash(): Promise<void> {
   screen.splash = true;
-  const image = await ImageResource.create("assets/l2.png");
-  if (debugBootTookOver) return;
-  canvas.clear("#000000");
-  canvas.graphics.drawImage(image, 120, 160, Anchor.HCENTER | Anchor.VCENTER);
   await new Promise((resolve) => window.setTimeout(resolve, 1200));
 }
 
@@ -137,6 +136,8 @@ function render(): void {
   screen.compose();
   hud.update();
   menuHud.update();
+  startMenu.update();
+  storyHud.update();
   // Start-up: the splash stays until the answered questions have led to the main menu.
   if (starting && runtime.game.screen !== 14 && runtime.game.screen !== 16) {
     starting = false;
@@ -326,6 +327,8 @@ if (isDevelopmentHost) {
   });
 }
 
+// The HD art's list (render/HdArt.ts); the pictures themselves load as the map needs them.
+void hdArt.load();
 void boot().catch((error: unknown) => {
   bootStatus = `error: ${error instanceof Error ? error.message : String(error)}`;
   refreshDebugOverlay();

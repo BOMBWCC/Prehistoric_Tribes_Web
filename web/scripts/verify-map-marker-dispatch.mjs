@@ -79,7 +79,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-80, 0, state);
   assert.deepEqual(result, {
     N: 100, O: 50, local3: 19, local7: 7, local4: 5,
-    local10: 0, local11: 0, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
+    local10: 0, local11: 0, resource: 31, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
   });
 }
 
@@ -89,7 +89,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(100, 5, state);
   assert.deepEqual(result, {
     N: 0, O: 0, local3: -100, local7: 0, local4: 0,
-    local10: 2 * 22, local11: 3 * 16, local8: 0, local9: 0, arg2: 5, scratchGWrites: [],
+    local10: 2 * 22, local11: 3 * 16, resource: 0, local8: 0, local9: 0, arg2: 5, scratchGWrites: [],
   });
 }
 
@@ -101,7 +101,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(200, 0, state);
   assert.deepEqual(result, {
     N: 77, O: 33, local3: 0, local7: 0, local4: 54,
-    local10: 0, local11: 2 * 16 + 10, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
+    local10: 0, local11: 2 * 16 + 10, resource: 54, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
   });
 }
 
@@ -113,7 +113,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-123, 0, state);
   assert.deepEqual(result, {
     N: 11, O: 22, local3: 0, local7: 0, local4: 23,
-    local10: 0, local11: 0, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
+    local10: 0, local11: 0, resource: 24, local8: 0, local9: 0, arg2: 0, scratchGWrites: [],
   });
 }
 
@@ -129,7 +129,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-115, 0, state);
   assert.deepEqual(result, {
     N: 200, O: 100, local3: 0, local7: 2, local4: 22,
-    local10: 4 * 22, local11: 3 * 16, local8: 0, local9: 0, arg2: 0, scratchGWrites: [{ index: 0, value: -90 }],
+    local10: 4 * 22, local11: 3 * 16, resource: 23, local8: 0, local9: 0, arg2: 0, scratchGWrites: [{ index: 0, value: -90 }],
   });
 }
 
@@ -144,7 +144,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-115, 0, state);
   assert.deepEqual(result, {
     N: 9, O: 8, local3: 0, local7: 0, local4: 0,
-    local10: 4 * 22, local11: 3 * 16, local8: 0, local9: 0, arg2: 0, scratchGWrites: [{ index: 0, value: -90 }],
+    local10: 4 * 22, local11: 3 * 16, resource: 1, local8: 0, local9: 0, arg2: 0, scratchGWrites: [{ index: 0, value: -90 }],
   });
 }
 
@@ -158,7 +158,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-115, 7, state);
   assert.deepEqual(result, {
     N: 300, O: 100, local3: 0, local7: 1, local4: 22,
-    local10: 4 * 22, local11: 3 * 16, local8: 0, local9: 0, arg2: -1, scratchGWrites: [{ index: 0, value: -119 }],
+    local10: 4 * 22, local11: 3 * 16, resource: 23, local8: 0, local9: 0, arg2: -1, scratchGWrites: [{ index: 0, value: -119 }],
   });
 }
 
@@ -172,7 +172,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-115, 9, state);
   assert.deepEqual(result, {
     N: 60, O: 40, local3: 0, local7: 1, local4: 20,
-    local10: 4 * 22, local11: 3 * 16, local8: 0, local9: 0, arg2: 9, scratchGWrites: [{ index: 0, value: -114 }],
+    local10: 4 * 22, local11: 3 * 16, resource: 21, local8: 0, local9: 0, arg2: 9, scratchGWrites: [{ index: 0, value: -114 }],
   });
 }
 
@@ -193,7 +193,7 @@ function baseState(overrides = {}) {
   const result = prepareLegacyMapMarkerDispatch(-30, 0, state);
   assert.deepEqual(result, {
     N: 555 + 12, O: 44 - 12, local3: 30, local7: 2, local4: 8,
-    local10: 44, local11: 16, local8: 3, local9: 2, arg2: 0, scratchGWrites: [],
+    local10: 44, local11: 16, resource: 9, local8: 3, local9: 2, arg2: 0, scratchGWrites: [],
   });
 
   // The scan stops at the first entry whose low 3 bits are set.

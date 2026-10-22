@@ -91,55 +91,11 @@ canvas.screen {
   outline-offset: 2px;
 }
 
-.hud .hud-menu-button {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: max(var(--hud-menu-w, 44px), 44px);
-  height: max(var(--hud-menu-h, 44px), 44px);
-  border: 0;
-  background: transparent;
-}
 
-.hud .hud-menu-button:active {
-  background: rgba(0, 0, 0, 0.15);
-}
 
-.hud-fab {
-  position: absolute;
-  right: 12px;
-  bottom: calc(var(--hud-bottom, 0px) + 12px);
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
-}
 
-.hud-popup {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px;
-  border: 2px solid #5b4a2a;
-  border-radius: 10px;
-  background: rgba(232, 217, 160, 0.96);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
-}
 
-.hud-popup-item {
-  min-width: 132px;
-  min-height: 44px;
-  border-radius: 8px;
-  text-align: left;
-  padding: 0 14px;
-}
 
-.hud-menu {
-  top: calc(max(var(--hud-menu-h, 44px), 44px) + 4px);
-  right: 4px;
-}
 
 /* The settings panel and other dialogs. */
 .settings button:focus-visible,
@@ -330,88 +286,10 @@ button.notice {
   padding: 4px;
 }
 
-.hud-popup-item:disabled {
-  opacity: 0.45;
-}
 
 /* The function menu: round icon buttons rising loosely from the function button (Hud.ts). */
-.hud-fab-menu {
-  position: absolute;
-  right: 0;
-  bottom: calc(var(--hud-bottom, 0px) + 84px);
-  width: 120px;
-  height: 0;
-}
 
-.hud-fab-menu[hidden] {
-  display: none;
-}
 
-.hud .hud-fn {
-  --x: 0px;
-  position: absolute;
-  right: calc(16px + var(--x));
-  bottom: calc(var(--i) * 56px);
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  border: 2px solid #5b4a2a;
-  background: rgba(232, 217, 160, 0.94);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-  display: grid;
-  place-items: center;
-  padding: 0;
-  font: bold 15px/1 sans-serif;
-}
-
-/* Not in a neat column: every other icon steps aside. */
-.hud .hud-fn:nth-child(4n + 2) { --x: 26px; }
-.hud .hud-fn:nth-child(4n + 3) { --x: 6px; }
-.hud .hud-fn:nth-child(4n + 4) { --x: 34px; }
-
-.hud-fn img {
-  grid-area: 1 / 1;
-  image-rendering: pixelated;
-}
-
-.hud-fn span {
-  grid-area: 1 / 1;
-}
-
-/* A stored squad: its number on a tag over the picture. */
-.hud-fn img:not([hidden]) + span:not(:empty) {
-  position: absolute;
-  left: -4px;
-  bottom: -4px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  background: #2b6a2f;
-  color: #fff6d8;
-  font: bold 12px/18px sans-serif;
-  text-align: center;
-}
-
-.hud-fn b {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
-  border-radius: 10px;
-  background: #5b3d12;
-  color: #fff6d8;
-  font: bold 12px/20px sans-serif;
-  text-align: center;
-}
-
-.hud .hud-fn.active {
-  background: #f5f400;
-}
-
-.hud .hud-fn:disabled {
-  opacity: 0.5;
-}
 
 .hud-tip {
   position: absolute;
@@ -499,62 +377,13 @@ button.notice {
 }
 
 /* The build list (Hud.ts): buildings stacked upwards left of the function button. */
-.hud-build {
-  position: absolute;
-  right: 88px;
-  bottom: calc(var(--hud-bottom, 0px) + 76px);
-  max-height: 62%;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 8px;
-  padding: 4px;
-  pointer-events: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-}
 
-.hud-build[hidden] {
-  display: none;
-}
 
-.hud .hud-build-item {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  width: 92px;
-  padding: 6px 4px;
-  border-radius: 10px;
-  background: rgba(232, 217, 160, 0.94);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-  touch-action: pan-y;
-}
 
-.hud-build-item img {
-  max-width: 80px;
-  max-height: 64px;
-  image-rendering: pixelated;
-}
 
-.hud-build-item span {
-  font: bold 12px/1.2 sans-serif;
-  color: #2b1d0e;
-}
 
-.hud-build-item i {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-style: normal;
-}
 
-.hud-build-item i img {
-  height: 14px;
-}
 
-.hud-build-item i.short {
-  color: #b3261e;
-}
 
 /* Choosing a new chief (Hud.ts): a prompt under the bar and the panels. */
 .hud-chief-prompt {
@@ -577,11 +406,8 @@ button.notice {
   display: none;
 }
 
-.hud .hud-fab:disabled {
-  opacity: 0.55;
-}
 
-/* The menus off the map (MenuHud.ts): toggles at the top right, ✓ / ✗ at the parchment's corners. */
+/* The original's menus off the map (MenuHud.ts): ✓ / ✗ at the parchment's corners. */
 .menu-hud {
   position: absolute;
   inset: 0;
@@ -609,32 +435,6 @@ button.notice {
   outline-offset: 2px;
 }
 
-.menu-toggle {
-  right: 12px;
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-}
-
-.menu-toggle:nth-of-type(1) {
-  top: calc(env(safe-area-inset-top) + 10px);
-}
-
-.menu-toggle:nth-of-type(2) {
-  top: calc(env(safe-area-inset-top) + 68px);
-}
-
-.menu-toggle svg {
-  width: 30px;
-  height: 30px;
-}
-
-.menu-toggle:nth-of-type(2) svg {
-  width: 40px;
-  height: 40px;
-}
-
 .menu-corner {
   width: 46px;
   height: 46px;
@@ -650,31 +450,6 @@ button.notice {
   color: #b3261e;
 }
 
-/* The building menu (Hud.ts): a building's bar as a column above the function button. */
-.hud-bmenu {
-  position: absolute;
-  right: 16px;
-  bottom: calc(var(--hud-bottom, 0px) + 84px);
-  max-height: 60%;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 4px;
-  padding: 4px;
-  pointer-events: auto;
-  overscroll-behavior: contain;
-}
-
-.hud-bmenu[hidden] {
-  display: none;
-}
-
-.hud .hud-bmenu .hud-fn {
-  position: relative;
-  right: auto;
-  bottom: auto;
-  flex: none;
-}
 
 /* The item being aimed, over the chosen villager's head. */
 .hud-pick-marker {
@@ -685,6 +460,1061 @@ button.notice {
   z-index: 5;
 }
 
-.hud .hud-fab.tick {
-  font-size: 30px;
+
+/* Round 3 (2026-10-20): the HD top bar, its counters, the stone-plate game menu (Hud.ts). */
+.hud-bar {
+  position: absolute;
+  z-index: 7;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 3px 50px 0 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: linear-gradient(#bfb04d, #bfb04d) top / 100% 18px no-repeat;
+  pointer-events: none;
+}
+
+.hud-bar[hidden],
+.hud-menu[hidden],
+.hud-menu-shade[hidden] {
+  display: none;
+}
+
+.hud-bar-bg {
+  position: absolute;
+  left: 0;
+  top: 15px;
+  width: 100%;
+}
+
+.hud-bar-deco {
+  position: absolute;
+  top: calc(-6px - var(--hud-bar-top, 0px));
+  width: 86px;
+}
+
+.hud-bar-deco.left {
+  left: 0;
+}
+
+.hud-bar-deco.right {
+  right: 0;
+  width: 83px;
+}
+
+.hud-count {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 28px;
+}
+
+.hud-count > img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.hud-count.people > img {
+  height: 24px;
+}
+
+.hud-count span {
+  display: flex;
+  min-width: 40px;
+}
+
+.hud-count.people span {
+  min-width: 64px;
+}
+
+.hud-count span img {
+  height: 16px;
+  margin-right: -1px;
+}
+
+.hud .hud-menu-button,
+.hud .hud-menu-item {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hud .hud-menu-button {
+  z-index: 8;
+  top: 2px;
+  right: 6px;
+  width: 34px;
+  height: 34px;
+}
+
+.hud-menu-button img,
+.hud-menu-item img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-menu-button .glyph {
+  left: 6px;
+  top: 6px;
+  width: 22px;
+  height: 22px;
+}
+
+.hud-menu-button .down,
+.hud-menu-item .down {
+  display: none;
+}
+
+.hud-menu-button:active .up,
+.hud-menu-button.open .up,
+.hud-menu-item:active .up,
+.hud-menu-item:disabled .up {
+  display: none;
+}
+
+.hud-menu-button:active .down,
+.hud-menu-button.open .down,
+.hud-menu-item:active .down,
+.hud-menu-item:disabled .down {
+  display: block;
+}
+
+.hud-menu-button:active .glyph,
+.hud-menu-button.open .glyph {
+  transform: translateY(1.5px);
+}
+
+.hud-menu {
+  position: absolute;
+  z-index: 6;
+  top: 33px;
+  right: 4px;
+  width: 56px;
+  box-sizing: border-box;
+  padding: 18px 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid #3c220c;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  background: #bfb04d;
+  box-shadow: 0 3px 0 rgba(60, 34, 12, 0.55);
+  pointer-events: auto;
+}
+
+.hud .hud-menu-item {
+  position: relative;
+  width: 46px;
+  height: 46px;
+}
+
+.hud-menu-item .glyph {
+  left: 8px;
+  top: 8px;
+  width: 30px;
+  height: 30px;
+}
+
+.hud-menu-item:active .glyph {
+  transform: translateY(2px);
+}
+
+.hud-menu-item:disabled .glyph {
+  transform: translateY(2px);
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+
+/* Over the map and the other buttons; the bar and its menu stay above it. */
+.hud-menu-shade {
+  position: fixed;
+  z-index: 5;
+  inset: 0;
+  background: rgba(28, 16, 4, 0.38);
+  pointer-events: auto;
+}
+
+/* Round 3, bottom right (Hud.ts; mock-up "命令与小队"): build, commands, squads, ✓ / ✕. */
+.hud .hud-build-button,
+.hud .hud-fab,
+.hud .hud-cmd,
+.hud .hud-cmd-item,
+.hud .hud-squad,
+.hud .hud-squad-action,
+.hud .hud-sheet-close,
+.hud .hud-card {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hud-build-button img,
+.hud-fab img,
+.hud-cmd img,
+.hud-cmd-item img,
+.hud-squad-action img,
+.hud-sheet-close img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hud .hud-build-button,
+.hud .hud-fab {
+  right: 16px;
+  bottom: calc(var(--hud-bottom, 0px) + 4px);
+  width: 72px;
+  height: 72px;
+}
+
+.hud-build-button .down,
+.hud-build-button:active .up,
+.hud-fab .tick,
+.hud-fab.is-tick .back {
+  display: none;
+}
+
+.hud-build-button:active .down,
+.hud-fab.is-tick .tick {
+  display: block;
+}
+
+.hud .hud-fab img {
+  left: 14%;
+  top: 14%;
+  width: 72%;
+  height: 72%;
+}
+
+.hud .hud-fab:disabled {
+  opacity: 0.45;
+}
+
+.hud .hud-cmd {
+  right: 25px;
+  bottom: calc(var(--hud-bottom, 0px) + 88px);
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+}
+
+.hud-cmd .glyph,
+.hud-cmd-item .glyph {
+  left: 18%;
+  top: 18%;
+  width: 64%;
+  height: 64%;
+}
+
+.hud .hud-cmd.lit {
+  box-shadow: 0 0 0 3px #ffe27a, 0 0 16px 6px rgba(255, 210, 60, 0.85);
+}
+
+.hud-cmd .badge {
+  left: -6px;
+  top: -6px;
+  width: 24px;
+  height: 24px;
+  filter: drop-shadow(0 0 2px #3c220c);
+}
+
+.hud-cmd .badge[hidden] {
+  display: none;
+}
+
+.hud-cmd-menu[hidden],
+.hud-cmd-shade[hidden],
+.hud-squads[hidden],
+.hud-squad[hidden],
+.hud-squad-pop[hidden],
+.hud-squad-action[hidden],
+.hud-sheet[hidden] {
+  display: none;
+}
+
+.hud .hud-cmd-item {
+  right: 29px;
+  bottom: calc(var(--hud-bottom, 0px) + 154px + var(--i) * 52px);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.hud .hud-cmd-item.active {
+  box-shadow: 0 0 0 3px #ffe27a, 0 0 10px 3px rgba(255, 210, 60, 0.8);
+}
+
+.hud-cmd-item:active,
+.hud-cmd:active,
+.hud-squad:active,
+.hud-squad-action:active,
+.hud-sheet-close:active {
+  transform: translateY(1px) scale(0.94);
+}
+
+.hud-cmd-shade {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 16, 4, 0.28);
+  pointer-events: auto;
+}
+
+.hud-squads {
+  position: absolute;
+  right: 8px;
+  top: 41%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud .hud-squad {
+  position: relative;
+  width: 50px;
+  height: 50px;
+}
+
+.hud-squad .head {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.hud-squad .count {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  height: 18px;
+  padding: 1px 3px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: #3c220c;
+  display: flex;
+  align-items: center;
+}
+
+.hud-squad .count img {
+  height: 14px;
+  margin-right: -1px;
+}
+
+.hud .hud-squad.active .head {
+  box-shadow: 0 0 0 3px #fff36a;
+}
+
+.hud .hud-squad.held {
+  transform: scale(1.12);
+  filter: drop-shadow(0 0 6px #fff36a);
+}
+
+.hud .hud-squad.plus {
+  width: 46px;
+  height: 46px;
+  box-sizing: border-box;
+  border: 2px dashed #fff3c4;
+  border-radius: 50%;
+  background: rgba(60, 34, 12, 0.35);
+}
+
+.hud-squad.plus .head {
+  left: 4px;
+  top: 3px;
+  width: 34px;
+  height: 34px;
+  opacity: 0.45;
+  filter: grayscale(1) brightness(1.6);
+}
+
+.hud-squad.plus b {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #5e9e2e;
+  border: 2px solid #3c220c;
+  color: #fff;
+  font: 700 17px/16px system-ui, sans-serif;
+  text-align: center;
+}
+
+.hud-squad-pop {
+  position: absolute;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 24px;
+  background: rgba(60, 34, 12, 0.82);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+.hud-squad-pop::after {
+  content: "";
+  position: absolute;
+  right: -9px;
+  top: 50%;
+  margin-top: -7px;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 9px solid rgba(60, 34, 12, 0.82);
+}
+
+.hud .hud-squad-action {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+.hud-squad-action img {
+  left: 8px;
+  top: 8px;
+  width: 28px;
+  height: 28px;
+}
+
+/* The bottom sheet and its build list. */
+.hud-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(-1 * var(--hud-safe-bottom, 0px));
+  height: calc(112px + var(--hud-safe-bottom, 0px));
+  box-sizing: border-box;
+  border-top: 3px solid #3c220c;
+  border-radius: 16px 16px 0 0;
+  background: #bfb04d;
+  box-shadow: inset 0 3px 0 #d9cc6e, 0 -3px 0 rgba(60, 34, 12, 0.35);
+  pointer-events: auto;
+}
+
+.hud-sheet .deco {
+  position: absolute;
+  pointer-events: none;
+}
+
+.hud-sheet .deco.bottom {
+  left: 0;
+  top: 77px;
+  width: 100%;
+}
+
+.hud-sheet .deco.top {
+  left: -2px;
+  top: -22px;
+  width: 300px;
+}
+
+.hud .hud-sheet-close {
+  right: 10px;
+  top: -20px;
+  width: 36px;
+  height: 36px;
+}
+
+.hud-sheet-list {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 100%;
+  height: 96px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 12px;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+}
+
+.hud-sheet-list::-webkit-scrollbar {
+  display: none;
+}
+
+.hud .hud-card {
+  position: relative;
+  flex: none;
+  width: 87px;
+  height: 96px;
+  scroll-snap-align: start;
+}
+
+.hud-card .pic img {
+  position: absolute;
+  left: 2px;
+  top: 10px;
+  width: 80px;
+  height: 85px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.hud-card:active .pic {
+  display: block;
+  transform: translateY(1px);
+  filter: drop-shadow(2px 0 0 #fff2b0) drop-shadow(-2px 0 0 #fff2b0) drop-shadow(0 2px 0 #fff2b0) drop-shadow(0 -2px 0 #fff2b0);
+}
+
+.hud-card .cost {
+  position: absolute;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  filter: drop-shadow(1px 0 0 #2b1a0a) drop-shadow(-1px 0 0 #2b1a0a) drop-shadow(0 1px 0 #2b1a0a) drop-shadow(0 -1px 0 #2b1a0a);
+}
+
+.hud-card .cost > span {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.hud-card .cost > span > img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
+.hud-card .cost .n {
+  display: flex;
+}
+
+.hud-card .cost .n img {
+  height: 13px;
+  margin-right: -1px;
+}
+
+.hud-card .cost .short .n {
+  filter: hue-rotate(-48deg) saturate(1.8);
+}
+
+.hud-sheet-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 106px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.hud-sheet-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(60, 34, 12, 0.3);
+}
+
+.hud-sheet-dots i.on {
+  background: #3c220c;
+}
+
+/* The building panel in the bottom sheet (Hud.ts, round 3). */
+.hud-sheet-row,
+.hud-sheet-confirm {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 100%;
+  height: 104px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-sheet-row {
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.hud-sheet-row::-webkit-scrollbar {
+  display: none;
+}
+
+.hud-sheet-row[hidden],
+.hud-sheet-confirm[hidden],
+.hud-sheet-tick[hidden],
+.hud-sheet-list[hidden],
+.hud-sheet-dots[hidden] {
+  display: none;
+}
+
+.hud .hud-item {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hud-item img {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.hud-item:active img,
+.hud .hud-item.active img {
+  transform: translateY(1px);
+  filter: drop-shadow(2px 0 0 #fff2b0) drop-shadow(-2px 0 0 #fff2b0) drop-shadow(0 2px 0 #fff2b0) drop-shadow(0 -2px 0 #fff2b0);
+}
+
+.hud-item.nothing {
+  width: 92px;
+  opacity: 0.5;
+}
+
+.hud-item.nothing img {
+  width: 86px;
+}
+
+.hud-item .n {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  filter: drop-shadow(1px 0 0 #2b1a0a) drop-shadow(-1px 0 0 #2b1a0a) drop-shadow(0 1px 0 #2b1a0a) drop-shadow(0 -1px 0 #2b1a0a);
+}
+
+.hud-item .n img {
+  position: static;
+  width: auto;
+  height: 13px;
+  margin-right: -1px;
+  filter: none;
+  transform: none;
+}
+
+.hud-sep {
+  flex: none;
+  width: 2px;
+  height: 52px;
+  background: #8d7830;
+  border-right: 1px solid #d9cc6e;
+}
+
+.hud-sheet-confirm {
+  justify-content: center;
+  gap: 10px;
+}
+
+.hud-sheet-confirm img {
+  width: 40px;
+  height: 40px;
+}
+
+.hud-sheet-confirm span {
+  font: 800 20px/1 system-ui, sans-serif;
+  letter-spacing: 1px;
+  color: #3c220c;
+}
+
+.hud .hud-sheet-tick {
+  position: absolute;
+  right: 54px;
+  top: -20px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hud-sheet-tick img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-sheet-tick:active {
+  transform: translateY(1px) scale(0.92);
+}
+
+
+/* The start-up picture and the start menus (StartMenu.ts, round 4; artboard "开始菜单"): the
+   background covers the screen, the logo and the characters stay whole, the items are centred,
+   language + sound at the top right, back at the bottom right. */
+.start-menu {
+  --unit: min(1vw, 0.6vh);
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: #2b1d0e;
+}
+
+.start-menu[hidden] {
+  display: none;
+}
+
+.start-menu img {
+  display: block;
+  pointer-events: none;
+}
+
+.start-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.start-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top) + 11vh);
+  width: calc(80 * var(--unit));
+  transform: translateX(-50%);
+}
+
+.start-menu[data-page="splash"] .start-logo {
+  top: calc(env(safe-area-inset-top) + 7vh);
+  width: calc(84 * var(--unit));
+}
+
+.start-menu[data-page="maps"] .start-logo {
+  top: calc(env(safe-area-inset-top) + 7vh);
+  width: calc(62 * var(--unit));
+}
+
+.start-chars {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: calc(100 * var(--unit));
+  transform: translateX(-50%);
+}
+
+.start-menu button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.start-menu button:focus-visible {
+  outline: 2px solid #ffe27a;
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.start-column {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(5.6 * var(--unit));
+}
+
+.start-word {
+  height: calc(10.3 * var(--unit));
+  width: auto;
+  filter: drop-shadow(0 2px 0 rgba(43, 29, 14, 0.35));
+  transition: transform 80ms, filter 80ms;
+}
+
+/* Pressed: slightly smaller and darker (the art has no pressed state). */
+.start-item:active .start-word {
+  transform: translateY(2px) scale(0.96);
+  filter: brightness(0.82) drop-shadow(0 0 6px #ffe27a);
+}
+
+.start-text {
+  margin: 0 calc(9 * var(--unit)) calc(2 * var(--unit));
+  font: 600 calc(4.9 * var(--unit))/1.45 system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  text-wrap: balance;
+  text-shadow: 0 2px 0 #2b1d0e, 0 0 6px rgba(43, 29, 14, 0.9);
+}
+
+.start-corner {
+  position: absolute;
+  right: calc(env(safe-area-inset-right) + 10px);
+  top: calc(env(safe-area-inset-top) + 12px);
+  display: flex;
+  gap: 6px;
+}
+
+.start-round img {
+  width: 44px;
+  height: 44px;
+}
+
+.start-back {
+  position: absolute;
+  right: calc(env(safe-area-inset-right) + 14px);
+  bottom: calc(env(safe-area-inset-bottom) + 38px);
+}
+
+.start-back img {
+  width: 60px;
+  height: auto;
+}
+
+.start-round:active img,
+.start-back:active img {
+  transform: scale(0.94);
+  filter: brightness(0.85);
+}
+
+.start-maps {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(env(safe-area-inset-top) + 7vh + 26 * var(--unit));
+  bottom: calc(env(safe-area-inset-bottom) + 104px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.start-map {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  width: min(calc(100% - 120px), 420px);
+  aspect-ratio: 520 / 189;
+  border: 3px solid #3c220c;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 3px 0 rgba(43, 29, 14, 0.45);
+}
+
+.start-map:active {
+  transform: scale(0.97);
+  filter: brightness(0.85);
+}
+
+.start-map-picture {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.start-map-number {
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  height: 26px;
+  min-width: 26px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 13px;
+  background: #3c220c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.start-map-number img {
+  height: 18px;
+  width: auto;
+}
+
+.start-loading {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  width: min(calc(100% - 90px), 520px);
+  transform: translateX(-50%);
+}
+
+.start-loading img {
+  width: 100%;
+  height: auto;
+}
+
+.start-loading-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.start-loading-fill img {
+  width: min(calc(100vw - 90px), 520px);
+  max-width: none;
+}
+
+
+/* The story pictures and the dialogue (StoryHud.ts, round 4; artboard "剧情与对话"): the picture fills
+   the screen (story), a small box at the bottom with an ordinary font, ✓ at its bottom right. */
+.story-hud {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.story-hud[hidden] {
+  display: none;
+}
+
+.story-hud[data-kind="story"] {
+  background: #000;
+}
+
+.story-hud img {
+  display: block;
+  pointer-events: none;
+}
+
+.story-picture {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-box {
+  position: absolute;
+  left: calc(env(safe-area-inset-left) + 14px);
+  right: calc(env(safe-area-inset-right) + 14px);
+  bottom: calc(env(safe-area-inset-bottom) + 34px);
+  min-height: 176px;
+  box-sizing: border-box;
+  padding: 26px 18px 44px;
+  background: rgba(43, 29, 14, 0.8);
+  border: 2px solid #c9a350;
+  border-radius: 16px;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+}
+
+.story-hud[data-kind="dialogue"] .story-box {
+  min-height: 160px;
+  padding: 14px 18px 44px 92px;
+}
+
+.story-text {
+  font: 700 17px/1.5 system-ui, sans-serif;
+  color: #fff3c4;
+  text-shadow: 0 1px 0 #2b1d0e;
+  text-transform: uppercase;
+}
+
+.story-hud[data-kind="story"] .story-text {
+  text-align: center;
+  text-wrap: balance;
+}
+
+.story-title {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -60%);
+  padding: 4px 18px;
+  border-radius: 14px;
+  background: #3c220c;
+  border: 2px solid #c9a350;
+  font: 800 17px/1.2 system-ui, sans-serif;
+  letter-spacing: 1px;
+  color: #ffd34d;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.story-name {
+  margin-bottom: 6px;
+  font: 800 16px/1.2 system-ui, sans-serif;
+  letter-spacing: 1px;
+  color: #ffd34d;
+  text-transform: uppercase;
+}
+
+.story-face {
+  position: absolute;
+  left: 6px;
+  top: -24px;
+  width: 72px;
+  height: 72px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #c9a350;
+  border: 2px solid #3c220c;
+}
+
+.story-dots {
+  position: absolute;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  gap: 6px;
+}
+
+.story-dots span {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 243, 196, 0.35);
+}
+
+.story-dots span.on {
+  background: #ffe27a;
+}
+
+.story-tick {
+  position: absolute;
+  right: 6px;
+  bottom: -12px;
+  width: 52px;
+  height: 52px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
+}
+
+.story-hud:active .story-tick {
+  transform: scale(0.94);
+  filter: brightness(0.85) drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
 }

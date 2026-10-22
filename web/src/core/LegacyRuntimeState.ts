@@ -1,3 +1,4 @@
+import { hdArt } from "../render/HdArt";
 import type { AnchorValue } from "../platform/anchors";
 import type { DrawableImage } from "../platform/Image";
 import { stepLegacySubsystemEntityRevertIdle } from "../sim/tribe/LegacySubsystemEntityRevertIdle";
@@ -547,6 +548,11 @@ export class LegacyRuntimeState {
   );
   /** f.a:[[Image][2][0] after c(byte) (#558) replaced it; undefined = pi8's own entry 0. */
   pi8Slot0: DrawableImage | undefined;
+  /** Not in the original: the text record the last f.a(BII) compose drew (after c.g's section
+   *  offset for records >= 71), read by the HD story / dialogue pages (StoryHud). */
+  shownTextRecord = -1;
+  /** Not in the original: the /pi8 picture the last c(byte) chose (the story picture). */
+  shownPicture = 0;
   /** Raw c.b()/c.a(Graphics,int) row-composition state. */
   readonly cComposition: LegacyCCompositionState = {
     g: new Int16Array(64), h: new Int16Array(64), r: 0, s: 0, t: 0, q: 0, p: 0,
@@ -852,7 +858,11 @@ export class LegacyRuntimeState {
     stepLegacyZKind4({ ...state, byteRows: data.byteTables }, callbacks);
   }
 
-  stepZSubrecordDraw(...args: RtArgs<typeof stepZSubrecordDraw>): ReturnType<typeof stepZSubrecordDraw> { return stepZSubrecordDraw(this, ...args); }
+  stepZSubrecordDraw(...args: RtArgs<typeof stepZSubrecordDraw>): ReturnType<typeof stepZSubrecordDraw> {
+    // The HD wide view (render/HdArt.ts): a sub-record frame with an HD picture draws that.
+    if (hdArt.active && hdArt.drawEffect(this, args[0], args[1], args[2], args[3])) return;
+    return stepZSubrecordDraw(this, ...args);
+  }
 
 
 
