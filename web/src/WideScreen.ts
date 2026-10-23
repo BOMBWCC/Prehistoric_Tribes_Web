@@ -29,6 +29,7 @@ const MARGIN = 2; // tiles drawn past each edge, so a drag between two ticks sho
 const HALF = 160; // HUD rows above this stay at the top of the screen, the rest at the bottom
 /** The resource bar's height in CSS pixels (Hud.ts draws it; round-3 design, 2026-10-20). */
 const BAR_CSS = 44;
+const PANEL_EDGE_ROWS = 2; // the villager panel's bottom edge, drawn just under the strip it is in
 const SPEECH_BOX_ROWS = 84; // the original's dialogue box (Q 17): face, name and words, frame rows 0..83
 /** The original's bottom bars (record 4, 22 high, and record 10, 38 high with its message line):
  *  replaced by the HUD buttons and the notice feed. */
@@ -77,6 +78,9 @@ export class WideScreen {
   splash = false;
   /** Choosing a chief: a candidate has been tapped, so the original's panel shows them. */
   candidatePanel = false;
+  /** A touch key script is running (Hud.ts sets it): the original's bars it passes through, e.g. the
+   *  command bar on the way to the build list, are not drawn (BUG-016). */
+  scripting = false;
   /** Touch or mouse play (the last input was a pointer): the map's cursor has no hand. */
   touchPlay = true;
   private readonly still = document.createElement("canvas");
@@ -146,9 +150,9 @@ export class WideScreen {
     this.height = Math.floor(h / this.scale);
   }
 
-  /** A dialogue scene (Q 17), shown as the original's frame. */
+  /** A dialogue scene (Q 17) or a villager speaking (Q 20), shown as the original's frame. */
   private get dialogue(): boolean {
-    return this.runtime.game.loopMode !== 1 && this.runtime.game.screen === 17;
+    return this.runtime.game.loopMode !== 1 && (this.runtime.game.screen === 17 || this.runtime.game.screen === 20);
   }
 
   private get onMap(): boolean {
@@ -182,11 +186,26 @@ export class WideScreen {
       const record = this.runtime.packedBytes[base195 + slot] ?? 0;
       barRows = Math.max(barRows, 320 - (g.oElementRecordInts[record] ?? 320));
     }
-    const upperRows = this.buildCardsOpen || (this.choosingChief && !this.candidatePanel) ? 0 : g.selectionFlags[TOP_BAR_SLOT] ? Math.max(0, top - this.barRows()) : top;
+    // The villager panel (slot 4, under the original's top bar) stands at the bottom instead, above
+    // the lower rows (BUG-017, user 2026-10-22): frame rows panelFrom .. top and its edge.
+    const panelFrom = this.villagerPanelFrom(top);
+    const panelRows = panelFrom < 0 ? 0 : top + PANEL_EDGE_ROWS - panelFrom;
+    const upperRows = panelRows > 0 || this.buildCardsOpen || (this.choosingChief && !this.candidatePanel) ? 0 : g.selectionFlags[TOP_BAR_SLOT] ? Math.max(0, top - this.barRows()) : top;
     const lowerRows = Math.max(0, 320 - panel - barRows);
     const upper = barTop + this.barRows();
     const lower = this.height - safeBottom + barRows - (320 - HALF);
-    return { barTop, upper, lower, areaTop: upper + upperRows, areaBottom: this.height - safeBottom - lowerRows, top, upperRows, lowerRows };
+    const areaBottom = this.height - safeBottom - lowerRows - panelRows;
+    return { barTop, upper, lower, areaTop: upper + upperRows, areaBottom, top, upperRows, lowerRows, panelFrom, panelRows };
+  }
+
+  /** The villager panel's first frame row (its record's screen y), or -1 when it is not on. */
+  private villagerPanelFrom(top: number): number {
+    const g = this.runtime.game;
+    if (!g.selectionFlags[CANDIDATE_PANEL_SLOT] || this.buildCardsOpen || this.scripting) return -1;
+    if (this.choosingChief && !this.candidatePanel) return -1;
+    const record = this.runtime.packedBytes[(this.runtime.packedOffsets[195] ?? 0) + CANDIDATE_PANEL_SLOT] ?? 0;
+    const from = g.oElementRecordInts[record] ?? -1;
+    return from >= 0 && from < top ? from : -1;
   }
 
   private bottomSlotsNotDrawn(): number[] {
@@ -203,11 +222,12 @@ export class WideScreen {
     return g.loopMode === 1 && g.choosingChief && g.barMode === 2;
   }
 
-  /** A building's bar is open (slot 2 on, f.Z() filling it from aa / ab / ac): the HUD's building
-   *  menu shows instead. */
+  /** A building's bar is open (slot 2 on, f.Z() filling it from aa / ab / ac; w 2, or 4 while an
+   *  item confirms): the HUD's building menu shows instead. */
   get buildingMenuOpen(): boolean {
     const g = this.runtime.game;
-    return g.loopMode === 1 && g.barMode === 2 && !!g.selectionFlags[BAR_STRIP_SLOT] && !g.choosingChief && !this.buildCardsOpen;
+    // w 4: one of its items confirming (its line shows in the sheet, BUG-019).
+    return g.loopMode === 1 && (g.barMode === 2 || g.barMode === 4) && !!g.selectionFlags[BAR_STRIP_SLOT] && !g.choosingChief && !this.buildCardsOpen;
   }
 
   /** The original's build cards are up (the build list shows instead). */
@@ -308,9 +328,10 @@ export class WideScreen {
     const hidden = new Set([TOP_BAR_SLOT, ...this.bottomSlotsNotDrawn()]);
     if (this.buildCardsOpen) hidden.add(BUILD_COST_SLOT);
     if (this.choosingChief && !this.candidatePanel) hidden.add(CANDIDATE_PANEL_SLOT);
+    if (this.scripting) g.selectionFlags.forEach((_, slot) => hidden.add(slot));
     stepGameplayPaintHud(this.runtime, this.overlayGraphics, hidden);
     const group0 = this.runtime.imageGroups[0];
-    if (group0) this.runtime.geometryRenderer.renderTo(this.overlayGraphics, group0);
+    if (group0 && !this.scripting) this.runtime.geometryRenderer.renderTo(this.overlayGraphics, group0);
   }
 
   /** Every display frame: puts the pieces on screen (cheap; renderWide did the drawing). */
@@ -345,8 +366,16 @@ export class WideScreen {
     c.imageSmoothingQuality = "high";
     c.drawImage(image.element, Math.round(window.column * TILE_W - this.viewX - 11), Math.round(window.row * TILE_H - this.viewY - 8), image.width, image.height);
     c.imageSmoothingEnabled = false;
-    const { barTop, upper, lower } = this.layout();
-    c.drawImage(this.overlay, 0, 0, 240, HALF, 0, upper, 240, HALF);
+    const { barTop, upper, lower, panelFrom, panelRows, areaBottom } = this.layout();
+    if (panelRows > 0) {
+      // The upper rows without the villager panel, which goes to the bottom.
+      if (panelFrom > 0) c.drawImage(this.overlay, 0, 0, 240, panelFrom, 0, upper, 240, panelFrom);
+      const rest = panelFrom + panelRows;
+      if (rest < HALF) c.drawImage(this.overlay, 0, rest, 240, HALF - rest, 0, upper + rest, 240, HALF - rest);
+      c.drawImage(this.overlay, 0, panelFrom, 240, panelRows, 0, areaBottom, 240, panelRows);
+    } else {
+      c.drawImage(this.overlay, 0, 0, 240, HALF, 0, upper, 240, HALF);
+    }
     c.drawImage(this.overlay, 0, HALF, 240, 320 - HALF, 0, lower, 240, 320 - HALF);
     c.fillStyle = BAR_COLOUR; // the notch strip; the bar under it is Hud.ts's
     c.fillRect(0, 0, this.width, barTop);
@@ -368,9 +397,12 @@ export class WideScreen {
     }
     const gx = dx / this.scale;
     const gy = dy / this.scale;
-    const { upper, upperRows, lower, lowerRows, areaBottom, top } = this.layout();
+    const { upper, upperRows, lower, lowerRows, areaBottom, top, panelFrom, panelRows } = this.layout();
     // The bar, and the panels (beside them, the map shows through).
     if (gy < upper || (gx < 240 && gy < upper + upperRows)) return { x: Math.floor(gx), y: Math.floor(gy - upper), on: "top" };
+    if (gx < 240 && panelRows > 0 && gy >= areaBottom && gy < areaBottom + panelRows) {
+      return { x: Math.floor(gx), y: Math.floor(panelFrom + gy - areaBottom), on: "top" };
+    }
     if (gx < 240 && lowerRows > 0 && gy >= areaBottom) return { x: Math.floor(gx), y: Math.floor(gy - lower + HALF), on: "bottom" };
     const cam = this.cameraOnScreen();
     return { x: Math.floor(gx - cam.x), y: Math.floor(gy - cam.y + top), on: "map" };
@@ -383,13 +415,13 @@ export class WideScreen {
    */
   hudLayout(): { barTop: number; barBottom: number; panelsBottom: number; bottomPanels: number; safeBottom: number } | null {
     if ((!this.onMap && !this.frozen) || !this.wide) return null;
-    const { barTop, upper, areaTop, lowerRows } = this.layout();
+    const { barTop, upper, areaTop, lowerRows, panelRows } = this.layout();
     const k = this.scale / (window.devicePixelRatio || 1);
     return {
       barTop: barTop * k,
       barBottom: upper * k,
       panelsBottom: areaTop * k,
-      bottomPanels: lowerRows * k,
+      bottomPanels: (lowerRows + panelRows) * k,
       safeBottom: this.safe.bottom,
     };
   }

@@ -93,7 +93,8 @@ for (const dir of ["hud/processed", "panels/processed", "hud/cmd/processed"]) {
 }
 // The round-4 start-up and menus (design/menu/processed, folders kept); the opaque backgrounds as JPEG.
 const menu = path.join(design, "menu/processed");
-for (const f of fs.readdirSync(menu, { recursive: true }).filter((f) => f.endsWith(".png"))) {
+// The map cards are the small WebP (design/menu/processed/maps/*.webp); the same-named PNGs are the sources.
+for (const f of fs.readdirSync(menu, { recursive: true }).filter((f) => (f.endsWith(".png") && !f.startsWith("maps/")) || f.endsWith(".webp"))) {
   if (!/^bg-/.test(f)) { copy(path.join(menu, f), `menu/${f}`); continue; }
   execFileSync("magick", [path.join(menu, f), "-quality", "85", path.join(out, "menu", f.replace(/\.png$/, ".jpg"))]);
 }

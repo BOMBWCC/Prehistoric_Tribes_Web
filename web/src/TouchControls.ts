@@ -209,7 +209,11 @@ export function attachTouchControls(
     const cx = game.cameraColumn + game.cursorColumn;
     const cy = game.cameraRow + game.cursorRow;
     const hovered = game.hoverUnit > 0 ? tileOf(game.hoverUnit) : null;
-    if ((tx === cx && ty === cy) || (hovered && hovered[0] === tx && hovered[1] === ty)) {
+    // A bar open (w 2, or 4 confirming an item): FIRE there would press its item under the cursor
+    // -- a second tap on a just selected building pressed its first item, demolish (2026-10-22).
+    // So no "tap again to confirm" then: the taps below close the bar first.
+    const barOpen = game.barMode === 2 || game.barMode === 4;
+    if (!barOpen && !script && ((tx === cx && ty === cy) || (hovered && hovered[0] === tx && hovered[1] === ty))) {
       const cell = unitAt(cx, cy);
       const target = cell >= 1 && cell <= 50 ? cell : game.hoverUnit;
       if (game.barMode === 1 && target > 0 && target === game.selectedId) {
@@ -226,26 +230,34 @@ export function attachTouchControls(
     // action icon there, the second confirms.
     const villager = villagerAt(x, y);
     if (villager && !(game.barMode === 1 && villager.id === game.selectedId)) {
-      moveCursorTo(villager.tx, villager.ty);
-      run(tapKey(OriginalKey.FIRE));
+      // From a building's bar, the villager's panel straight away (BUG-018).
+      run(selectAt(villager.tx, villager.ty, 0));
       return;
     }
-    // A building is selected with one tap too (user, 2026-10-21), when no villager is selected (with
-    // villagers selected a tap on it is an order: two taps, as above); from another building's bar,
-    // that bar is closed first.
+    // A building is selected with one tap too (user, 2026-10-21); from another building's bar, that
+    // bar is closed first.
     const cell = unitAt(tx, ty);
-    const buildingBar = game.barMode === 2 && !!game.selectionFlags[2];
-    if (cell < 0 && cell >= -60 && (game.barMode === 0 || buildingBar)) {
-      run((function* () {
-        if (buildingBar) yield* backOut();
-        moveCursorTo(tx, ty);
-        yield* tapKey(OriginalKey.FIRE);
-      })());
+    // With villagers selected (w 1) the same tap is the original's order: they go to the building
+    // (work, build, repair) -- one tap too (user, 2026-10-23: keep the original, BUG-018).
+    if (cell < 0 && cell >= -60 && (game.barMode === 0 || game.barMode === 1 || barOpen)) {
+      run(selectAt(tx, ty, -cell));
       return;
     }
     // First tap: the cursor jumps to the tile.
     moveCursorTo(tx, ty);
   };
+
+  /** Selects what is on map tile (tx, ty) with FIRE there, as one tap does: once a FIRE sent just
+   *  before has been taken (a double tap), an open bar is closed first -- FIRE into it would press
+   *  its item -- unless it is `building`'s own (a building record id; 0 for a villager). */
+  function* selectAt(tx: number, ty: number, building: number): Script {
+    for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
+    const open = game.barMode === 2 || game.barMode === 4;
+    if (open && building > 0 && game.qCounter === building) return;
+    if (open) yield* backOut();
+    moveCursorTo(tx, ty);
+    yield* tapKey(OriginalKey.FIRE);
+  }
 
   /** Our villager (1..50) whose figure is nearest frame point (x, y), within about a tile: the
    *  cells around the tap, each unit placed by its walking offset (e[202 + id], e[303 + id]). */

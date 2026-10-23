@@ -14,7 +14,7 @@ import type { WideScreen } from "./WideScreen";
  *   small box with the chapter title on its top edge, the text cut into paragraphs (no scrolling),
  *   dots for the paragraphs, ✓ at the bottom right: the next paragraph, after the last one the
  *   original's FIRE (its next picture).
- * - Dialogue (Q 17): the map's animation (WideScreen.dialogue); a box at the bottom with the
+ * - Dialogue (Q 17, and Q 20: a villager speaking, e.g. "nothing to do here"): the map's animation (WideScreen.dialogue); a box at the bottom with the
  *   speaker's HD face, name and words, ✓ the same way. Shown while the original shows a text (its
  *   f.a(BII) composed the current step's record: resourceSectionW == vInt); steps without one run
  *   on by themselves, as there.
@@ -102,7 +102,7 @@ export function attachStoryHud(
   function update(): void {
     const offMap = game.loopMode !== 1 && !screen.frozen;
     const story = offMap && game.screen === 18;
-    const talking = offMap && game.screen === 17 && game.resourceSectionW === game.vInt;
+    const talking = offMap && (game.screen === 17 || game.screen === 20) && game.resourceSectionW === game.vInt;
     layer.hidden = !story && !talking;
     layer.dataset.kind = story ? "story" : "dialogue";
     if (layer.hidden) { shown = ""; return; }

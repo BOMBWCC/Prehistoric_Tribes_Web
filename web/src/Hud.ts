@@ -481,7 +481,11 @@ export function attachHud(
   confirmRow.innerHTML = `${img("demolish")}<span>是否确认拆除？</span>`;
   const sheetTick = button("hud-sheet-tick", "", "确定");
   sheetTick.innerHTML = img("btn-tick");
-  sheet.append(panelRow, confirmRow, sheetTick);
+  // An item confirming (w == 4, BUG-019): the original's own line for it ("nothing to do here" ...)
+  // in the sheet, closed with its ✕.
+  const noticeRow = document.createElement("div");
+  noticeRow.className = "hud-sheet-confirm";
+  sheet.append(panelRow, confirmRow, noticeRow, sheetTick);
   let confirming = false;
   sheetTick.addEventListener("click", () => {
     if (confirming) {
@@ -565,10 +569,14 @@ export function attachHud(
       const text = code >= 0 && code <= 8 ? String(counts[index] ?? 0) : "";
       if (n.dataset.text !== text) { n.dataset.text = text; n.innerHTML = text ? digits(text) : ""; }
     }
-    show(panelRow, !confirming);
+    const notice = game.barMode === 4 && !confirming;
+    const words = notice && game.resourceSectionW === game.vInt ? capitalise(originalText(runtime, "t", runtime.shownTextRecord)) : "";
+    if (noticeRow.textContent !== words) noticeRow.textContent = words;
+    show(panelRow, !confirming && !notice);
     show(confirmRow, confirming);
+    show(noticeRow, notice);
     // ✓ left of ✕: confirming the demolish, or selecting the villager whose portrait is chosen.
-    show(sheetTick, confirming || (barCodes()[game.menuCursor] ?? 0) < 0);
+    show(sheetTick, confirming || (!notice && (barCodes()[game.menuCursor] ?? 0) < 0));
   };
   /** ✓ with a villager's portrait chosen: that villager is selected. */
   const selectChosen = () => {
@@ -659,6 +667,7 @@ export function attachHud(
         prompt.hidden = !picking;
         touch.setMapTapHandler(picking ? (villager) => { pickTarget = villager; } : null);
       }
+      screen.scripting = touch.busy && game.loopMode === 1;
       const layout = screen.hudLayout();
       const onMap = layout !== null && game.loopMode === 1 && !choosing;
       if (layout) {
@@ -701,7 +710,7 @@ export function attachHud(
       show(buildList, building);
       show(pageDots, building);
       if (building) drawBuildList();
-      if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(sheetTick, false); }
+      if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
       // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
       const tick = choosing || picking;
       show(fab, tick || (onMap && w === 3));
@@ -712,7 +721,7 @@ export function attachHud(
         show(actions, false);
         return;
       }
-      show(actions, onMap && !building && !menu);
+      show(actions, onMap && !building && !menu && !touch.busy);
       if (!onMap) return;
       if (menu) drawBuildingMenu();
       show(left, w === 2 && !building && !menu);

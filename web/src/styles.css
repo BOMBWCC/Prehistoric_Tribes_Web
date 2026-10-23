@@ -960,6 +960,7 @@ button.notice {
 .hud .hud-card {
   position: relative;
   flex: none;
+  touch-action: pan-x; /* .hud button's none would stop the list's sideways scroll (BUG-015) */
   width: 87px;
   height: 96px;
   scroll-snap-align: start;
@@ -1317,7 +1318,7 @@ button.notice {
   gap: 10px;
 }
 
-.start-map {
+.start-menu .start-map {
   position: relative;
   flex: 0 1 auto;
   min-height: 0;
@@ -1329,7 +1330,7 @@ button.notice {
   box-shadow: 0 3px 0 rgba(43, 29, 14, 0.45);
 }
 
-.start-map:active {
+.start-menu .start-map:active {
   transform: scale(0.97);
   filter: brightness(0.85);
 }
@@ -1338,6 +1339,18 @@ button.notice {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.start-map-picture.loaded {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-map-picture {
+    transition: none;
+  }
 }
 
 .start-map-number {

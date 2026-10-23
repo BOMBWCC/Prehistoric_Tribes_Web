@@ -35,6 +35,9 @@ const LANGUAGES = [
 ] as const;
 const LOADING_MS = 1500;
 const MAPS = 5; // the custom maps, q 7..11 (the original's Q 9 list)
+/** Each map card's picture and, until it has loaded, its main colour (the picture's average). */
+const MAP_PICTURE = (index: number) => `${ART}maps/map-${index + 1}.webp`;
+const MAP_COLOURS = ["#257479", "#938412", "#449415", "#449515", "#469514"];
 // The original's /t records shown on the pages: the questions after NEW GAME, the locked custom game.
 const LOSE_CAMPAIGN = 62;
 const LOSE_SAVE = 64;
@@ -139,10 +142,19 @@ export function attachStartMenu(
   };
   const mapCard = (index: number) => {
     const badge = Array.from(String(index + 1), (c) => `<img src="hd/ui/digit-${c}.png" alt="">`).join("");
-    return button("start-map", `地图 ${index + 1}`,
-      `${picture(`maps/map-${index + 1}.png`, "start-map-picture")}<span class="start-map-number">${badge}</span>`,
+    const card = button("start-map", `地图 ${index + 1}`,
+      `<img class="start-map-picture" src="${MAP_PICTURE(index)}" alt="" draggable="false"><span class="start-map-number">${badge}</span>`,
       () => start(false, index));
+    card.style.background = MAP_COLOURS[index] ?? "";
+    // Fades in once loaded (preloaded below, so usually at once).
+    const shot = card.querySelector<HTMLImageElement>(".start-map-picture")!;
+    if (shot.complete && shot.naturalWidth > 0) shot.classList.add("loaded");
+    else shot.addEventListener("load", () => shot.classList.add("loaded"), { once: true });
+    return card;
   };
+  // The map cards' pictures load while the splash and the menus are up (user, 2026-10-23), so the
+  // map page does not open on empty cards.
+  for (let i = 0; i < MAPS; i += 1) new Image().src = MAP_PICTURE(i);
 
   function show(next: Page | null): void {
     page = next;
@@ -205,7 +217,7 @@ export function attachStartMenu(
     const mainMenu = game.loopMode !== 1 && game.screen === 0 && !screen.frozen;
     if (page === "loading") return;
     if (page === null) { if (mainMenu && !touch.busy) show("main"); return; }
-    if (page === "splash") { if (mainMenu) show("main"); return; }
+    if (page === "splash") { if (mainMenu) show("main"); else if (game.loopMode === 1) show(null); return; }
     if (!mainMenu) show(null); // the keyboard took the original's own menus elsewhere
   }
 
