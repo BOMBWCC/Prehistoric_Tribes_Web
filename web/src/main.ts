@@ -11,6 +11,7 @@ import { attachSettings } from "./Settings";
 import { attachAlerts } from "./Alerts";
 import { attachHud } from "./Hud";
 import { hdArt } from "./render/HdArt";
+import { oldArt } from "./platform/OldArt";
 import { attachMenuHud } from "./MenuHud";
 import { attachStartMenu, savedLanguage, savedMusic } from "./StartMenu";
 import { attachStoryHud } from "./StoryHud";
@@ -21,6 +22,7 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("App mount point is missing");
 
 const canvas = new LogicalCanvas(240, 320);
+canvas.graphics.shown = true;
 const runtime = new LegacyRuntimeState();
 // The original's 240x320 frame stays in the page, hidden and first, so the oracle tools'
 // querySelector("canvas") still reads it; the player sees the WideScreen canvas.
@@ -96,7 +98,14 @@ async function showSplash(): Promise<void> {
   await new Promise((resolve) => window.setTimeout(resolve, 1200));
 }
 
+/** OldArt: what the original's drawing is shown as -- its frame when the screen shows the frame and
+ *  no HD page covers it, else nothing (the map view and its HUD set their own in renderWide). */
+function showsFrameAs(): string | null {
+  return screen.framed && !screen.frozen && !startMenu.covers() && !storyHud.covers() ? `画面 Q${runtime.game.screen}` : null;
+}
+
 function tick(): void {
+  oldArt.where = showsFrameAs();
   // Keep the original fixed-tick ordering: project DOM key edges, run the
   // bytecode-backed state machine, then dispatch the frame handler.
   touch.step();
@@ -122,6 +131,7 @@ function tick(): void {
 let renders = 0;
 let starting = false;
 function render(): void {
+  oldArt.where = showsFrameAs();
   paint();
   // f.run offsets 161..215: if ad:I or ae:I is set after the first paint, both
   // are cleared and the frame is painted a second time (oracle 2026-10-08).

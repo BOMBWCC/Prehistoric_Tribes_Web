@@ -2,7 +2,7 @@ import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { Graphics } from "../platform/Graphics";
 import { hdArt } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
-import { drawImageHelper, renderMap, stepCameraFrame, stepGameplayOuterLoop, stepLegacyC2 } from "./RenderRuntime";
+import { drawFrameCommandPrimitive, drawImageHelper, renderMap, stepCameraFrame, stepGameplayOuterLoop, stepLegacyC2 } from "./RenderRuntime";
 
 /**
  * The larger view (phase 3, user 2026-10-17; not in the original). The game itself keeps its 11 x 18
@@ -108,7 +108,10 @@ export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touch
   const width = window.columns * 22 + 22;
   const height = window.rows * 16 + 16;
   const scale = hdArt.scale(rt);
-  if (!image || image.width !== width || image.height !== height || image.scale !== scale) image = new LegacyOffscreenImage(width, height, scale);
+  if (!image || image.width !== width || image.height !== height || image.scale !== scale) {
+    image = new LegacyOffscreenImage(width, height, scale);
+    image.graphics.shown = true;
+  }
   image.graphics.setColor(0);
   image.graphics.fillRect(0, 0, width, height);
 
@@ -153,6 +156,24 @@ export function renderBuildingPicture(rt: LegacyRuntimeState, kind: number): HTM
 /** A villager's portrait as the original's bars draw it (f.a(IIIII), as in drawLegacy1010). */
 export function renderPortrait(rt: LegacyRuntimeState, id: number): HTMLCanvasElement | null {
   return renderPicture(rt, 64, () => rt.stepEntityAction(id, 32, 40, -8, 29));
+}
+
+/** What the selected-unit panel (frame command 4) draws for villager `id` -- its composites and
+ *  numbers (runtime.villagerPanel's form) --, drawn privately as if `id` alone were selected, the
+ *  game state put back after it: one of several selected villagers in the HD panel (Hud.ts). */
+export function villagerPanelOf(rt: LegacyRuntimeState, id: number): LegacyRuntimeState["villagerPanel"] {
+  let cells: LegacyRuntimeState["villagerPanel"] = [];
+  renderPicture(rt, 1, () => {
+    rt.game.selectedId = id;
+    rt.game.am = id;
+    // The panel on, every row marked as changed: they all draw, not only the changed ones.
+    rt.game.frameFlags[4] = true;
+    rt.game.selectionFlags[4] = true;
+    rt.game.zlKBytes.fill(1);
+    drawFrameCommandPrimitive(rt, 4, 0, 264);
+    cells = [...rt.villagerPanelDraft];
+  });
+  return cells;
 }
 
 /** Runs one of the original's draws into a private image of `size` x `size` (the game state put

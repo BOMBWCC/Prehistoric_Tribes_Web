@@ -1531,3 +1531,133 @@ button.notice {
   transform: scale(0.94);
   filter: brightness(0.85) drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
 }
+
+/* The villager panel in the bottom sheet (Hud.ts, BUG-017; UI design "村民面板"): the portrait, then
+   three aligned columns of three rows -- gender + age / mood + resting / weapon + pouch; the three
+   bars; the skills two per row. Several villagers: a row of portraits with their weapons. */
+.hud-villager {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 100%;
+  height: 104px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-villager[hidden] {
+  display: none;
+}
+
+.hud-villager img {
+  display: block;
+}
+
+.hud-villager .face {
+  flex: none;
+  width: 76px;
+  height: 76px;
+}
+
+.hud-cols {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.hud-col {
+  display: grid;
+  grid-template-rows: repeat(3, 28px);
+  align-items: center;
+}
+
+.hud-col.skills {
+  grid-template-columns: repeat(2, auto);
+  column-gap: 6px;
+}
+
+.hud-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hud-cell,
+.hud-stat {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.hud-cell > img,
+.hud-stat > img {
+  width: 26px;
+  height: 26px;
+}
+
+.hud-cell.faint {
+  opacity: 0.4;
+}
+
+/* The original's highlighted (yellow-edged) skill / resting icon: the same HD picture, glowing. */
+.hud-cell.lit > img {
+  filter: drop-shadow(0 0 3px #ffe27a) drop-shadow(0 0 2px #ffe27a);
+}
+
+.hud-cell .n,
+.hud-stat .n {
+  display: flex;
+  filter: drop-shadow(1px 0 0 #2b1a0a) drop-shadow(-1px 0 0 #2b1a0a) drop-shadow(0 1px 0 #2b1a0a) drop-shadow(0 -1px 0 #2b1a0a);
+}
+
+.hud-cell .n img,
+.hud-stat .n img {
+  height: 14px;
+  width: auto;
+  margin-right: -1px;
+}
+
+.hud-meter {
+  width: 54px;
+  height: 8px;
+  border: 2px solid #3c220c;
+  border-radius: 5px;
+  background: #3c220c;
+  overflow: hidden;
+}
+
+.hud-meter i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #d33a1f, #e8c22a 45%, #3fae2a);
+  background-size: 54px 100%;
+}
+
+.hud .hud-group .hud-member {
+  width: 60px;
+  height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  touch-action: pan-x; /* .hud button's none would stop the row's sideways scroll */
+}
+
+.hud-group .hud-member img {
+  position: static;
+  inset: auto;
+  width: 54px;
+  height: 54px;
+  transform: none;
+}
+
+.hud-group .hud-member img.weapon {
+  width: 28px;
+  height: 28px;
+}

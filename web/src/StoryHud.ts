@@ -45,7 +45,7 @@ export function attachStoryHud(
   runtime: LegacyRuntimeState,
   screen: WideScreen,
   touch: TouchControls,
-): { update(): void } {
+): { update(): void; covers(): boolean } {
   const game = runtime.game;
   const layer = document.createElement("div");
   layer.className = "story-hud";
@@ -117,5 +117,6 @@ export function attachStoryHud(
     build();
   }
 
-  return { update };
+  // The story page hides the original's screen; the dialogue box leaves its frame showing.
+  return { update, covers: () => !layer.hidden && layer.dataset.kind === "story" };
 }

@@ -1,14 +1,17 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { OriginalKey } from "./platform/Input";
 import { originalIcon, originalItemIcon } from "./OriginalIcons";
+import { oldArt } from "./platform/OldArt";
 import { capitalise, originalText } from "./OriginalText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, UNIT_AGE, UNIT_GENDER, UNIT_NAME, UNIT_TYPE } from "./core/DenseLayout";
+import { BLD_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HP, UNIT_MAX_HP, UNIT_NAME, UNIT_SELECTION, UNIT_TYPE } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
+import { villagerPanelOf } from "./render/WideView";
 
 /** The round-3 UI's pictures (scripts/import-hd.mjs copies them from design/). */
 const UI = "hd/ui/";
+const SHEET_HEIGHT = 112; // the bottom sheet's content height (styles.css .hud-sheet)
 
 /**
  * The touch HUD (phase 3, approved by the user 2026-10-17; not in the original), replacing the row
@@ -350,6 +353,7 @@ export function attachHud(
   // Backs out of the build cards and the command bar they came from (right soft key, each).
   sheetClose.addEventListener("click", () => {
     if (confirming) { confirming = false; return; }
+    if (viewing) { viewing = 0; return; } // back to the row of several villagers
     touch.closeBars();
   });
   hud.append(sheet);
@@ -403,10 +407,13 @@ export function attachHud(
           .join("");
       }
     }
-    // One dot per page of cards.
-    const perPage = Math.max(1, Math.floor(buildList.clientWidth / 97));
-    const pages = Math.ceil(kinds.length / perPage);
-    const page = Math.round(buildList.scrollLeft / (perPage * 97));
+    drawDots(buildList, kinds.length, 97);
+  };
+  /** One dot per page of a sideways list of `count` items `step` pixels apart, the shown one lit. */
+  const drawDots = (list: HTMLElement, count: number, step: number) => {
+    const perPage = Math.max(1, Math.floor(list.clientWidth / step));
+    const pages = Math.ceil(count / perPage);
+    const page = Math.round(list.scrollLeft / (perPage * step));
     if (pageDots.childElementCount !== pages) pageDots.replaceChildren(...Array.from({ length: pages }, () => document.createElement("i")));
     Array.from(pageDots.children).forEach((dot, i) => dot.classList.toggle("on", i === page));
   };
@@ -584,6 +591,95 @@ export function attachHud(
     if (code < 0) touch.selectVillager(-code);
   };
 
+  // ---- the villager panel (BUG-017; UI design "村民面板", user 2026-10-23: follow it): in the bottom
+  // sheet, the portrait (hat by job, no name) and three aligned columns -- gender + age / mood + resting
+  // / weapon + pouch; health, hunger, tiredness bars; the skills, two per row. What it shows is what
+  // the original's panel (frame command 4) drew, read back from runtime.villagerPanel (its composites
+  // and numbers by frame position), the pictures swapped for the HD ones. Several villagers: their
+  // portraits in a row, each with their weapon; a tap selects that one alone. ----
+  /** Skill composites (docs/hd-art-handoff.md §8): 560 + n, 577 + n the highlighted ones. */
+  const SKILLS: Record<number, string> = {
+    561: "basket", 562: "basket-wood", 563: "basket-meat", 564: "basket-ice", 565: "basket-stone", 566: "basket-mushroom",
+    567: "basket-bone", 568: "hammer", 569: "chef", 570: "horseshoe", 571: "mask", 572: "hardhat", 573: "bush", 574: "spark",
+    575: "spear", 576: "eyes",
+  };
+  const WEAPON_BASE = 659; // + the held item (0..8; 9 none draws nothing)
+  const MOOD_BASE = 674; // 675 (angriest) .. 679 (happiest): the HD mood-5 .. mood-1
+  const villagerBox = document.createElement("div");
+  villagerBox.className = "hud-villager";
+  const groupRow = document.createElement("div");
+  groupRow.className = "hud-sheet-row hud-group";
+  sheet.append(villagerBox, groupRow);
+  const cellImg = (name: string, cls = "") => img(name, cls);
+  const statBar = (icon: string, part: number, number = "") =>
+    `<span class="hud-stat">${cellImg(icon)}<span class="hud-meter"><i style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></i></span>${number ? `<span class="n">${digits(number)}</span>` : ""}</span>`;
+  const cell = (icon: string, number = "", cls = "") => `<span class="hud-cell ${cls}">${icon ? cellImg(icon) : ""}${number ? `<span class="n">${digits(number)}</span>` : ""}</span>`;
+  let shownVillager = "";
+  const drawVillager = (id: number, cells: typeof runtime.villagerPanel) => {
+    const e = runtime.denseState;
+    const key = `${id}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}`;
+    if (key === shownVillager) return;
+    shownVillager = key;
+    const textAt = (x: number, y: number) => cells.find((c) => c.asset < 0 && Math.abs(c.x - x) <= 3 && Math.abs(c.y - y) <= 3)?.text ?? "";
+    const asset = (test: (asset: number) => boolean) => cells.find((c) => c.asset >= 0 && test(c.asset));
+    const gender = asset((a) => a === 619 || a === 620);
+    const mood = asset((a) => a > MOOD_BASE && a <= MOOD_BASE + 5);
+    const rest = asset((a) => a === 560 || a === 577);
+    const weapon = asset((a) => a >= WEAPON_BASE && a < WEAPON_BASE + 9);
+    const pouch = asset((a) => a >= 625 && a <= 629);
+    // The skills: each number right of the panel's middle, with the icon just left of it; the one
+    // without an icon is speed (its legs are part of the panel's background).
+    const skills = cells
+      .filter((c) => c.asset < 0 && c.x >= 160)
+      .sort((a, b) => a.y - b.y || a.x - b.x)
+      .map((c) => {
+        const icon = cells.find((d) => d.asset >= 0 && Math.abs(d.y - c.y) <= 1 && c.x - d.x >= 10 && c.x - d.x <= 20);
+        const base = icon ? (icon.asset >= 577 ? icon.asset - 17 : icon.asset) : -1;
+        if (icon && !SKILLS[base]) oldArt.note("村民面板 技能", `组合图 ${icon.asset}`);
+        return cell(icon ? `sk-${SKILLS[base] ?? "z"}` : "sk-legs", c.text, icon && icon.asset >= 577 ? "lit" : "");
+      });
+    const age = gender ? textAt(gender.x + 24, gender.y + 1) : "";
+    const carried = pouch ? textAt(pouch.x + 15, pouch.y) : "";
+    const maxHp = Math.max(1, e[UNIT_MAX_HP + id] ?? 1);
+    const row = (...items: string[]) => `<span class="hud-row">${items.join("")}</span>`;
+    villagerBox.innerHTML = `${cellImg(portrait(id, -1), "face")}<span class="hud-cols">
+      <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell("pouch", carried, pouch && pouch.asset !== 625 ? "" : "faint"))}</span>
+      <span class="hud-col bars">${statBar("heart", (e[UNIT_HP + id] ?? 0) / maxHp, String(e[UNIT_HP + id] ?? 0))}${statBar("hunger", (e[UNIT_FOOD + id] ?? 0) / 99)}${statBar("sleep", (e[UNIT_ENERGY + id] ?? 0) / 99)}</span>
+      <span class="hud-col skills">${skills.join("")}</span></span>`;
+  };
+  /** Our villagers selected together (f.e 909 + id set; f.k 0 then). */
+  const groupIds = () => {
+    const e = runtime.denseState;
+    const ids: number[] = [];
+    for (let id = 1; id <= 50; id += 1) if ((e[UNIT_SELECTION + id] ?? 0) > 0) ids.push(id);
+    return ids;
+  };
+  let shownGroup = "";
+  const drawGroup = (ids: number[]) => {
+    const e = runtime.denseState;
+    const key = ids.map((id) => `${id}:${e[UNIT_HELD_ITEM + id]}`).join(",");
+    if (key === shownGroup) return;
+    shownGroup = key;
+    groupRow.replaceChildren(...ids.map((id) => {
+      const entry = document.createElement("button");
+      entry.type = "button";
+      entry.className = "hud-item hud-member";
+      entry.setAttribute("aria-label", label(108 + (e[UNIT_NAME + id] ?? 0)));
+      const held = e[UNIT_HELD_ITEM + id] ?? 9;
+      entry.innerHTML = `${img(portrait(id, -1))}${img(PANEL_ICONS[held] && held < 9 ? PANEL_ICONS[held]! : "empty-hand", "weapon")}`;
+      entry.addEventListener("click", () => { viewing = id; viewedCells = villagerPanelOf(runtime, id); viewedAt = performance.now(); });
+      return entry;
+    }));
+  };
+  groupRow.addEventListener("scroll", () => drawDots(groupRow, groupRow.childElementCount, 66));
+  // One of several selected villagers shown alone (UI design "多选：看单人（返回）", 2026-10-23): the
+  // selection stays as it is; their panel is the original's, drawn privately (villagerPanelOf),
+  // again every few seconds while it shows; ✕ turns into back.
+  let viewing = 0;
+  let viewedCells: typeof runtime.villagerPanel = [];
+  let viewedAt = 0;
+  const VIEW_REFRESH_MS = 2000;
+
   // ---- aiming a building's item at a villager (w == 3 with the building's bar behind it, slot 2):
   // the store's weapons (f.s = -code - 1) and the sanctuary's healing, defence, love potion
   // (f.s 0..2). A tap on a villager marks them with the item's picture; ✓ sends the cursor there and
@@ -661,6 +757,7 @@ export function attachHud(
         pickTarget = 0;
         if (picking) {
           const icon = code <= 8 ? originalItemIcon(runtime, code) : originalIcon(runtime, code);
+          oldArt.note("界面 瞄准标记", `道具 ${code}`);
           if (icon) { marker.src = icon.url; marker.width = icon.width * 2; marker.height = icon.height * 2; }
           prompt.textContent = `${itemName(code)}：点一位村民`;
         }
@@ -701,14 +798,31 @@ export function attachHud(
       const menu = onMap && screen.buildingMenuOpen;
       // The plain map (nothing open, at most villagers selected): build, commands, squads.
       const plain = onMap && (w === 0 || w === 1) && !picking && !menu;
-      show(buildButton, plain);
-      show(cmdButton, plain);
+      const group = plain && w === 1 && game.selectedId === 0 ? groupIds() : [];
+      if (!group.includes(viewing)) viewing = 0;
+      const single = plain && w === 1 && game.selectedId > 0 && !!game.selectionFlags[4] && runtime.villagerPanel.length > 0;
+      const villager = single || viewing > 0;
+      screen.villagerSheet = single;
+      show(villagerBox, villager);
+      show(groupRow, group.length > 1 && !viewing);
+      show(pageDots, building || (group.length > 1 && !viewing));
+      if (viewing && performance.now() - viewedAt > VIEW_REFRESH_MS) { viewedCells = villagerPanelOf(runtime, viewing); viewedAt = performance.now(); }
+      if (villager) drawVillager(viewing || game.selectedId, viewing ? viewedCells : runtime.villagerPanel); else shownVillager = "";
+      if (group.length > 1 && !viewing) { drawGroup(group); drawDots(groupRow, group.length, 66); } else shownGroup = "";
+      const closeIcon = viewing ? "back" : "btn-close";
+      if (sheetClose.dataset.icon !== closeIcon) { sheetClose.dataset.icon = closeIcon; sheetClose.innerHTML = img(closeIcon); sheetClose.setAttribute("aria-label", viewing ? "返回" : "关闭"); }
+      // A villager panel up: no build or command button (user, 2026-10-23, as with the building
+      // panel); the squads stay, above the sheet (their "+" needs the selection).
+      const sheetUp = villager || group.length > 1;
+      show(buildButton, plain && !sheetUp);
+      show(cmdButton, plain && !sheetUp);
       show(squadBox, plain);
-      if (!plain) { closeCommands(); closePop(); }
+      if (!plain || sheetUp) closeCommands();
+      if (!plain) closePop();
       if (plain) { drawCommands(); drawSquads(); }
-      show(sheet, building || menu);
+      if (sheetUp) hud.style.setProperty("--hud-bottom", `${Math.max(layout?.bottomPanels ?? 0, SHEET_HEIGHT)}px`);
+      show(sheet, building || menu || villager || group.length > 1);
       show(buildList, building);
-      show(pageDots, building);
       if (building) drawBuildList();
       if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
       // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
@@ -721,7 +835,7 @@ export function attachHud(
         show(actions, false);
         return;
       }
-      show(actions, onMap && !building && !menu && !touch.busy);
+      show(actions, onMap && !building && !menu && !villager && group.length < 2 && !touch.busy);
       if (!onMap) return;
       if (menu) drawBuildingMenu();
       show(left, w === 2 && !building && !menu);

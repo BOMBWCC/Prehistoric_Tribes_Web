@@ -551,6 +551,12 @@ export class LegacyRuntimeState {
   /** Not in the original: the text record the last f.a(BII) compose drew (after c.g's section
    *  offset for records >= 71), read by the HD story / dialogue pages (StoryHud). */
   shownTextRecord = -1;
+  /** Not in the original: what the selected-unit panel (frame command 4) drew last -- its pictures
+   *  (composite ids, text "") and numbers (asset -1) at their frame positions -- for the HD
+   *  villager panel (Hud.ts); `drawingVillagerPanel` while that command's rows run. */
+  villagerPanel: { asset: number; text: string; x: number; y: number }[] = [];
+  villagerPanelDraft: { asset: number; text: string; x: number; y: number }[] = [];
+  drawingVillagerPanel = false;
   /** Not in the original: the /pi8 picture the last c(byte) chose (the story picture). */
   shownPicture = 0;
   /** Raw c.b()/c.a(Graphics,int) row-composition state. */

@@ -1,11 +1,14 @@
 import { Anchor, type AnchorValue } from "./anchors";
 import type { DrawableImage } from "./Image";
+import { oldArt } from "./OldArt";
 
 /** Canvas implementation of the J2ME Graphics operations used by the port. */
 export class Graphics {
   private color = "#000000";
   private translation = { x: 0, y: 0 };
   private clipped = false;
+  /** Draws here can reach the screen (OldArt: original pictures drawn into it are reported). */
+  shown = false;
 
   constructor(private readonly context: CanvasRenderingContext2D) {}
 
@@ -76,6 +79,7 @@ export class Graphics {
   }
 
   drawImage(image: DrawableImage, x: number, y: number, anchor: AnchorValue): void {
+    if (this.shown && oldArt.where) oldArt.report(image, 0, 0, image.width, image.height);
     const point = this.resolveAnchor(x, y, image.width, image.height, anchor);
     this.context.drawImage(image.element, point.x + this.translation.x, point.y + this.translation.y);
   }
@@ -96,6 +100,7 @@ export class Graphics {
     if (sourceX < 0 || sourceY < 0 || sourceX + sourceWidth > image.width || sourceY + sourceHeight > image.height) {
       throw new RangeError("region exceeds the bounds of the source image");
     }
+    if (this.shown && oldArt.where) oldArt.report(image, sourceX, sourceY, sourceWidth, sourceHeight);
     const point = this.resolveAnchor(x, y, sourceWidth, sourceHeight, anchor);
     this.context.drawImage(
       image.element,

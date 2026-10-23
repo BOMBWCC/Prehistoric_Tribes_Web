@@ -30,6 +30,10 @@ export class LegacyOffscreenTargets {
 
   readonly graphics = this.images.map((image) => image.graphics) as [Graphics, Graphics, Graphics, Graphics];
 
+  constructor() {
+    for (const graphics of this.graphics) graphics.shown = true; // the frame is made of them
+  }
+
   clear(index: 0 | 1 | 2 | 3, color: number, x: number, y: number, width: number, height: number): void {
     const graphics = this.graphics[index];
     graphics.setColor(color);

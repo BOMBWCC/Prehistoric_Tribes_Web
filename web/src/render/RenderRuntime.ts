@@ -413,6 +413,10 @@ export function drawImageHelper(rt: LegacyRuntimeState, resourceId: number, mode
  */
 export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: number, x: number, y: number): void {
   rt.frameHelperCalls.push({ kind: "frame-command", resourceId: command, x, y });
+  // A draw that drew something replaces the last one (the HUD layer's redraw of it may draw nothing).
+  if (rt.drawingVillagerPanel && rt.villagerPanelDraft.length > 0) rt.villagerPanel = rt.villagerPanelDraft;
+  rt.drawingVillagerPanel = command === 4;
+  if (command === 4) rt.villagerPanelDraft = [];
   // command 4 (the selected-unit panel) is drawn like the others since
   // 2026-09-28: the old skip rested on f.b:[S] (#245) being null, which it
   // is not (e.f() writes it); y() is ported as stepLegacyY.
@@ -782,6 +786,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
           onText: (glyphX, glyphMode, width, text, value) => {
             // c.a(aJ,aK,j[3][row]>>6,String.valueOf(aF),aI-1)
             // maps directly to the compact geometry text entry.
+            if (rt.drawingVillagerPanel) rt.villagerPanelDraft.push({ asset: -1, text, x: glyphX, y: glyphMode });
             rt.geometry.queueTextWithWidth(glyphX, glyphMode, width, text, value);
           },
         });
@@ -873,9 +878,16 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
       // previous command's leftover made the portrait 720 + HP.
       rt.game.frameCommandAF = aF ?? 0;
       rt.consumeFrameCommand(row, {
-        onSprite: (asset, spriteX, spriteY) => packed.drawComposite(asset, spriteX, spriteY),
-        onDefaultSprite: (asset, spriteX, spriteY) => packed.drawComposite(asset, spriteX, spriteY),
+        onSprite: (asset, spriteX, spriteY) => {
+          if (rt.drawingVillagerPanel) rt.villagerPanelDraft.push({ asset, text: "", x: spriteX, y: spriteY });
+          packed.drawComposite(asset, spriteX, spriteY);
+        },
+        onDefaultSprite: (asset, spriteX, spriteY) => {
+          if (rt.drawingVillagerPanel) rt.villagerPanelDraft.push({ asset, text: "", x: spriteX, y: spriteY });
+          packed.drawComposite(asset, spriteX, spriteY);
+        },
         onText: (textX, textY, style, value, mode) => {
+          if (rt.drawingVillagerPanel) rt.villagerPanelDraft.push({ asset: -1, text: value, x: textX, y: textY });
           // j(int) offsets 190..246: c.a(x, y, j[3][row]>>6, text, 0).
           // Until 2026-10-01 rt passed (x, mode, text, style): every
           // cost number landed at y 0 with the alignment as its spacing.

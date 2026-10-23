@@ -1,4 +1,5 @@
 import { ImageResource } from "./Image";
+import { oldArt } from "./OldArt";
 
 export type PackedImage = {
   readonly index: number;
@@ -31,7 +32,9 @@ export class ImagePack {
       if (!isPng(payload)) throw new Error(`Image pack ${url} record ${index} is not PNG data`);
       const objectUrl = URL.createObjectURL(new Blob([payload], { type: "image/png" }));
       try {
-        records.push({ index, bytes: payload, image: await ImageResource.create(objectUrl) });
+        const image = await ImageResource.create(objectUrl);
+        oldArt.name(image, `${url.split("/").pop()}#${index}`);
+        records.push({ index, bytes: payload, image });
       } finally {
         URL.revokeObjectURL(objectUrl);
       }

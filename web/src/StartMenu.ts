@@ -62,7 +62,7 @@ export function attachStartMenu(
   runtime: LegacyRuntimeState,
   screen: WideScreen,
   touch: TouchControls,
-): { update(): void } {
+): { update(): void; covers(): boolean } {
   const game = runtime.game;
   const layer = document.createElement("div");
   layer.className = "start-menu";
@@ -222,5 +222,5 @@ export function attachStartMenu(
   }
 
   show("splash");
-  return { update };
+  return { update, covers: () => page !== null };
 }
