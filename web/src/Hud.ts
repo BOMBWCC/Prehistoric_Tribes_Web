@@ -8,6 +8,8 @@ import { BLD_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
 import { villagerPanelOf } from "./render/WideView";
+import { attachMiniMap } from "./MiniMap";
+import { hdArt } from "./render/HdArt";
 
 /** The round-3 UI's pictures (scripts/import-hd.mjs copies them from design/). */
 const UI = "hd/ui/";
@@ -222,10 +224,11 @@ export function attachHud(
   const closeCommands = () => { cmdMenu.hidden = true; cmdShade.hidden = true; };
   cmdButton.addEventListener("click", () => { cmdMenu.hidden = !cmdMenu.hidden; cmdShade.hidden = cmdMenu.hidden; });
   cmdShade.addEventListener("click", closeCommands);
+  const miniMap = attachMiniMap(app, runtime, screen);
   const commands = [
-    { glyph: "cmd-arms", name: () => (game.callToArmsActive ? "回去干活" : "全员备战"), active: () => game.callToArmsActive, act: () => touch.command([12, 15]) },
-    { glyph: "cmd-rally", name: () => (game.formUpActive ? "解散" : "集结"), active: () => game.formUpActive, act: () => touch.command([11, 14]) },
-    { glyph: "cmd-map", name: () => "小地图", active: () => false, act: () => touch.pressKey(OriginalKey.DIGIT_3) },
+    { glyph: "cmd-arms", name: () => (game.callToArmsActive ? "回去干活" : "全员备战"), active: () => game.callToArmsActive, act: () => order("cmd-arms", game.callToArmsActive, [12, 15]) },
+    { glyph: "cmd-rally", name: () => (game.formUpActive ? "解散" : "集结"), active: () => game.formUpActive, act: () => order("cmd-rally", game.formUpActive, [11, 14]) },
+    { glyph: "cmd-map", name: () => "小地图", active: () => false, act: () => miniMap.open() },
   ].map((command, index) => {
     const entry = button("hud-cmd-item", "", command.name());
     entry.innerHTML = img("cmd-plate") + img(command.glyph, "glyph");
@@ -243,8 +246,40 @@ export function attachHud(
     for (const { entry, command } of commands) {
       entry.setAttribute("aria-label", command.name());
       entry.classList.toggle("active", command.active());
+      // A running order's item cancels it: its icon with a red cross (UI design, 2026-10-22).
+      const glyph = entry.querySelector<HTMLImageElement>(".glyph")!;
+      const src = `${UI}${command.glyph}${command.active() ? "-cancel" : ""}.png`;
+      if (!glyph.src.endsWith(src)) glyph.src = src;
     }
   };
+
+  // ---- form up (rally) and call to arms (UI design "小地图、集结与备战", 2026-10-22): the order's
+  // icon stands in the middle of the screen and the cursor follows the tile under it while the map
+  // is dragged (the original's w == 3 spot, f.s 100); ✓ at its top right is FIRE, then the icon pops
+  // and a ring spreads. Cancelling is the same menu item, now with the cancel icon. ----
+  let ordering = ""; // the order's glyph while its spot is being chosen
+  const order = (glyph: string, running: boolean, codes: number[]) => {
+    if (!running) ordering = glyph;
+    touch.command(codes);
+  };
+  const orderMark = document.createElement("div");
+  orderMark.className = "hud-order";
+  orderMark.hidden = true;
+  const orderTick = button("hud-order-tick", "", "确定");
+  orderTick.innerHTML = img("btn-tick");
+  orderTick.hidden = true;
+  const orderBurst = document.createElement("div");
+  orderBurst.className = "hud-order-burst";
+  orderBurst.hidden = true;
+  hud.append(orderMark, orderBurst, orderTick);
+  let burstTimer = 0;
+  orderTick.addEventListener("click", () => {
+    touch.pressKey(OriginalKey.FIRE);
+    orderBurst.innerHTML = `<i class="ring"></i>${img("cmd-plate", "pop")}${img(ordering, "pop glyph")}`;
+    orderBurst.hidden = false;
+    window.clearTimeout(burstTimer);
+    burstTimer = window.setTimeout(() => { orderBurst.hidden = true; }, 900);
+  });
 
   const squadCount = (row: number) => {
     const members = runtime.mainArrays.aByte[row];
@@ -359,9 +394,9 @@ export function attachHud(
   hud.append(sheet);
 
   // The build list: the original's build cards' buildings (WideScreen hides the cards), left to right
-  // in their order, one size each, the price as a badge at the top right (red when the stock is
-  // short -- it does not stop the placing, user 2026-10-17), pages swiped sideways; a tap picks the
-  // card (left / right to it, FIRE) and placing starts.
+  // in their order, one size each, the price as a badge at the right (never red: being short does
+  // not stop the placing, user 2026-10-17 / UI design 2026-10-22), pages swiped sideways; a tap picks
+  // the card (left / right to it, FIRE) and placing starts.
   const BUILDING_ICONS = ["armoury", "gym", "hut", "chiefs-hut", "kitchen", "range", "store", "disco", "sanctuary", "pia-center", "nursery", "tower"];
   const buildList = document.createElement("div");
   buildList.className = "hud-sheet-list";
@@ -373,8 +408,6 @@ export function attachHud(
     const table = runtime.packedOffsets[T_BUILDING] ?? 0;
     return [10, 11, 12].map((row) => runtime.packedBytes[table + row * 26 + kind] ?? 0);
   };
-  /** The tribe's stock (f.a:[[S row 0: 2 wood, 3 stone, 4 bones -- the top bar's counters). */
-  const stock = () => [2, 3, 4].map((i) => runtime.mainArrays.aShort[0]?.[i] ?? 0);
   const RESOURCES = ["wood", "stone", "bones"];
   let shownKinds = "";
   let shownCosts = "";
@@ -396,14 +429,13 @@ export function attachHud(
         return entry;
       }));
     }
-    const have = stock();
-    const costs = kinds.map((kind) => price(kind).join("/")).join(",") + "|" + have.join(",");
+    const costs = kinds.map((kind) => price(kind).join("/")).join(",");
     if (costs !== shownCosts) {
       shownCosts = costs;
       for (const entry of Array.from(buildList.children) as HTMLElement[]) {
         const need = price(Number(entry.dataset.kind));
         entry.querySelector(".cost")!.innerHTML = need
-          .map((amount, i) => (amount > 0 ? `<span class="${amount > have[i]! ? "short" : ""}">${img(`icon-${RESOURCES[i]}`)}<span class="n">${digits(String(amount))}</span></span>` : ""))
+          .map((amount, i) => (amount > 0 ? `<span>${img(`icon-${RESOURCES[i]}`)}<span class="n">${digits(String(amount))}</span></span>` : ""))
           .join("");
       }
     }
@@ -707,12 +739,28 @@ export function attachHud(
     pickTarget = 0;
   };
 
-  // ---- placing a building: a tick at the footprint's top-right corner, only where the original
-  // allows the building (c(int,int)'s r:Z, the same test that shows its arrow instead of "!") ----
-  const placeTick = button("hud-place", "✓", "放置");
+  // ---- placing a building (UI design "放置建筑", 2026-10-22): the building's level-1 HD picture as a
+  // ghost over its footprint, a green patch under it, a tick at its top right; where the original
+  // does not allow it (c(int,int)'s r:Z, its "!" instead of the arrow) the ghost and patch turn red
+  // and the tick grey, and a tap on it does nothing. The ghost is dragged to move it
+  // (TouchControls); the original's own preview is not drawn (WideView). ----
+  const ghost = document.createElement("div");
+  ghost.className = "hud-ghost";
+  ghost.hidden = true;
+  ghost.innerHTML = '<i class="patch"></i><img alt="" draggable="false">';
+  const ghostPatch = ghost.querySelector<HTMLElement>(".patch")!;
+  const ghostPicture = ghost.querySelector<HTMLImageElement>("img")!;
+  const placeTick = button("hud-place", "", "放置");
+  placeTick.innerHTML = img("btn-tick");
   placeTick.hidden = true;
-  app.append(placeTick);
-  touch.bindKey(placeTick, OriginalKey.FIRE);
+  app.append(ghost, placeTick);
+  placeTick.addEventListener("click", () => { if (game.cRFlag) touch.pressKey(OriginalKey.FIRE); });
+  /** The building kind (0..11) whose site f.s places: t138[416 + kind] (S.site's table), or -1. */
+  const placedKind = (s: number) => {
+    const table = runtime.packedOffsets[T_BUILDING] ?? 0;
+    for (let kind = 0; kind < 12; kind += 1) if ((runtime.packedBytes[table + 416 + kind] ?? -1) === s) return kind;
+    return -1;
+  };
   /** Every display frame: keeps the tick on the footprint while the map is dragged. */
   const track = () => {
     // The aimed item over the chosen villager's head.
@@ -724,23 +772,58 @@ export function attachHud(
       marker.style.left = `${head.x + k / 2}px`;
       marker.style.top = `${head.y - k * 0.35}px`;
     }
+    if (!orderMark.hidden) {
+      const [tx, ty] = screen.centreTile();
+      if (tx !== game.cameraColumn + game.cursorColumn || ty !== game.cameraRow + game.cursorRow) touch.aim(tx, ty);
+    }
     const area = touch.footprint();
-    if (!area || !game.cRFlag || screen.frozen || picking) { placeTick.hidden = true; return; }
-    const corner = screen.tileToCss(area.column + area.columns, area.row);
-    const size = 44;
+    const kind = area ? placedKind(game.cSInt) : -1;
+    if (!area || kind < 0 || screen.frozen || picking || !orderMark.hidden) { placeTick.hidden = true; ghost.hidden = true; return; }
+    const from = screen.tileToCss(area.column, area.row);
+    const to = screen.tileToCss(area.column + area.columns, area.row + area.rows);
+    const blocked = !game.cRFlag;
+    ghost.classList.toggle("blocked", blocked);
+    placeTick.classList.toggle("blocked", blocked);
+    placeTick.setAttribute("aria-disabled", String(blocked));
+    Object.assign(ghostPatch.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${to.x - from.x}px`, height: `${to.y - from.y}px` });
+    const src = `hd/buildings/${kind}-1.png`;
+    if (!ghostPicture.src.endsWith(src)) ghostPicture.src = src;
+    // The picture at the map's scale: its pixels / the HD scale = game pixels, standing on the footprint.
+    const cssPerGame = (screen.tileToCss(1, 0).x - screen.tileToCss(0, 0).x) / 22;
+    const k = hdArt.scale(runtime);
+    const w = (ghostPicture.naturalWidth / k) * cssPerGame;
+    const h = (ghostPicture.naturalHeight / k) * cssPerGame;
+    const left = (from.x + to.x) / 2 - w / 2;
+    const top = to.y - h;
+    Object.assign(ghostPicture.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
+    ghost.hidden = false;
+    const size = 40;
     const width = screen.element.clientWidth;
-    placeTick.style.left = `${Math.max(4, Math.min(width - size - 4, corner.x + 4))}px`;
-    placeTick.style.top = `${Math.max(4, corner.y - size / 2)}px`;
+    placeTick.style.left = `${Math.max(4, Math.min(width - size - 4, left + w - size / 2))}px`;
+    placeTick.style.top = `${Math.max(4, top - size / 2)}px`;
     placeTick.hidden = false;
   };
 
   const show = (element: HTMLElement, on: boolean) => { element.hidden = !on; };
+  // A scripted scene (Q 17 / 20) from the map ends what was going on there: back on the map,
+  // placing and selections are closed (BUG-010, user 2026-10-16; the original keeps them, and so
+  // does play that has not touched the screen -- keys, the oracle's replays). Not when the player's
+  // own tap just led to it (a villager's answer, Q 20).
+  let lastTouch = -Infinity;
+  document.addEventListener("pointerdown", () => { lastTouch = performance.now(); }, true);
+  let sceneFromMap = false;
+  let wasOnMap = false;
   // Nothing shows before the game's first frame (the splash, the start-up questions).
   for (const element of [menuButton, fab, actions]) element.hidden = true;
 
   return {
     track,
     update() {
+      const nowOnMap = game.loopMode === 1;
+      const sinceTouch = performance.now() - lastTouch;
+      if (wasOnMap && !nowOnMap && (game.screen === 17 || game.screen === 20) && Number.isFinite(sinceTouch) && sinceTouch > 1500) sceneFromMap = true;
+      if (nowOnMap && sceneFromMap) { sceneFromMap = false; if (game.barMode !== 0 && !game.choosingChief) touch.closeBars(); }
+      wasOnMap = nowOnMap;
       // Choosing a chief: take the map taps, hide everything else.
       const nowChoosing = candidates().length > 0;
       if (nowChoosing !== choosing) {
@@ -826,6 +909,15 @@ export function attachHud(
       if (building) drawBuildList();
       if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
       // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
+      // Choosing an order's spot: the icon in the middle, its ✓; map taps do nothing (drag instead).
+      if (!touch.busy && w !== 3) ordering = "";
+      const aiming = onMap && w === 3 && game.cSInt === 100 && ordering !== "";
+      if (aiming !== !orderMark.hidden) {
+        orderMark.hidden = !aiming;
+        orderTick.hidden = !aiming;
+        if (aiming) orderMark.innerHTML = img("cmd-plate") + img(ordering, "glyph");
+        if (!picking && !choosing) touch.setMapTapHandler(aiming ? () => {} : null);
+      }
       const tick = choosing || picking;
       show(fab, tick || (onMap && w === 3));
       fab.classList.toggle("is-tick", tick);

@@ -328,15 +328,11 @@ button.notice {
 /* The tick that places a building, kept at its footprint's corner (Hud.ts). */
 .hud-place {
   position: absolute;
-  width: 44px;
-  height: 44px;
-  border: 2px solid #1d4d20;
-  border-radius: 50%;
-  background: #4caf50;
-  color: #fff;
-  font: bold 24px/1 sans-serif;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: none;
   padding: 0;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
   touch-action: none;
   cursor: pointer;
 }
@@ -982,10 +978,12 @@ button.notice {
   filter: drop-shadow(2px 0 0 #fff2b0) drop-shadow(-2px 0 0 #fff2b0) drop-shadow(0 2px 0 #fff2b0) drop-shadow(0 -2px 0 #fff2b0);
 }
 
+/* Lower than the card's top (UI design, 2026-10-22): the sheet's corner ✕ no longer covers it; it
+   may cover part of the building. Never red: being short does not stop the placing. */
 .hud-card .cost {
   position: absolute;
   right: 0;
-  top: 0;
+  top: 30px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1012,10 +1010,6 @@ button.notice {
 .hud-card .cost .n img {
   height: 13px;
   margin-right: -1px;
-}
-
-.hud-card .cost .short .n {
-  filter: hue-rotate(-48deg) saturate(1.8);
 }
 
 .hud-sheet-dots {
@@ -1660,4 +1654,200 @@ button.notice {
 .hud-group .hud-member img.weapon {
   width: 28px;
   height: 28px;
+}
+
+/* The minimap page (MiniMap.ts; UI design "小地图、集结与备战"): the original's overview, as tall as the
+   screen below the dynamic island, dragged sideways; the green frame is the view; ✕ bottom right. */
+.minimap {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: #000;
+}
+
+.minimap[hidden] {
+  display: none;
+}
+
+.minimap-scroll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: env(safe-area-inset-top);
+  bottom: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+}
+
+.minimap-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.minimap-scroll canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.minimap-view {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid #4cff3a;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.minimap-close {
+  position: absolute;
+  right: calc(env(safe-area-inset-right) + 16px);
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.minimap-close img {
+  display: block;
+  width: 52px;
+  height: 52px;
+}
+
+.minimap-close:active img {
+  transform: scale(0.94);
+  filter: brightness(0.85);
+}
+
+/* Rally / call to arms (Hud.ts; UI design "小地图、集结与备战"): the order's icon in the middle of
+   the screen while its spot is chosen, ✓ at its top right; after ✓ it pops and a ring spreads. */
+.hud-order,
+.hud-order-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  pointer-events: none;
+}
+
+.hud-order[hidden],
+.hud-order-burst[hidden] {
+  display: none;
+}
+
+.hud-order img,
+.hud-order-burst img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-order img.glyph,
+.hud-order-burst img.glyph {
+  left: 18%;
+  top: 18%;
+  width: 64%;
+  height: 64%;
+}
+
+.hud-order {
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.4));
+}
+
+.hud .hud-order-tick {
+  position: absolute;
+  left: calc(50% + 18px);
+  top: calc(50% - 52px);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.hud-order-tick img {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
+}
+
+.hud-order-burst .pop {
+  animation: hud-order-pop 0.9s ease-out both;
+}
+
+.hud-order-burst .ring {
+  position: absolute;
+  inset: -6px;
+  border: 3px solid #ffe27a;
+  border-radius: 50%;
+  animation: hud-order-ring 0.9s ease-out both;
+}
+
+@keyframes hud-order-pop {
+  0% { transform: scale(0.6); opacity: 0.2; }
+  25% { transform: scale(1.18); opacity: 1; }
+  45% { transform: scale(1); }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes hud-order-ring {
+  0% { transform: scale(0.4); opacity: 0.95; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-order-burst .pop,
+  .hud-order-burst .ring {
+    animation: none;
+  }
+}
+
+/* Placing a building (Hud.ts; UI design "放置建筑"): the level-1 picture as a ghost, a patch under it,
+   red where it cannot go; the tick at its top right, grey then. */
+.hud-ghost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-ghost[hidden] {
+  display: none;
+}
+
+.hud-ghost .patch {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: rgba(120, 230, 90, 0.45);
+  border: 2px dashed #e9ffd8;
+}
+
+.hud-ghost img {
+  position: absolute;
+  opacity: 0.72;
+}
+
+.hud-ghost.blocked .patch {
+  background: rgba(235, 50, 40, 0.45);
+  border-color: #ffd8d2;
+}
+
+.hud-ghost.blocked img {
+  filter: sepia(1) saturate(6) hue-rotate(-38deg) brightness(0.95);
+}
+
+.hud-place img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.4));
+}
+
+.hud-place.blocked img {
+  filter: grayscale(1);
+  opacity: 0.45;
 }

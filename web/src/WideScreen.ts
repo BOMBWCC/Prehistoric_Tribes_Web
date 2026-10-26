@@ -158,6 +158,16 @@ export class WideScreen {
     return this.runtime.game.loopMode !== 1 && (this.runtime.game.screen === 17 || this.runtime.game.screen === 20);
   }
 
+  /** The map tiles the screen shows (fractions; may reach past the map's edges): the minimap's frame. */
+  viewRect(): { column: number; row: number; columns: number; rows: number } {
+    return { column: this.viewX / TILE_W, row: this.viewY / TILE_H, columns: this.width / TILE_W, rows: this.height / TILE_H };
+  }
+
+  /** The map tile in the middle of the screen. */
+  centreTile(): [number, number] {
+    return [Math.floor((this.viewX + this.width / 2) / TILE_W), Math.floor((this.viewY + this.height / 2) / TILE_H)];
+  }
+
   /** The screen shows the original's 240 x 320 frame (menus, dialogue ...), not the map view. */
   get framed(): boolean {
     return !this.onMap;
