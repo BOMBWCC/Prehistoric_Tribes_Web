@@ -353,7 +353,8 @@
     "test:p-sprite-draw-wiring": "node scripts/verify-p-sprite-draw-wiring.mjs",
     "test:map-overview": "node scripts/verify-map-overview.mjs",
     "test:zh-text": "node scripts/verify-zh-text.mjs",
-    "export-art": "node scripts/export-art.mjs"
+    "export-art": "node scripts/export-art.mjs",
+    "scenarios": "node tests/run.mjs"
   },
   "devDependencies": {
     "playwright": "^1.64.1",

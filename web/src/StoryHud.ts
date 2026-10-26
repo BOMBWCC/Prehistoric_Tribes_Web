@@ -55,18 +55,20 @@ export function attachStoryHud(
   let shown = ""; // what the layer was last built for
   let parts: string[] = [];
   let part = 0;
-  // When FIRE was sent: taps right after it are dropped, so a double tap cannot skip a text (the
-  // original may also ignore a press in a new text's first ticks; a later tap sends it again).
-  let pressedAt = -Infinity;
+  // When FIRE was sent (in game ticks): taps right after it are dropped, so a double tap cannot skip
+  // a text (the original may also ignore a press in a new text's first ticks; a later tap sends it again).
+  let ticks = 0;
+  let pressedTick = -Infinity;
+  const PRESS_GAP_TICKS = 5; // about 0.6 s
 
   const next = () => {
-    if (performance.now() - pressedAt < 600) return;
+    if (ticks - pressedTick < PRESS_GAP_TICKS) return;
     if (part < parts.length - 1) {
       part += 1;
       build();
       return;
     }
-    pressedAt = performance.now();
+    pressedTick = ticks;
     touch.pressKey(OriginalKey.FIRE);
   };
   layer.addEventListener("click", next);
@@ -100,6 +102,7 @@ export function attachStoryHud(
   }
 
   function update(): void {
+    ticks += 1;
     const offMap = game.loopMode !== 1 && !screen.frozen;
     const story = offMap && game.screen === 18;
     const talking = offMap && (game.screen === 17 || game.screen === 20) && game.resourceSectionW === game.vInt;

@@ -1851,3 +1851,15 @@ button.notice {
   filter: grayscale(1);
   opacity: 0.45;
 }
+
+/* Touch play's action icon at the cursor (Hud.ts), centred on its tile. */
+.hud-action-icon {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.45));
+}
+
+.hud-action-icon[hidden] {
+  display: none;
+}

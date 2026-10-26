@@ -228,8 +228,8 @@ export function attachTouchControls(
       return;
     }
     // One tap selects a villager (phase 3, 2026-10-17: there is no hand cursor to aim first):
-    // the cursor jumps to them and FIRE follows. Anything else takes two taps: the first shows the
-    // action icon there, the second confirms.
+    // the cursor jumps to them and FIRE follows. With nothing selected, anything else takes two
+    // taps: the first moves the cursor there, the second confirms.
     const villager = villagerAt(x, y);
     if (villager && !(game.barMode === 1 && villager.id === game.selectedId)) {
       // From a building's bar, the villager's panel straight away (BUG-018).
@@ -245,6 +245,9 @@ export function attachTouchControls(
       run(selectAt(tx, ty, -cell));
       return;
     }
+    // With villagers selected one tap is the order too (user, 2026-10-26: move, gather, hunt,
+    // attack ... at once; the HUD flashes the action icon there).
+    if (game.barMode === 1) { run(selectAt(tx, ty, 0)); return; }
     // First tap: the cursor jumps to the tile.
     moveCursorTo(tx, ty);
   };

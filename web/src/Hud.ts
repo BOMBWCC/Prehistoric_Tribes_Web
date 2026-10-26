@@ -4,10 +4,11 @@ import { originalIcon, originalItemIcon } from "./OriginalIcons";
 import { oldArt } from "./platform/OldArt";
 import { capitalise, originalText } from "./OriginalText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HP, UNIT_MAX_HP, UNIT_NAME, UNIT_SELECTION, UNIT_TYPE } from "./core/DenseLayout";
+import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_NAME, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
 import { villagerPanelOf } from "./render/WideView";
+import { touchAction } from "./render/RenderRuntime";
 import { attachMiniMap } from "./MiniMap";
 import { hdArt } from "./render/HdArt";
 
@@ -626,7 +627,7 @@ export function attachHud(
   // ---- the villager panel (BUG-017; UI design "村民面板", user 2026-10-23: follow it): in the bottom
   // sheet, the portrait (hat by job, no name) and three aligned columns -- gender + age / mood + resting
   // / weapon + pouch; health, hunger, tiredness bars; the skills, two per row. What it shows is what
-  // the original's panel (frame command 4) drew, read back from runtime.villagerPanel (its composites
+  // the original's panel (frame command 4) drew, read back with WideView.villagerPanelOf (its composites
   // and numbers by frame position), the pictures swapped for the HD ones. Several villagers: their
   // portraits in a row, each with their weapon; a tap selects that one alone. ----
   /** Skill composites (docs/hd-art-handoff.md §8): 560 + n, 577 + n the highlighted ones. */
@@ -647,7 +648,7 @@ export function attachHud(
     `<span class="hud-stat">${cellImg(icon)}<span class="hud-meter"><i style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></i></span>${number ? `<span class="n">${digits(number)}</span>` : ""}</span>`;
   const cell = (icon: string, number = "", cls = "") => `<span class="hud-cell ${cls}">${icon ? cellImg(icon) : ""}${number ? `<span class="n">${digits(number)}</span>` : ""}</span>`;
   let shownVillager = "";
-  const drawVillager = (id: number, cells: typeof runtime.villagerPanel) => {
+  const drawVillager = (id: number, cells: typeof runtime.villagerPanelDraft) => {
     const e = runtime.denseState;
     const key = `${id}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}`;
     if (key === shownVillager) return;
@@ -679,11 +680,13 @@ export function attachHud(
       <span class="hud-col bars">${statBar("heart", (e[UNIT_HP + id] ?? 0) / maxHp, String(e[UNIT_HP + id] ?? 0))}${statBar("hunger", (e[UNIT_FOOD + id] ?? 0) / 99)}${statBar("sleep", (e[UNIT_ENERGY + id] ?? 0) / 99)}</span>
       <span class="hud-col skills">${skills.join("")}</span></span>`;
   };
-  /** Our villagers selected together (f.e 909 + id set; f.k 0 then). */
+  /** Our villagers selected together: their group mark (f.e 909 + id) is the selection's group
+   *  (f.F, -1 for one villager; the marks stay after a selection ends, so only the current group). */
   const groupIds = () => {
     const e = runtime.denseState;
     const ids: number[] = [];
-    for (let id = 1; id <= 50; id += 1) if ((e[UNIT_SELECTION + id] ?? 0) > 0) ids.push(id);
+    if (game.selectionGroup < 0) return ids;
+    for (let id = 1; id <= 50; id += 1) if ((e[UNIT_SELECTION + id] ?? 0) === game.selectionGroup) ids.push(id);
     return ids;
   };
   let shownGroup = "";
@@ -699,7 +702,7 @@ export function attachHud(
       entry.setAttribute("aria-label", label(108 + (e[UNIT_NAME + id] ?? 0)));
       const held = e[UNIT_HELD_ITEM + id] ?? 9;
       entry.innerHTML = `${img(portrait(id, -1))}${img(PANEL_ICONS[held] && held < 9 ? PANEL_ICONS[held]! : "empty-hand", "weapon")}`;
-      entry.addEventListener("click", () => { viewing = id; viewedCells = villagerPanelOf(runtime, id); viewedAt = performance.now(); });
+      entry.addEventListener("click", () => { viewing = id; });
       return entry;
     }));
   };
@@ -708,7 +711,8 @@ export function attachHud(
   // selection stays as it is; their panel is the original's, drawn privately (villagerPanelOf),
   // again every few seconds while it shows; ✕ turns into back.
   let viewing = 0;
-  let viewedCells: typeof runtime.villagerPanel = [];
+  let viewedId = 0;
+  let viewedCells: typeof runtime.villagerPanelDraft = [];
   let viewedAt = 0;
   const VIEW_REFRESH_MS = 2000;
 
@@ -739,6 +743,18 @@ export function attachHud(
     pickTarget = 0;
   };
 
+  // ---- touch play's action icon (user, 2026-10-26): the order a tap just gave (move, gather, attack,
+  // enter ... -- the original's icon beside its hand, RenderRuntime.touchAction), in HD, centred on
+  // the cursor's tile and larger. ----
+  const actionIcon = document.createElement("img");
+  actionIcon.className = "hud-action-icon";
+  actionIcon.alt = "";
+  actionIcon.hidden = true;
+  app.append(actionIcon);
+  const ACTION_FRAMES: Record<number, number> = { 35: 5 }; // the move arrows' animation
+  const ACTION_SIZE = 1.4; // tiles
+  const ACTION_FLASH_MS = 800;
+
   // ---- placing a building (UI design "放置建筑", 2026-10-22): the building's level-1 HD picture as a
   // ghost over its footprint, a green patch under it, a tick at its top right; where the original
   // does not allow it (c(int,int)'s r:Z, its "!" instead of the arrow) the ghost and patch turn red
@@ -762,7 +778,49 @@ export function attachHud(
     return -1;
   };
   /** Every display frame: keeps the tick on the footprint while the map is dragged. */
+  /** One selected villager's job, for the icon that stays on it (user, 2026-10-26): his work spot --
+   *  the original's return position (6262 / 6363: the tree, rock, bush or fish he keeps going back
+   *  to, or where he was sent) -- or the animal he hunts (his target, 3131 / 3232), with the icon the
+   *  original's cursor shows on that cell (c(int,int): 44 tree, 45 rock, 46 bones, 43 the other
+   *  resources and animals); plain ground while he walks there: the move arrows. Children, idlers
+   *  and work inside buildings show nothing. */
+  const jobIcon = (id: number): { icon: number; tx: number; ty: number } | null => {
+    const e = runtime.denseState;
+    if ((e[UNIT_TYPE + id] ?? 0) === 17) return null;
+    const cell = (x: number, y: number) => runtime.gridC[y]?.[x] ?? 0;
+    const tx = e[UNIT_TARGET_X + id] ?? 0;
+    const ty = e[UNIT_TARGET_Y + id] ?? 0;
+    const target = cell(tx, ty);
+    if (target >= 101 && target <= 122) return { icon: 43, tx, ty };
+    const hx = e[UNIT_HOME_X + id] ?? 0;
+    const hy = e[UNIT_HOME_Y + id] ?? 0;
+    const home = cell(hx, hy);
+    if (home === -124) return { icon: 44, tx: hx, ty: hy };
+    if (home === -125) return { icon: 45, tx: hx, ty: hy };
+    if (home <= -61 && home >= -110) return { icon: (e[RES_KIND - (home + 61)] ?? 0) === 7 ? 46 : 43, tx: hx, ty: hy };
+    const away = (e[UNIT_X + id] ?? 0) !== hx || (e[UNIT_Y + id] ?? 0) !== hy;
+    if (home === 0 && away && touch.villagerTile(id)) return { icon: 35, tx: hx, ty: hy };
+    return null;
+  };
+
   const track = () => {
+    // Shown for a moment after a tap: the order a tap gives (one tap, user 2026-10-26); with one
+    // villager selected, his job's icon stays on it.
+    const onMap = screen.touchPlay && game.loopMode === 1 && game.barMode === 1 && !screen.frozen;
+    const recent = performance.now() - lastTouch < ACTION_FLASH_MS;
+    const flash = recent && onMap ? touchAction.icon : 0;
+    const job = !flash && onMap && screen.villagerSheet ? jobIcon(game.selectedId) : null;
+    const icon = flash || job?.icon || 0;
+    actionIcon.hidden = icon === 0;
+    if (icon) {
+      const frames = ACTION_FRAMES[icon] ?? 1;
+      const src = `hd/effects/${icon}-${frames > 1 ? Math.floor(performance.now() / 150) % frames : 0}.png`;
+      if (!actionIcon.src.endsWith(src)) actionIcon.src = src;
+      const at = job ? screen.tileToCss(job.tx, job.ty) : screen.tileToCss(game.cameraColumn + game.cursorColumn, game.cameraRow + game.cursorRow);
+      const tile = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
+      const size = tile * ACTION_SIZE;
+      Object.assign(actionIcon.style, { left: `${at.x + tile / 2 - size / 2}px`, top: `${at.y + (tile * 16) / 22 / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
+    }
     // The aimed item over the chosen villager's head.
     const tile = picking && pickTarget > 0 ? touch.villagerTile(pickTarget) : null;
     marker.hidden = !tile || screen.frozen;
@@ -808,9 +866,13 @@ export function attachHud(
   // A scripted scene (Q 17 / 20) from the map ends what was going on there: back on the map,
   // placing and selections are closed (BUG-010, user 2026-10-16; the original keeps them, and so
   // does play that has not touched the screen -- keys, the oracle's replays). Not when the player's
-  // own tap just led to it (a villager's answer, Q 20).
-  let lastTouch = -Infinity;
-  document.addEventListener("pointerdown", () => { lastTouch = performance.now(); }, true);
+  // own tap just led to it (a villager's answer, Q 20). Counted in game ticks, not wall time: the
+  // same taps give the same game however fast it runs (a slow phone, the scenario tests).
+  let lastTouch = -Infinity; // ms, for the action icon's flash only
+  let ticks = 0;
+  let lastTouchTick = -1;
+  const SCENE_AFTER_TAP_TICKS = 12; // about 1.5 s
+  document.addEventListener("pointerdown", () => { lastTouch = performance.now(); lastTouchTick = ticks; }, true);
   let sceneFromMap = false;
   let wasOnMap = false;
   // Nothing shows before the game's first frame (the splash, the start-up questions).
@@ -819,9 +881,9 @@ export function attachHud(
   return {
     track,
     update() {
+      ticks += 1;
       const nowOnMap = game.loopMode === 1;
-      const sinceTouch = performance.now() - lastTouch;
-      if (wasOnMap && !nowOnMap && (game.screen === 17 || game.screen === 20) && Number.isFinite(sinceTouch) && sinceTouch > 1500) sceneFromMap = true;
+      if (wasOnMap && !nowOnMap && (game.screen === 17 || game.screen === 20) && lastTouchTick >= 0 && ticks - lastTouchTick > SCENE_AFTER_TAP_TICKS) sceneFromMap = true;
       if (nowOnMap && sceneFromMap) { sceneFromMap = false; if (game.barMode !== 0 && !game.choosingChief) touch.closeBars(); }
       wasOnMap = nowOnMap;
       // Choosing a chief: take the map taps, hide everything else.
@@ -881,16 +943,24 @@ export function attachHud(
       const menu = onMap && screen.buildingMenuOpen;
       // The plain map (nothing open, at most villagers selected): build, commands, squads.
       const plain = onMap && (w === 0 || w === 1) && !picking && !menu;
-      const group = plain && w === 1 && game.selectedId === 0 ? groupIds() : [];
+      const group = plain && w === 1 ? groupIds() : [];
       if (!group.includes(viewing)) viewing = 0;
-      const single = plain && w === 1 && game.selectedId > 0 && !!game.selectionFlags[4] && runtime.villagerPanel.length > 0;
+      const single = plain && w === 1 && game.selectedId > 0 && !!game.selectionFlags[4] && group.length < 2;
+      // The panel the original draws for them (all rows, drawn privately): on a new villager and every
+      // few seconds -- its own redraws are only the rows that changed.
+      const shownId = viewing || (single ? game.selectedId : 0);
+      if (shownId && (shownId !== viewedId || performance.now() - viewedAt > VIEW_REFRESH_MS)) {
+        viewedId = shownId;
+        viewedCells = villagerPanelOf(runtime, shownId);
+        viewedAt = performance.now();
+      }
+      if (!shownId) viewedId = 0;
       const villager = single || viewing > 0;
       screen.villagerSheet = single;
       show(villagerBox, villager);
       show(groupRow, group.length > 1 && !viewing);
       show(pageDots, building || (group.length > 1 && !viewing));
-      if (viewing && performance.now() - viewedAt > VIEW_REFRESH_MS) { viewedCells = villagerPanelOf(runtime, viewing); viewedAt = performance.now(); }
-      if (villager) drawVillager(viewing || game.selectedId, viewing ? viewedCells : runtime.villagerPanel); else shownVillager = "";
+      if (villager) drawVillager(shownId, viewedCells); else shownVillager = "";
       if (group.length > 1 && !viewing) { drawGroup(group); drawDots(groupRow, group.length, 66); } else shownGroup = "";
       const closeIcon = viewing ? "back" : "btn-close";
       if (sheetClose.dataset.icon !== closeIcon) { sheetClose.dataset.icon = closeIcon; sheetClose.innerHTML = img(closeIcon); sheetClose.setAttribute("aria-label", viewing ? "返回" : "关闭"); }
