@@ -45,7 +45,7 @@ export function attachHud(
   screen: WideScreen,
   touch: TouchControls,
   openSettings: () => void,
-  notify: (text: string) => void,
+  notify: (text: string, icon?: string, alert?: boolean) => void,
 ): { update(): void; track(): void } {
   const game = runtime.game;
   const hud = document.createElement("div");
@@ -131,27 +131,34 @@ export function attachHud(
     if (paused && !menuList.hidden && !menuList.contains(target) && target !== menuButton && !confirmBox.open && !document.querySelector("dialog[open]")) resume();
   });
 
-  // A yes / no box for the original's prompts (/t 63 load, 64 overwrite a save, 65 quit).
+  const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.png" alt="">`;
+  // A yes / no box for the original's prompts (/t 63 load, 64 overwrite a save, 65 quit), as the UI
+  // design's card ("提示与消息" A, 2026-10-27): the menu item's plate and glyph, ✓ / ✕ on its edge.
   const confirmBox = document.createElement("dialog");
-  confirmBox.className = "settings confirm";
-  confirmBox.innerHTML = '<form method="dialog"><p></p><div class="confirm-buttons"><button value="no">取消</button><button value="yes">确定</button></div></form>';
+  confirmBox.className = "card confirm";
+  confirmBox.innerHTML = `<form method="dialog">${img("deco-vine", "deco top")}${img("deco-grass", "deco bottom")}`
+    + `<span class="plate">${img("plate-normal")}${img("glyph-quit", "glyph")}</span><p></p>`
+    + `<button class="corner yes" value="yes" aria-label="确定">${img("btn-tick")}</button>`
+    + `<button class="corner no" value="no" aria-label="取消">${img("btn-close")}</button></form>`;
   confirmBox.addEventListener("keydown", (event) => event.stopPropagation());
   app.append(confirmBox);
-  const ask = (text: string, then: () => void) => {
+  const ask = (glyph: string, text: string, then: () => void) => {
+    confirmBox.querySelector<HTMLImageElement>(".plate .glyph")!.src = `${UI}glyph-${glyph}.png`;
     confirmBox.querySelector("p")!.textContent = text;
     confirmBox.returnValue = "no";
     confirmBox.onclose = () => { if (confirmBox.returnValue === "yes") then(); };
     confirmBox.showModal();
   };
-  const run = (item: PauseItem) => touch.pauseMenu(item, (record) => notify(originalText(runtime, "t", record)));
+  // The pause menu's messages: game saved (/t 67), not enough memory to save (66, red-edged).
+  const run = (item: PauseItem) => touch.pauseMenu(item, (record) => notify(originalText(runtime, "t", record), "glyph-save", record === 66));
   const message = (record: number) => originalText(runtime, "t", record);
   const menuItems: { label: string; glyph: string; act: () => void; enabled?: () => boolean }[] = [
-    { label: "保存", glyph: "save", act: () => (game.screen === 10 ? ask(message(64), () => run("save")) : run("save")) },
-    { label: "读取", glyph: "load", enabled: () => game.screen === 10, act: () => ask(message(63), () => { paused = false; menuList.hidden = true; run("load"); }) },
+    { label: "保存", glyph: "save", act: () => (game.screen === 10 ? ask("save", message(64), () => run("save")) : run("save")) },
+    { label: "读取", glyph: "load", enabled: () => game.screen === 10, act: () => ask("load", message(63), () => { paused = false; menuList.hidden = true; run("load"); }) },
     { label: "设置", glyph: "settings", act: openSettings },
     // Help shows the original's help pages (to be rewritten); back from them, the menu returns.
     { label: "帮助", glyph: "help", act: () => { help = "asked"; screen.frozen = false; run("help"); } },
-    { label: "退出", glyph: "quit", act: () => ask(message(65), () => { paused = false; menuList.hidden = true; run("quit"); }) },
+    { label: "退出", glyph: "quit", act: () => ask("quit", message(65), () => { paused = false; menuList.hidden = true; run("quit"); }) },
   ];
   const menuEntries = menuItems.map((item) => {
     const entry = button("hud-menu-item", "", item.label);
@@ -191,7 +198,6 @@ export function attachHud(
     return () => held;
   };
 
-  const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.png" alt="">`;
   /** HD digits for a number badge. */
   const digits = (text: string) => Array.from(text, (c) => img(`digit-${c === "/" ? "slash" : c}`)).join("");
 
@@ -456,10 +462,17 @@ export function attachHud(
   // the game goes on (user, 2026-10-17); a tap on a villager moves the row's cursor to them, so the original's panel
   // shows them under the bar (as when a villager is selected), and the function button turns into
   // "确定": FIRE, FIRE in the row (user, 2026-10-17) ----
-  const chiefPrompt = document.createElement("div");
-  chiefPrompt.className = "hud-chief-prompt";
-  chiefPrompt.hidden = true;
-  app.append(chiefPrompt);
+  // The prompt (UI design "提示与消息" D, 2026-10-27): a panel at the bottom like the sheet, the
+  // chief's head and the words in the middle; ✓ (the function button) on its top edge.
+  const promptPanel = (icon: string) => {
+    const panel = document.createElement("div");
+    panel.className = "hud-prompt";
+    panel.hidden = true;
+    panel.innerHTML = `${img("deco-grass", "deco bottom")}${img("deco-vine", "deco top")}<div class="hud-prompt-line">${img(icon, "icon")}<span></span></div>`;
+    hud.append(panel);
+    return { panel, icon: panel.querySelector<HTMLImageElement>(".icon")!, words: panel.querySelector("span")! };
+  };
+  const chiefPrompt = promptPanel("pt-chief");
   const candidates = () => {
     if (!game.choosingChief || game.barMode !== 2 || game.loopMode !== 1) return [];
     const row = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
@@ -469,7 +482,7 @@ export function attachHud(
   let candidate = 0;
   const tapWhileChoosing = (villager: number) => {
     const index = candidates().indexOf(villager);
-    if (villager <= 0 || index < 0) { notify("只能选成年村民当族长"); return; }
+    if (villager <= 0 || index < 0) { notify("只能选成年村民当族长", "pt-chief"); return; }
     candidate = villager;
     screen.candidatePanel = true;
     touch.pickInBar(index, 0);
@@ -720,10 +733,7 @@ export function attachHud(
   // the store's weapons (f.s = -code - 1) and the sanctuary's healing, defence, love potion
   // (f.s 0..2). A tap on a villager marks them with the item's picture; ✓ sends the cursor there and
   // FIRE (f.x() gives the order), then back to the building menu. ----
-  const prompt = document.createElement("div");
-  prompt.className = "hud-chief-prompt";
-  prompt.hidden = true;
-  app.append(prompt);
+  const prompt = promptPanel("club");
   const marker = document.createElement("img");
   marker.className = "hud-pick-marker";
   marker.alt = "";
@@ -745,14 +755,14 @@ export function attachHud(
 
   // ---- touch play's action icon (user, 2026-10-26): the order a tap just gave (move, gather, attack,
   // enter ... -- the original's icon beside its hand, RenderRuntime.touchAction), in HD, centred on
-  // the cursor's tile and larger. ----
+  // the cursor's tile. 1.4 tiles at first; too big on the phone (user, 2026-10-27, BUG-024): 0.6 of that. ----
   const actionIcon = document.createElement("img");
   actionIcon.className = "hud-action-icon";
   actionIcon.alt = "";
   actionIcon.hidden = true;
   app.append(actionIcon);
   const ACTION_FRAMES: Record<number, number> = { 35: 5 }; // the move arrows' animation
-  const ACTION_SIZE = 1.4; // tiles
+  const ACTION_SIZE = 0.85; // tiles
   const ACTION_FLASH_MS = 800;
 
   // ---- placing a building (UI design "放置建筑", 2026-10-22): the building's level-1 HD picture as a
@@ -891,8 +901,8 @@ export function attachHud(
       if (nowChoosing !== choosing) {
         choosing = nowChoosing;
         touch.setMapTapHandler(choosing ? tapWhileChoosing : null);
-        chiefPrompt.textContent = `${capitalise(originalText(runtime, "s", 41))}：点一位成年村民`;
-        chiefPrompt.hidden = !choosing;
+        chiefPrompt.words.textContent = `${capitalise(originalText(runtime, "s", 41))}：点一位成年村民`;
+        chiefPrompt.panel.hidden = !choosing;
         candidate = 0;
         screen.candidatePanel = false;
       }
@@ -904,9 +914,10 @@ export function attachHud(
           const icon = code <= 8 ? originalItemIcon(runtime, code) : originalIcon(runtime, code);
           oldArt.note("界面 瞄准标记", `道具 ${code}`);
           if (icon) { marker.src = icon.url; marker.width = icon.width * 2; marker.height = icon.height * 2; }
-          prompt.textContent = `${itemName(code)}：点一位村民`;
+          prompt.words.textContent = `${itemName(code)}：点一位村民`;
+          prompt.icon.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
         }
-        prompt.hidden = !picking;
+        prompt.panel.hidden = !picking;
         touch.setMapTapHandler(picking ? (villager) => { pickTarget = villager; } : null);
       }
       const layout = screen.hudLayout();
@@ -973,6 +984,8 @@ export function attachHud(
       if (!plain) closePop();
       if (plain) { drawCommands(); drawSquads(); }
       if (sheetUp) hud.style.setProperty("--hud-bottom", `${Math.max(layout?.bottomPanels ?? 0, SHEET_HEIGHT)}px`);
+      // The prompt panel: the function button's ✓ on its top edge.
+      if (choosing || picking) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT - 26}px`);
       show(sheet, building || menu || villager || group.length > 1);
       show(buildList, building);
       if (building) drawBuildList();

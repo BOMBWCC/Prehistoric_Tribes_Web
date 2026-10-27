@@ -72,11 +72,11 @@ export default [
       await t.eval((id) => S.set(id, { AGE: 99 }), s.chief);
       await t.until(() => T.ui().choosingChief, { max: 8000, chunk: 100, what: "choosing a new chief" });
       // "<name> is dead" and the villagers' words come first: tap them away.
-      for (let i = 0; i < 40 && !(await t.visible(".hud-chief-prompt")); i += 1) {
+      for (let i = 0; i < 40 && !(await t.visible(".hud-prompt")); i += 1) {
         if (await t.visible(".story-hud")) await t.page.evaluate(() => document.querySelector(".story-hud").click());
         await t.step(20);
       }
-      t.expect.ok(await t.visible(".hud-chief-prompt"), "the chief prompt");
+      t.expect.ok(await t.visible(".hud-prompt"), "the chief prompt");
       const pick = await t.eval(() => T.villagers().find((v) => v.age >= 12 && !v.inside));
       await t.tapTile(pick.x, pick.y);
       await t.tap(".hud-fab");

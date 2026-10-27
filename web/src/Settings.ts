@@ -30,25 +30,29 @@ export function attachSettings(app: HTMLElement, screen: WideScreen, runtime: Le
   screen.zoomOut = readZoom();
   const game = runtime.game;
 
+  // The UI design's card ("提示与消息" E, 2026-10-27): the settings plate on top, a row per setting
+  // (icon, words, control), ✕ on the top edge; changes apply at once.
+  const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.png" alt="">`;
   const dialog = document.createElement("dialog");
-  dialog.className = "settings";
+  dialog.className = "card settings";
+  dialog.setAttribute("aria-label", "设置");
   dialog.innerHTML = `
     <form method="dialog">
-      <h2>设置</h2>
-      <label class="switch"><input type="checkbox" name="music"> 音乐</label>
-      <label class="switch"><input type="checkbox" name="hints"> 提示</label>
-      <label>头顶信息
-        <select name="info">
-          <option value="0">全部村民</option>
-          <option value="1">选中的村民</option>
-          <option value="2">不显示（受伤时显示）</option>
-        </select>
-      </label>
-      <label>视野大小
-        <input type="range" name="zoom" min="0" step="1">
-      </label>
-      <output name="zoomText"></output>
-      <button type="submit">完成</button>
+      ${art("ui/deco-vine", "deco top")}${art("ui/deco-grass", "deco bottom")}
+      <span class="plate">${art("ui/plate-normal")}${art("ui/glyph-settings", "glyph")}</span>
+      <div class="rows">
+        <label>${art("menu/sound-on")}<span>音乐</span><input type="checkbox" name="music"></label>
+        <label>${art("ui/glyph-help")}<span>提示</span><input type="checkbox" name="hints"></label>
+        <label>${art("ui/heart")}<span>头顶信息</span>
+          <select name="info">
+            <option value="0">全部村民 ›</option>
+            <option value="1">选中的 ›</option>
+            <option value="2">受伤时 ›</option>
+          </select>
+        </label>
+        <label>${art("ui/cmd-map")}<span>视野大小<output name="zoomText"></output></span><input type="range" name="zoom" min="0" step="1"></label>
+      </div>
+      <button class="corner no" value="close" aria-label="关闭">${art("ui/btn-close")}</button>
     </form>`;
   const form = dialog.querySelector("form")!;
   const slider = form.elements.namedItem("zoom") as HTMLInputElement;
@@ -77,7 +81,7 @@ export function attachSettings(app: HTMLElement, screen: WideScreen, runtime: Le
     slider.max = String(levels.length - 1);
     slider.value = String(Math.min(screen.zoomOut, levels.length - 1));
     const view = screen.viewTiles(levels[Number(slider.value)]!);
-    text.value = `可见约 ${view.columns} × ${view.rows} 格（${levels.length} 档）`;
+    text.value = `约 ${view.columns} × ${view.rows} 格`;
   };
   slider.addEventListener("input", () => {
     screen.zoomOut = Number(slider.value);

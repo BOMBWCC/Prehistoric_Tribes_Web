@@ -44,6 +44,8 @@ const REFERENCE_SHEET = 8;
 let manifest: Manifest | null = null;
 const has = { parts: new Set<number>(), variants: new Map<number, Set<number>>(), terrain: new Set<number>(), objects: new Set<number>(), buildings: new Set<string>(), animals: new Set<string>(), effects: new Set<string>(), resources: new Set<string>() };
 const images = new Map<string, HTMLImageElement>();
+/** shadeTile's colour, made on first use. */
+let shade: HTMLCanvasElement | null = null;
 /** The HUD's pictures, loaded and decoded at start-up and kept, so a panel opened later shows its
  *  icons at once instead of one by one (BUG-023). */
 const uiPictures: HTMLImageElement[] = [];
@@ -258,6 +260,24 @@ export const hdArt = {
     if (!hd) return false;
     this.ground.drawComposite(tile, x, y);
     this.target.drawScaled(hd, x + 11, y + 8, 22, 16);
+    return true;
+  },
+
+  /**
+   * f.u()'s fog for an explored tile out of sight (class 1, the 1-pixel dither of piece 12 -- grey at
+   * the original's size, a few faint dotted lines in HD): a translucent dark layer over the tile
+   * whose corner is (x, y) instead (user, 2026-10-27: the grey went missing).
+   */
+  shadeTile(x: number, y: number): boolean {
+    if (!this.target) return false;
+    if (!shade) {
+      shade = document.createElement("canvas");
+      shade.width = shade.height = 2;
+      const context = shade.getContext("2d")!;
+      context.fillStyle = "rgba(0, 0, 0, 0.45)";
+      context.fillRect(0, 0, 2, 2);
+    }
+    this.target.drawScaled(shade, x, y, 22, 16);
     return true;
   },
 

@@ -1640,7 +1640,9 @@ export function stepGameplayOuterLoop(rt: LegacyRuntimeState, graphics?: Graphic
     // fillRect target is `Graphics[c[1]]` (offset 1891..1899, NOT
     // necessarily the same slot as rt call's own `graphics` param),
     // read the same way f.m() already reads it: `game.frameImageSlots[1]`.
-    onPackedPrimitive: packed ? (type, x, y) => packed.drawSprite(type, x, y) : undefined,
+    // In HD the class-1 fog is a shade over the tile (HdArt.shadeTile); piece 12 is drawn at the
+    // tile's corner - (2, 4), drawSprite adds the offscreen's 11 / 8.
+    onPackedPrimitive: packed ? (type, x, y) => { if (!(type === 12 && hdArt.active && hdArt.shadeTile(x + 13, y + 12))) packed.drawSprite(type, x, y); } : undefined,
     // f.u()'s per-row end-of-row marker (record 105, gated on
     // lFlag||nFlag matching rowEndMarker[1]-originRow===ai). Found
     // unwired 2026-08-22 while tracing u()'s exception scope for the

@@ -338,7 +338,9 @@ export class WideScreen {
     const before = oldArt.where;
     oldArt.where = "地图";
     const image = renderWideView(this.runtime, window, this.touchPlay);
-    if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale);
+    if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale, this.fog);
+    // Placing a building (w 3, a site's f.s, as WideView): where it may stand.
+    if (image && g.barMode === 3 && g.cSInt > 3 && g.cSInt !== 100) this.drawPlaceable(image, window);
     oldArt.where = "HUD";
     this.wide = image ? { image, window } : null;
     // The HUD again, onto a clear layer, without the bars: both draws only read the game state.
@@ -393,13 +395,41 @@ export class WideScreen {
         rows: Math.ceil(this.height / TILE_H) + MARGIN * 2 + 1,
       };
       const image = renderWideView(rt, window, false, true);
-      if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale);
+      if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale, this.fog);
       // Scene 24 shakes: f.R() copies the band aQ (0..7) rows lower.
       const shake = g.aS === 24 ? g.aQ : 0;
       this.scene = image && { image, x: window.column * TILE_W - left - 11, y: window.row * TILE_H - top - 8 + shake, zoom: 1, sprites: false };
     }
     oldArt.where = before;
   }
+
+  /**
+   * While placing a building, a light green wash on every tile a building may cover (UI design
+   * "放置建筑", 2026-10-27): free (map grid 0) and in sight (fog class 0) -- f.a(int,int,int,boolean)'s
+   * test for each tile of the footprint. It fits where its whole footprint is green.
+   */
+  private drawPlaceable(image: LegacyOffscreenImage, window: WideWindow): void {
+    const context = image.element.getContext("2d");
+    if (!context) return;
+    const g = this.runtime.game;
+    context.save();
+    context.fillStyle = "rgba(150, 255, 110, 0.28)";
+    context.strokeStyle = "rgba(220, 255, 200, 0.35)";
+    context.lineWidth = 0.5;
+    for (let row = Math.max(0, window.row); row < Math.min(g.mapHeight, window.row + window.rows); row += 1) {
+      for (let column = Math.max(0, window.column); column < Math.min(g.mapWidth, window.column + window.columns); column += 1) {
+        if (this.runtime.gridC[row]?.[column] !== 0 || this.runtime.occupancyClass(column, row) !== 0) continue;
+        const x = 11 + (column - window.column) * TILE_W;
+        const y = 8 + (row - window.row) * TILE_H;
+        context.fillRect(x + 0.5, y + 0.5, TILE_W - 1, TILE_H - 1);
+        context.strokeRect(x + 0.75, y + 0.75, TILE_W - 1.5, TILE_H - 1.5);
+      }
+    }
+    context.restore();
+  }
+
+  /** A map tile's fog class (f.a(int,int)): 0 in sight, 1 explored, 2 unexplored. */
+  private readonly fog = (x: number, y: number) => this.runtime.occupancyClass(x, y);
 
   private get scripting(): boolean {
     return this.scriptRunning() && this.runtime.game.loopMode === 1;

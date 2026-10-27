@@ -216,7 +216,9 @@ export function attachStartMenu(
   function update(): void {
     const mainMenu = game.loopMode !== 1 && game.screen === 0 && !screen.frozen;
     if (page === "loading") return;
-    if (page === null) { if (mainMenu && !touch.busy) show("main"); return; }
+    // At once, not after the touch script that got here (quit) ends: its last ticks showed the
+    // original's main menu for a moment (user, 2026-10-27).
+    if (page === null) { if (mainMenu) show("main"); return; }
     if (page === "splash") { if (mainMenu) show("main"); else if (game.loopMode === 1) show(null); return; }
     if (!mainMenu) show(null); // the keyboard took the original's own menus elsewhere
   }

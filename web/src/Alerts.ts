@@ -29,9 +29,15 @@ const ATTACK_TYPE = 7;
 
 /** Queue type -> record of the /s table (f.X(): k[50] = 41 + u[0]); 1/2 and 3/4 follow a name. */
 const NAMED_TYPES = new Set([1, 2, 3, 4]);
+/** Each queue type's icon (UI design "提示与消息" C, 2026-10-27; hd/ui): born, dead, building ready,
+ *  enemy sighted, under attack, building lost, need resources, max buildings, max villagers. */
+const TYPE_ICONS: Record<number, string> = {
+  1: "pt-child", 2: "pt-child", 3: "mood-5", 4: "mood-5", 5: "bld-hut", 6: "club", 7: "mood-5", 8: "demolish", 9: "icon-stone", 10: "bld-hut", 11: "icon-people",
+};
 
-/** Adds the feed; returns a function that posts a line of text (no place) to it. */
-export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touch: TouchControls): (text: string) => void {
+/** Adds the feed; returns a function that posts a line of text (no place) to it, with an hd/ui
+ *  icon, red-edged when `alert`. */
+export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touch: TouchControls): (text: string, icon?: string, alert?: boolean) => void {
   const feed = document.createElement("div");
   feed.className = "notice-feed";
   feed.setAttribute("role", "log");
@@ -53,7 +59,7 @@ export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touc
     if (live.get(text) === entry) live.delete(text);
     remove(entry.line);
   };
-  const post = (text: string, x: number, y: number, attack: boolean) => {
+  const post = (text: string, x: number, y: number, attack: boolean, icon: string) => {
     if (!text) return;
     if (x === 0 && y === 0) {
       const now = performance.now();
@@ -71,7 +77,11 @@ export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touc
     } else {
       const line = document.createElement(x !== 0 || y !== 0 ? "button" : "div");
       line.className = attack ? "notice attack" : "notice";
-      line.textContent = text;
+      const words = document.createElement("span");
+      words.textContent = text;
+      line.innerHTML = icon ? `<span class="notice-icon"><img src="hd/ui/${icon}.png" alt=""></span>` : "";
+      line.append(words);
+      if (x !== 0 || y !== 0) line.insertAdjacentHTML("beforeend", '<span class="notice-go" aria-hidden="true">›</span>');
       const created = { line, x, y, timer: 0 };
       if (line instanceof HTMLButtonElement) {
         line.type = "button";
@@ -95,16 +105,16 @@ export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touc
     const now = performance.now();
     const quiet = now - lastBlow >= QUIET_MS;
     lastBlow = now;
-    if (quiet) post(capitalise(label(41 + ATTACK_TYPE)), x, y, true);
+    if (quiet) post(capitalise(label(41 + ATTACK_TYPE)), x, y, true, TYPE_ICONS[ATTACK_TYPE]!);
   };
 
   runtime.onMessage = (type, x, y, value) => {
     if (type === ATTACK_TYPE || type < 1 || type > 11) return;
     let text = label(41 + type);
     if (NAMED_TYPES.has(type)) text = label(108 + (runtime.denseState[UNIT_NAME + value] ?? 0)) + text;
-    post(capitalise(text.trim()), x, y, false);
+    post(capitalise(text.trim()), x, y, false, TYPE_ICONS[type] ?? "");
   };
 
   // Posted on purpose (e.g. "game saved."): shown every time, not held back like repeats.
-  return (text) => { lastShown.delete(text); post(text, 0, 0, false); };
+  return (text, icon = "", alert = false) => { lastShown.delete(text); post(text, 0, 0, alert, icon); };
 }

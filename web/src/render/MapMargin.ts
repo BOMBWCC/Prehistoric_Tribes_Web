@@ -4,15 +4,18 @@ import type { WideWindow } from "./WideView";
 /**
  * The border around the map (docs/map-edge-margin.md, user 2026-10-26; not in the original): the
  * view may go MARGIN_TILES past each edge, so a finger can reach the edge tiles; that band shows
- * scenery -- the HD map's trees, bushes and rocks on grass, picked per tile so it never changes --
- * under a grey veil that says it cannot be entered. Only drawn: the map and its logic are as before.
+ * scenery -- the HD map's trees, bushes and rocks on grass, picked per tile so it never changes.
+ * Only drawn: the map and its logic are as before. It takes the fog of the nearest edge tile, like
+ * the map (user, 2026-10-27; first under a grey veil): black unexplored, shaded explored but out of
+ * sight, plain in sight.
  */
 export const MARGIN_TILES = 4;
 
 const TILE_W = 22;
 const TILE_H = 16;
 const GROUND = "#4b6a2a";
-const VEIL = "rgba(70, 70, 70, 0.55)";
+/** The fog's shade for an explored tile out of sight (HdArt.shadeTile). */
+const SHADE = "rgba(0, 0, 0, 0.45)";
 // HD map objects (web/public/hd/objects): palms and broadleaf trees, bushes, a rock.
 const TREES = [1034, 1035, 1036, 1039, 1040, 1043, 1044, 1046, 1047, 1049, 1050, 1053, 1054, 1057, 1058, 1061, 1062, 1063, 1066, 1068, 1072, 1077];
 const BUSHES = [1027, 1028, 1029, 1084];
@@ -37,8 +40,9 @@ const pick = (x: number, y: number, n: number, salt = 0) => {
 };
 
 /** Draws the border's part of `window` onto the wide view's `image` (game coordinates, the HD scale
- *  `k`: an object's picture is k times its size on the map). */
-export function drawMapMargin(image: LegacyOffscreenImage, window: WideWindow, mapWidth: number, mapHeight: number, k: number): void {
+ *  `k`: an object's picture is k times its size on the map); `fog(x, y)` a map tile's fog class
+ *  (f.a(int,int): 0 in sight, 1 explored, 2 unexplored). */
+export function drawMapMargin(image: LegacyOffscreenImage, window: WideWindow, mapWidth: number, mapHeight: number, k: number, fog: (x: number, y: number) => number): void {
   const context = image.element.getContext("2d");
   if (!context) return;
   const left = -MARGIN_TILES;
@@ -75,7 +79,15 @@ export function drawMapMargin(image: LegacyOffscreenImage, window: WideWindow, m
       context.drawImage(art, x(column) + TILE_W / 2 - w / 2 + jitter, y(row) + TILE_H - h, w, h);
     }
   }
-  context.fillStyle = VEIL;
-  context.fillRect(x(from.column), y(from.row), (to.column - from.column) * TILE_W, (to.row - from.row) * TILE_H);
+  // The nearest edge tile's fog, over the scenery (trees reach up a row).
+  for (let row = from.row; row < to.row; row += 1) {
+    for (let column = from.column; column < to.column; column += 1) {
+      if (column >= 0 && column < mapWidth && row >= 0 && row < mapHeight) continue;
+      const level = fog(Math.max(0, Math.min(mapWidth - 1, column)), Math.max(0, Math.min(mapHeight - 1, row)));
+      if (level === 0) continue;
+      context.fillStyle = level === 2 ? "#000" : SHADE;
+      context.fillRect(x(column), y(row), TILE_W, TILE_H);
+    }
+  }
   context.restore();
 }
