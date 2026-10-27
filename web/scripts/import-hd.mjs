@@ -13,7 +13,8 @@
 //   effects/<sub>-<frame>.png sub-records, frame = n-th distinct picture of phases 0..7
 //   ui/<name>.png             the round-3 UI (design/hud, design/panels; command buttons as cmd-*)
 //   menu/...                  the round-4 start-up and menus (design/menu/processed; bg-* as .jpg)
-//   story/story-<nn>.jpg      story pictures, pi8 entry nn; story/faces/face-<composite>.png dialogue faces
+//   cave/bubble-*.png         the opening cave scene's speech bubbles, whole (WideView.ts renderSceneSprites)
+//   story/story-<nn>.jpg|webp story pictures, pi8 entry nn (10 / 11 the cut-out end pictures); story/faces/face-<composite>.png dialogue faces
 // See docs/hd-art-handoff.md.
 import fs from "node:fs";
 import path from "node:path";
@@ -82,6 +83,9 @@ for (const f of list("map/animals/hd")) {
 for (const f of list("effects/processed")) {
   const m = /^sub-(\d{3})(?:-[a-z-]+?)?(?:-f(\d+))?\.png$/.exec(f);
   if (!m) { console.log(`skipped ${f}`); continue; }
+  // 98..104, the opening cave scene, were captured cut off (a 96 px canvas); its pieces are HD parts
+  // instead (design/terrain/pieces/cave-*.png, design/effects/work/cave/README.txt).
+  if (Number(m[1]) >= 98 && Number(m[1]) <= 104) continue;
   const key = `${Number(m[1])}-${Number(m[2] ?? 0)}`;
   copy(path.join(design, "effects/processed", f), `effects/${key}.png`);
   manifest.effects.push(key);
@@ -101,6 +105,13 @@ for (const f of fs.readdirSync(menu, { recursive: true }).filter((f) => (f.endsW
 // The round-4 story pictures (pi8 n as story-<nn>) and dialogue faces (composite 720 + n as face-<c>).
 for (const [dir, to] of [["story/processed", "story"], ["story/faces/processed", "story/faces"]]) {
   for (const f of fs.readdirSync(path.join(design, dir)).filter((f) => /^(story-\d+\.jpg|face-\d+\.png)$/.test(f))) copy(path.join(design, dir, f), `${to}/${f}`);
+}
+// The opening cave scene's speech bubbles, whole (design/effects/cave/processed/bubble-*.png).
+const cave = path.join(design, "effects/cave/processed");
+if (fs.existsSync(cave)) for (const f of fs.readdirSync(cave).filter((f) => f.endsWith(".png"))) copy(path.join(cave, f), `cave/${f}`);
+// The end pictures (pi8 10 won, 11 lost; cut out): story-<nn>.png, as WebP (2 MB PNGs).
+for (const f of fs.readdirSync(path.join(design, "story/processed")).filter((f) => /^story-\d+\.png$/.test(f))) {
+  execFileSync("magick", [path.join(design, "story/processed", f), "-quality", "85", path.join(out, "story", f.replace(/\.png$/, ".webp"))]);
 }
 fs.writeFileSync(path.join(out, "manifest.json"), JSON.stringify(manifest));
 const count = Object.values(manifest).reduce((n, v) => n + (Array.isArray(v) ? v.length : Object.values(v).reduce((m, w) => m + w.length, 0)), 0);

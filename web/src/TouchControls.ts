@@ -200,7 +200,11 @@ export function attachTouchControls(
 
   const tapMap = (x: number, y: number) => {
     if (game.cameraBFlag || game.columnScrollDelta !== 0 || game.rowScrollDelta !== 0) return;
-    const [tx, ty] = tileAt(x, y);
+    // A tap on the map's border (render/MapMargin.ts) is a tap on the nearest edge tile (user,
+    // 2026-10-26).
+    const [rawX, rawY] = tileAt(x, y);
+    const tx = Math.max(0, Math.min(game.mapWidth - 1, rawX));
+    const ty = Math.max(0, Math.min(rowLimit() - 1, rawY));
     if (game.barMode === 3) {
       // Building placement: the footprint is centred on the cursor (f.T:I = y - w/2, f.U:I = A - h/2
       // each frame); a tap anywhere moves it there. It is placed with the tick next to it (Hud.ts,

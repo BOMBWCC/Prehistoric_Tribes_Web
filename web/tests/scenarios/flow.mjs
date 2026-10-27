@@ -14,10 +14,34 @@ async function playThroughStory(t, max = 80) {
   throw new Error(`still in the story after ${max} taps (texts ${records.join(",")})`);
 }
 
-/** The countdown after a result runs to the outcome screen (Q 24) with `record` (56 lost, 57 won). */
-async function outcome(t, record) {
+/** The countdown after a result runs to the outcome page (Q 24, `record`: 56 lost, 57 won), then
+ *  taps go through the score to `last` ("menu": the start menu, "again": play again? -> yes -> map). */
+async function outcome(t, record, last) {
+  const kind = () => t.page.evaluate(() => { const h = document.querySelector(".story-hud"); return h.hidden ? "" : h.dataset.kind; });
+  const tapUntil = async (want) => {
+    for (let i = 0; i < 40 && (await kind()) !== want; i += 1) {
+      if (await kind()) await t.page.evaluate(() => document.querySelector(".story-hud").click());
+      await t.step(10);
+    }
+    t.expect.equal(await kind(), want, `the ${want} page`);
+  };
   await t.until(() => window.__prehistoricRuntime.game.screen === 24, { max: 3000, chunk: 50, what: "the outcome screen" });
   t.expect.equal(await t.eval(() => window.__prehistoricRuntime.game.vInt), record, "the outcome's words");
+  await tapUntil("outcome");
+  t.expect.ok(await t.visible(".end-picture"), "the end picture");
+  await tapUntil("score");
+  t.expect.equal(await t.eval(() => document.querySelectorAll(".end-row:not(.head)").length), 6, "six score rows");
+  if (last === "menu") {
+    for (let i = 0; i < 40 && (await t.eval(() => window.__prehistoricRuntime.game.screen)) !== 0; i += 1) {
+      if (await kind()) await t.page.evaluate(() => document.querySelector(".story-hud").click());
+      await t.step(10);
+    }
+    t.expect.equal(await t.eval(() => window.__prehistoricRuntime.game.screen), 0, "back to the main menu");
+    return;
+  }
+  await tapUntil("again");
+  await t.page.evaluate(() => document.querySelector('.end-again button[aria-label="yes"]').click());
+  await t.until(() => window.__prehistoricRuntime.game.loopMode === 1, { max: 600, chunk: 10, what: "the map again" });
 }
 
 export default [
@@ -60,17 +84,17 @@ export default [
     },
   },
   {
-    name: "win: once the enemy force is gone the game is won",
+    name: "win: the enemy force gone -> the won picture, the score, the main menu",
     async run(t) {
-      await t.eval(() => { S.enter(11); S.step(3); window.__prehistoricRuntime.mainArrays.aShort[1][14] = 0; });
-      await outcome(t, 57);
+      await t.eval(() => { S.enter(11); S.step(3); S.win(); });
+      await outcome(t, 57, "menu");
     },
   },
   {
-    name: "lose: once nobody of ours is left the game is lost",
+    name: "lose: nobody of ours left -> the lost picture, the score, play again -> the map",
     async run(t) {
-      await t.eval(() => { S.enter(11); S.step(3); window.__prehistoricRuntime.mainArrays.aShort[0][11] = 0; });
-      await outcome(t, 56);
+      await t.eval(() => { S.enter(11); S.step(3); S.lose(); });
+      await outcome(t, 56, "again");
     },
   },
 ];

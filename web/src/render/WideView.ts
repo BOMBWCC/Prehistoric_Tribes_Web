@@ -2,6 +2,7 @@ import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { Graphics } from "../platform/Graphics";
 import { hdArt } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
+import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
 import { drawFrameCommandPrimitive, drawImageHelper, renderMap, stepCameraFrame, stepGameplayOuterLoop, stepLegacyC2 } from "./RenderRuntime";
 
 /**
@@ -100,9 +101,10 @@ export const TOP_BAR_SLOT = 0;
 
 /**
  * Draws `window` of the map and returns the image: tile (column, row) of the window is at
- * (11 + 22 * c, 8 + 16 * r), the same 11 / 8 margin as the original's offscreen.
+ * (11 + 22 * c, 8 + 16 * r), the same 11 / 8 margin as the original's offscreen. `scene`: a
+ * dialogue scene's map (f.R() draws only f.u() on the map), without the cursor.
  */
-export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touchCursor = false): LegacyOffscreenImage | null {
+export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touchCursor = false, scene = false): LegacyOffscreenImage | null {
   const targets = rt.offscreenTargets;
   if (!targets || !rt.activeMap || !rt.packedData) return null;
   const width = window.columns * 22 + 22;
@@ -134,16 +136,67 @@ export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touch
     // f.m()'s order: w() -- the box-select frame and the cursor corners --, the units and fog
     // (u()), then c(int,int).
     renderMap(rt, { fromColumn: 0, toColumn: window.columns, fromRow: 0, toRow: window.rows }, slot, null);
-    stepCameraFrame(rt, image.graphics);
+    if (!scene) stepCameraFrame(rt, image.graphics);
     stepGameplayOuterLoop(rt, image.graphics);
     // Placing a building (w 3, a site's f.s): the HUD's ghost replaces the original's preview.
-    if (!(g.barMode === 3 && g.cSInt > 3 && g.cSInt !== 100)) stepLegacyC2(rt, g.cursorColumn * 22, g.cursorRow * 16, touchCursor);
+    if (!scene && !(g.barMode === 3 && g.cSInt > 3 && g.cSInt !== 100)) stepLegacyC2(rt, g.cursorColumn * 22, g.cursorRow * 16, touchCursor);
   } finally {
     hdArt.end();
     targets.graphics[slot] = original;
     restore(saved);
   }
   return image;
+}
+
+let sceneImage: LegacyOffscreenImage | null = null;
+
+/** The cave's speech bubbles, pieced together in the original (a body, a tail, bits of edge), are one
+ *  picture each in HD (user 2026-10-26): big when the body 1662 is there, the tail 1660 left / 1661
+ *  right; their size in the original's pixels. */
+const BUBBLE_PIECES = new Set([1660, 1661, 1662, 1665, 1666, 1667, 1668]);
+const BUBBLES: Record<string, [number, number]> = { "small-left": [10, 8], "small-right": [10, 7], "big-left": [18, 14], "big-right": [18, 14] };
+
+/**
+ * A dialogue scene's sub-records (f.P()'s two f.d() calls on black: the cave's eyes, the fire ...),
+ * in HD, on a `width` x `height` image with the original's offscreen point (0, 0) at (`x`, `y`).
+ */
+export function renderSceneSprites(rt: LegacyRuntimeState, calls: readonly { record: number; x: number; y: number; phase: number }[], width: number, height: number, x: number, y: number): LegacyOffscreenImage | null {
+  if (!rt.packedData) return null;
+  const scale = hdArt.scale(rt);
+  if (!sceneImage || sceneImage.width !== width || sceneImage.height !== height || sceneImage.scale !== scale) {
+    sceneImage = new LegacyOffscreenImage(width, height, scale);
+    sceneImage.graphics.shown = true;
+  }
+  const graphics = sceneImage.graphics;
+  graphics.setColor(0);
+  graphics.fillRect(0, 0, width, height);
+  graphics.translate(x, y);
+  const packed = new LegacyPackedSpriteRenderer({ shortTables: rt.packedData.shortTables, byteTables: rt.packedData.byteTables, imageGroups: rt.imageGroups, graphics });
+  const drawSprite = packed.drawSprite.bind(packed);
+  const drawComposite = (record: number, drawX: number, drawY: number) => {
+    const bubble: [number, number, number][] = [];
+    packed.drawSprite = (index, x, y) => (BUBBLE_PIECES.has(index) ? void bubble.push([index, x, y]) : drawSprite(index, x, y));
+    packed.drawComposite(record, drawX, drawY);
+    packed.drawSprite = drawSprite;
+    if (bubble.length === 0) return;
+    const ids = new Set(bubble.map(([index]) => index));
+    const name = `${ids.has(1662) ? "big" : "small"}-${ids.has(1660) ? "left" : "right"}`;
+    const [width, height] = BUBBLES[name]!;
+    // drawSprite's +11 / +8.
+    const x = Math.min(...bubble.map(([, x]) => x)) + 11;
+    const y = Math.min(...bubble.map(([, , y]) => y)) + 8;
+    if (!hdArt.drawPicture(`cave/bubble-${name}.png`, x, y, width, height)) bubble.forEach(([index, x, y]) => drawSprite(index, x, y));
+  };
+  const saved = snapshot(rt);
+  try {
+    hdArt.begin(rt, graphics);
+    for (const call of calls) rt.stepZSubrecordDraw(call.record, call.x, call.y, call.phase, { onSpriteRecord: drawComposite });
+  } finally {
+    hdArt.end();
+    graphics.translate(-x, -y);
+    restore(saved);
+  }
+  return sceneImage;
 }
 
 /**

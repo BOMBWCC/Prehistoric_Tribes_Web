@@ -1863,3 +1863,113 @@ button.notice {
 .hud-action-icon[hidden] {
   display: none;
 }
+
+/* The end of a game (StoryHud.ts): the outcome over the cut-out end picture, the score, "play again?".
+   The menus' background, the story's box. */
+.story-hud[data-kind="outcome"],
+.story-hud[data-kind="score"],
+.story-hud[data-kind="again"] {
+  background: #000;
+}
+
+.end-picture {
+  position: absolute;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 220px);
+  width: min(86vw, 52vh);
+  max-height: calc(100% - 300px);
+  object-fit: contain;
+  transform: translateX(-50%);
+}
+
+.story-hud[data-kind="outcome"] .story-text {
+  text-align: center;
+  font-size: 22px;
+  margin-top: 26px;
+}
+
+.end-score {
+  min-height: 0;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 30px 18px 52px;
+}
+
+.end-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 64px;
+  align-items: center;
+  gap: 6px;
+  font: 700 15px/1.25 system-ui, sans-serif;
+  color: #fff3c4;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 #2b1d0e;
+}
+
+.end-row + .end-row {
+  margin-top: 8px;
+}
+
+.end-row span {
+  text-align: center;
+  color: #ffd34d;
+}
+
+.end-row b {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.end-row.head img {
+  width: 52px;
+  height: 52px;
+  justify-self: center;
+  border-radius: 50%;
+  background: #c9a350;
+  border: 2px solid #3c220c;
+}
+
+.end-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(env(safe-area-inset-top) + 11vh);
+  width: min(80vw, 48vh);
+  transform: translateX(-50%);
+}
+
+.end-again {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.end-again .story-text {
+  font-size: 20px;
+  text-shadow: 0 2px 0 #2b1d0e, 0 0 6px rgba(43, 29, 14, 0.9);
+}
+
+.end-again button {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.end-again button img {
+  display: block;
+  height: 40px;
+  width: auto;
+}
+
+.end-again button:active img {
+  transform: translateY(2px) scale(0.96);
+  filter: brightness(0.82);
+}

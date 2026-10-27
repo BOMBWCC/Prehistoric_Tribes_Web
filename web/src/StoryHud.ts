@@ -18,10 +18,18 @@ import type { WideScreen } from "./WideScreen";
  *   speaker's HD face, name and words, ✓ the same way. Shown while the original shows a text (its
  *   f.a(BII) composed the current step's record: resourceSectionW == vInt); steps without one run
  *   on by themselves, as there.
- * A tap anywhere on the page does what ✓ does (one hand).
+ * - The end of a game (user, 2026-10-26: the end pictures were redrawn): the outcome (Q 24, /t 57
+ *   won, 56 lost) as the cut-out end picture (/pi8 10, 11) on the menus' background with its words
+ *   in the box; the score (Q 15 after it: d0 234's six rows, ours and the enemy's from f.a:[[S rows
+ *   0 / 1, 19..24); "play again?" (Q 16, /t 58) with the menus' YES / NO.
+ * A tap anywhere on the page does what ✓ does (one hand), except on "play again?".
  */
 
 const ART = "hd/story/";
+type Kind = "story" | "dialogue" | "outcome" | "score" | "again";
+const SCORE_TEXT = 71 + 234; // d0 234: the score's row names, '&' between them
+const WON = 57;
+const AGAIN = 58;
 // Characters per paragraph, so that one fits the box (about 4 lines of the box's width).
 const STORY_LETTERS = { latin: 120, cjk: 54 };
 const DIALOGUE_LETTERS = { latin: 96, cjk: 42 };
@@ -56,12 +64,14 @@ export function attachStoryHud(
   let parts: string[] = [];
   let part = 0;
   // When FIRE was sent (in game ticks): taps right after it are dropped, so a double tap cannot skip
-  // a text (the original may also ignore a press in a new text's first ticks; a later tap sends it again).
+  // a text.
   let ticks = 0;
   let pressedTick = -Infinity;
+  let pendingFire = false;
   const PRESS_GAP_TICKS = 5; // about 0.6 s
 
   const next = () => {
+    if (layer.dataset.kind === "again") return; // YES / NO only
     if (ticks - pressedTick < PRESS_GAP_TICKS) return;
     if (part < parts.length - 1) {
       part += 1;
@@ -69,7 +79,8 @@ export function attachStoryHud(
       return;
     }
     pressedTick = ticks;
-    touch.pressKey(OriginalKey.FIRE);
+    // The original ignores keys in a screen's first ticks (f.n:Z): the press waits for them.
+    pendingFire = true;
   };
   layer.addEventListener("click", next);
 
@@ -79,6 +90,53 @@ export function attachStoryHud(
     element.textContent = value;
     return element;
   };
+
+  const tick = '<img class="story-tick" src="hd/ui/btn-tick.png" alt="">';
+  const background = '<img class="story-picture" src="hd/menu/bg-menu.jpg" alt="">';
+
+  /** The outcome, the score and "play again?" (see the module's docblock). */
+  function buildEnd(kind: Kind): void {
+    layer.innerHTML = background;
+    const box = document.createElement("div");
+    box.className = "story-box";
+    if (kind === "outcome") {
+      const won = game.vInt === WON;
+      layer.insertAdjacentHTML("beforeend", `<img class="end-picture" src="${ART}story-${won ? 10 : 11}.webp" alt="">`);
+      box.append(text("story-text", originalText(runtime, "t", game.vInt)));
+      box.insertAdjacentHTML("beforeend", tick);
+      layer.append(box);
+      return;
+    }
+    if (kind === "score") {
+      const names = originalText(runtime, "t", SCORE_TEXT).split("&").map((s) => s.replace(/[\x00-\x1f]/g, "").trim()).filter(Boolean);
+      const [ours, theirs] = [0, 1].map((team) => runtime.mainArrays.aShort[team]!);
+      box.classList.add("end-score");
+      const head = `<div class="end-row head"><img src="hd/ui/pt-chief.png" alt="我方"><span></span><img src="${ART}faces/face-0748.png" alt="敌方"></div>`;
+      // The total (row 24) shows as the original draws it, count * 10 + a random last digit
+      // (c.a(Graphics,int)); the page's own random, not the game's.
+      const value = (row: Int16Array, i: number) => (i === 5 ? (row[24] ?? 0) * 10 + Math.floor(Math.random() * 10) : row[19 + i] ?? 0);
+      const rows = names.map((name, i) => `<div class="end-row"><b>${value(ours, i)}</b><span>${name}</span><b>${value(theirs, i)}</b></div>`).join("");
+      box.innerHTML = head + rows + tick;
+      box.append(text("story-title", originalText(runtime, "s", 97)));
+      layer.append(box);
+      return;
+    }
+    // "play again?": the question and the menus' word pictures; YES is the left soft key.
+    const art = runtime.language === ZH_LANGUAGE ? "cn" : "en";
+    layer.insertAdjacentHTML("beforeend", '<img class="end-logo" src="hd/menu/logo.png" alt="">');
+    const column = document.createElement("div");
+    column.className = "end-again";
+    column.append(text("story-text", originalText(runtime, "t", AGAIN)));
+    for (const [word, key] of [["yes", OriginalKey.SOFT_LEFT], ["no", OriginalKey.SOFT_RIGHT]] as const) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("aria-label", word);
+      button.innerHTML = `<img src="hd/menu/words/${art}/${word}.png" alt="">`;
+      button.addEventListener("click", (event) => { event.stopPropagation(); touch.pressKey(key); });
+      column.append(button);
+    }
+    layer.append(column);
+  }
 
   function build(): void {
     const story = game.screen === 18;
@@ -103,7 +161,20 @@ export function attachStoryHud(
 
   function update(): void {
     ticks += 1;
+    if (pendingFire && !game.nFlag) { pendingFire = false; touch.pressKey(OriginalKey.FIRE); }
     const offMap = game.loopMode !== 1 && !screen.frozen;
+    const end: Kind | null = !offMap ? null
+      : game.screen === 24 ? "outcome"
+      : game.screen === 15 && runtime.shownTextRecord === SCORE_TEXT ? "score"
+      : game.screen === 16 && game.vInt === AGAIN ? "again"
+      : null;
+    if (end) {
+      layer.hidden = false;
+      layer.dataset.kind = end;
+      const key = `${end}:${game.vInt}:${runtime.language}`;
+      if (key !== shown) { shown = key; pressedTick = -Infinity; buildEnd(end); }
+      return;
+    }
     const story = offMap && game.screen === 18;
     const talking = offMap && (game.screen === 17 || game.screen === 20) && game.resourceSectionW === game.vInt;
     layer.hidden = !story && !talking;
@@ -120,6 +191,6 @@ export function attachStoryHud(
     build();
   }
 
-  // The story page hides the original's screen; the dialogue box leaves its frame showing.
-  return { update, covers: () => !layer.hidden && layer.dataset.kind === "story" };
+  // Every page but the dialogue box hides the original's screen.
+  return { update, covers: () => !layer.hidden && layer.dataset.kind !== "dialogue" };
 }

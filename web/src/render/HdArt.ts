@@ -225,6 +225,14 @@ export const hdArt = {
     };
   },
 
+  /** The whole picture hd/`path` into (x, y, width, height) of the target; false until it is loaded. */
+  drawPicture(path: string, x: number, y: number, width: number, height: number): boolean {
+    const hd = this.target && picture(path);
+    if (!hd) return false;
+    this.target!.drawScaled(hd, x, y, width, height);
+    return true;
+  },
+
   /** Sub-record `record` at phase `phase` drawn at (x, y). Returns false to let the original draw. */
   drawEffect(runtime: LegacyRuntimeState, record: number, x: number, y: number, phase: number): boolean {
     if (!this.target) return false;

@@ -170,6 +170,19 @@ export default [
     },
   },
   {
+    name: "border: the view goes past the map's edge; a tap on the border is a tap on the nearest edge tile",
+    async run(t) {
+      const s = await start(t);
+      await select(t, s.id);
+      const v = await t.eval((id) => T.villager(id), s.id);
+      const view = await t.eval(([y]) => { window.__prehistoricScreen.centerOn(0, y); return window.__prehistoricScreen.viewRect(); }, [v.y]);
+      t.expect.ok(view.column < 0, `the view reaches past the left edge (${view.column.toFixed(1)})`);
+      await t.tapTile(-2, v.y);
+      const after = await t.eval((id) => T.villager(id), s.id);
+      t.expect.deepEqual([after.targetX, after.targetY], [0, v.y], "sent to the edge tile");
+    },
+  },
+  {
     name: "placing: the ghost is red where the hut cannot go, the tick places it where it can",
     async run(t) {
       const s = await start(t, { stock: 100 });
