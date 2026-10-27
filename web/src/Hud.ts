@@ -909,7 +909,6 @@ export function attachHud(
         prompt.hidden = !picking;
         touch.setMapTapHandler(picking ? (villager) => { pickTarget = villager; } : null);
       }
-      screen.scripting = touch.busy && game.loopMode === 1;
       const layout = screen.hudLayout();
       const onMap = layout !== null && game.loopMode === 1 && !choosing;
       if (layout) {

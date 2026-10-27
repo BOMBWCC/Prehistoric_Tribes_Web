@@ -235,7 +235,11 @@ export function attachTouchControls(
     // the cursor jumps to them and FIRE follows. With nothing selected, anything else takes two
     // taps: the first moves the cursor there, the second confirms.
     const villager = villagerAt(x, y);
-    if (villager && !(game.barMode === 1 && villager.id === game.selectedId)) {
+    // A tap on the selected villager does nothing (BUG-022, user 2026-10-26: only X deselects). The
+    // tile under the finger can be the next one -- a figure stands up into the tile above, a walker
+    // is between two -- and a tap there was an order or another villager.
+    if (villager && game.barMode === 1 && villager.id === game.selectedId) return;
+    if (villager) {
       // From a building's bar, the villager's panel straight away (BUG-018).
       run(selectAt(villager.tx, villager.ty, 0));
       return;

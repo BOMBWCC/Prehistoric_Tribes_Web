@@ -30,6 +30,10 @@ type Manifest = {
   buildings: string[];
   animals: string[];
   effects: string[];
+  /** Resource points drawn whole: "<object>-look<n>" (berry bushes by look), "stone-<n>". */
+  resources: string[];
+  /** The HUD's pictures (hd/ui/), by file name. */
+  ui: string[];
 };
 type Bounds = { x: number; y: number; width: number; height: number };
 
@@ -38,8 +42,11 @@ const BASE = "hd/";
 const REFERENCE_SHEET = 8;
 
 let manifest: Manifest | null = null;
-const has = { parts: new Set<number>(), variants: new Map<number, Set<number>>(), terrain: new Set<number>(), objects: new Set<number>(), buildings: new Set<string>(), animals: new Set<string>(), effects: new Set<string>() };
+const has = { parts: new Set<number>(), variants: new Map<number, Set<number>>(), terrain: new Set<number>(), objects: new Set<number>(), buildings: new Set<string>(), animals: new Set<string>(), effects: new Set<string>(), resources: new Set<string>() };
 const images = new Map<string, HTMLImageElement>();
+/** The HUD's pictures, loaded and decoded at start-up and kept, so a panel opened later shows its
+ *  icons at once instead of one by one (BUG-023). */
+const uiPictures: HTMLImageElement[] = [];
 
 /** The picture at `path`, or null while it loads (it is requested on the first call). */
 function picture(path: string): HTMLImageElement | null {
@@ -98,6 +105,13 @@ export const hdArt = {
     manifest.buildings.forEach((b) => has.buildings.add(b));
     manifest.animals.forEach((a) => has.animals.add(a));
     manifest.effects.forEach((e) => has.effects.add(e));
+    manifest.resources.forEach((r) => has.resources.add(r));
+    for (const name of manifest.ui) {
+      const image = new Image();
+      image.src = `${BASE}ui/${name}`;
+      image.decode().catch(() => { /* shown by the <img> later, as before */ });
+      uiPictures.push(image);
+    }
     picture(`terrain/${REFERENCE_SHEET}.png`);
   },
 
@@ -145,7 +159,10 @@ export const hdArt = {
     const runtime = this.runtime;
     const target = this.target;
     if (!runtime || !target) return null;
-    const key = building > 0 ? buildingKey(kind, level) : has.objects.has(1000 + resource) ? `o${1000 + resource}` : null;
+    // A berry bush by its look (RES_LOOK 0..3, bare to full; 2026-10-27): one picture with the
+    // berries in it, filling the bush's tile, instead of the bush and the berry pieces.
+    const looked = building === 0 && has.resources.has(`${1000 + resource}-look${look}`);
+    const key = building > 0 ? buildingKey(kind, level) : looked ? `o${1000 + resource}-look${look}` : has.objects.has(1000 + resource) ? `o${1000 + resource}` : null;
     if (!key) return null;
     const hd = picture(key.startsWith("o") ? `objects/${key.slice(1)}.png` : `buildings/${key}.png`);
     if (!hd) return null;
@@ -155,7 +172,9 @@ export const hdArt = {
     const draw = (bounds: Bounds) => {
       if (this.drawn.has(id)) return;
       this.drawn.add(id);
-      target.drawScaled(hd, x + bounds.x, y + bounds.y, bounds.width, bounds.height);
+      // drawSprite's +11 / +8: the tile's corner.
+      if (looked) target.drawScaled(hd, x + 11, y + 8, 22, 16);
+      else target.drawScaled(hd, x + bounds.x, y + bounds.y, bounds.width, bounds.height);
     };
     // The ground cells still draw the original's ground-sheet pieces (sheets 4 and 8: the ground
     // itself) under the picture, which carries the rest (docs/hd-art-handoff.md 2.7): where it is
@@ -223,6 +242,23 @@ export const hdArt = {
         if (bounds) target.drawScaled(hd, x + bounds.x, y + bounds.y, bounds.width, bounds.height);
       },
     };
+  },
+
+  /**
+   * f.o()'s composite for map tile `tile` at (x, y): a gatherable stone tile (63..75 on grass,
+   * 115..127 on earth; more rocks to fewer) draws its ground pieces and then one picture of light,
+   * shining stone (2026-10-27: the original's rock pieces look like the scenery's, which stays as
+   * it is). Returns false to let the original draw.
+   */
+  drawStoneTile(tile: number, x: number, y: number): boolean {
+    const step = tile >= 63 && tile <= 75 ? tile - 63 : tile >= 115 && tile <= 127 ? tile - 115 : -1;
+    if (step < 0 || !this.target || !this.ground) return false;
+    const n = step <= 3 ? 1 : step <= 6 ? 2 : step <= 9 ? 3 : 4;
+    const hd = has.resources.has(`stone-${n}`) ? picture(`objects/stone-${n}.png`) : null;
+    if (!hd) return false;
+    this.ground.drawComposite(tile, x, y);
+    this.target.drawScaled(hd, x + 11, y + 8, 22, 16);
+    return true;
   },
 
   /** The whole picture hd/`path` into (x, y, width, height) of the target; false until it is loaded. */

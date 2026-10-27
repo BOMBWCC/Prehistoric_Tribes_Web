@@ -7,7 +7,8 @@
 //                             piece index (j[20..24])
 //   parts-v<n>/<piece>.png    the same parts recoloured for pi9 variant n (drawSprite's an remap)
 //   terrain/<sheet>.png       whole pi0 sheets, upscaled
-//   objects/<id>.png          map objects, resource 1000 + n (shortTables[0][n])
+//   objects/<id>.png          map objects, resource 1000 + n (shortTables[0][n]); <id>-look<n>.png berry
+//                             bushes by look, stone-<n>.png the gatherable stone tiles (HdArt.ts)
 //   buildings/<kind>-<lv>.png buildings 0..11 by level; sites 12..19 as <kind>-0 (just placed) / -1
 //   animals/<k>-<anim>-<frame>.png   animal kind, dense 9557, dense 9579
 //   effects/<sub>-<frame>.png sub-records, frame = n-th distinct picture of phases 0..7
@@ -26,7 +27,7 @@ const out = path.join(root, "web/public/hd");
 const BUILDINGS = { armoury: 0, gym: 1, hut: 2, "chiefs-hut": 3, kitchen: 4, range: 5, store: 6, disco: 7, sanctuary: 8, pia: 9, nursery: 10, tower: 11 };
 
 fs.rmSync(out, { recursive: true, force: true });
-const manifest = { parts: [], variants: {}, terrain: [], objects: [], buildings: [], animals: [], effects: [] };
+const manifest = { parts: [], variants: {}, terrain: [], objects: [], resources: [], buildings: [], animals: [], effects: [], ui: [] };
 const copy = (from, rel) => {
   fs.mkdirSync(path.dirname(path.join(out, rel)), { recursive: true });
   fs.copyFileSync(from, path.join(out, rel));
@@ -66,6 +67,13 @@ for (const f of list("map/objects/processed")) {
   copy(path.join(design, "map/objects/processed", f), `objects/${id}.png`);
   manifest.objects.push(id);
 }
+// Resource points as whole pictures (2026-10-27): berry bushes by look (obj-<object>-look<0..3>) and
+// the gatherable stone tiles (stone-<1..4>), objects/<name without obj->.png.
+for (const f of list("map/objects/resources")) {
+  const name = f.replace(/^obj-/, "").replace(/\.png$/, "");
+  copy(path.join(design, "map/objects/resources", f), `objects/${name}.png`);
+  manifest.resources.push(name);
+}
 for (const f of list("map/processed")) {
   const site = /^map-site(\d+)-(\d)\.png$/.exec(f);
   const building = /^map-(.+)-(\d)\.png$/.exec(f);
@@ -93,7 +101,11 @@ for (const f of list("effects/processed")) {
 // The round-3 UI's pictures (top bar, menus, panels, command buttons), by their own names.
 for (const dir of ["hud/processed", "panels/processed", "hud/cmd/processed"]) {
   if (!fs.existsSync(path.join(design, dir))) continue;
-  for (const f of list(dir)) copy(path.join(design, dir, f), `ui/${dir.startsWith("hud/cmd") ? "cmd-" : ""}${f}`);
+  for (const f of list(dir)) {
+    const name = `${dir.startsWith("hud/cmd") ? "cmd-" : ""}${f}`;
+    copy(path.join(design, dir, f), `ui/${name}`);
+    manifest.ui.push(name);
+  }
 }
 // The round-4 start-up and menus (design/menu/processed, folders kept); the opaque backgrounds as JPEG.
 const menu = path.join(design, "menu/processed");

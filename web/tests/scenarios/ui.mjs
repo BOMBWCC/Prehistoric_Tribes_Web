@@ -109,6 +109,52 @@ export default [
     },
   },
   {
+    name: "build button: the original's command bar never shows on the way to the build list (BUG-021)",
+    async run(t) {
+      await start(t);
+      await t.page.evaluate(() => document.querySelector(".hud-build-button").click());
+      for (let frame = 0; frame < 8; frame += 1) {
+        // The original's HUD layer (WideScreen's overlay): nothing of it at the bottom, frame by frame.
+        const drawn = await t.eval(() => {
+          S.step(1);
+          const data = window.__prehistoricScreen.overlay.getContext("2d").getImageData(0, 160, 240, 160).data;
+          let n = 0;
+          for (let i = 3; i < data.length; i += 4) if (data[i]) n += 1;
+          return n;
+        });
+        t.expect.equal(drawn, 0, `frame ${frame}: the original's bar is drawn`);
+      }
+      t.expect.ok(await t.visible(".hud-sheet-list"), "the build list");
+    },
+  },
+  {
+    name: "tapping the selected villager again and again keeps him selected, walking or not (BUG-022)",
+    async run(t) {
+      const s = await start(t);
+      await select(t, s.id);
+      const v = await t.eval((id) => T.villager(id), s.id);
+      const spot = await t.eval(([x, y]) => { for (let d = 5; d < 12; d += 1) if (T.cell(x + d, y) === 0) return [x + d, y]; return null; }, [v.x, v.y]);
+      await t.tapTile(spot[0], spot[1]);
+      for (let i = 0; i < 8; i += 1) {
+        // A finger on his figure (the cell he is in, moved by his walking offset), the cursor left where it is.
+        await t.eval((id) => {
+          const rt = window.__prehistoricRuntime;
+          const v = T.villager(id);
+          const screen = window.__prehistoricScreen;
+          const box = screen.element.getBoundingClientRect();
+          const p = screen.tileToCss(v.x, v.y);
+          const k = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
+          const x = box.left + p.x + k / 2 + (rt.denseState[202 + id] * k) / 22;
+          const y = box.top + p.y + k / 3 + (rt.denseState[303 + id] * k) / 22;
+          for (const type of ["pointerdown", "pointerup"]) screen.element.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, button: 0, bubbles: true, isPrimary: true }));
+        }, s.id);
+        await t.step(4 + i * 3);
+        const ui = await t.eval(() => T.ui());
+        t.expect.deepEqual([ui.barMode, ui.selected], [1, s.id], `still selected after tap ${i + 1}`);
+      }
+    },
+  },
+  {
     name: "job icon: the selected villager's tree keeps the wood icon; it goes when deselected and comes back",
     async run(t) {
       const s = await start(t);
@@ -144,12 +190,12 @@ export default [
       await t.tapTile(at.x, at.y);
       await t.page.waitForTimeout(900);
       await t.step(1);
-      const icon = () => t.page.evaluate(() => { const i = document.querySelector(".hud-action-icon"); return i.hidden ? "" : i.src.split("/").pop(); });
-      t.expect.equal(await icon(), "43-0.png", "the food icon on the deer");
+      // The HUD updates on display frames (requestAnimationFrame), late on a busy machine: wait for it.
+      const icon = (want) => t.page.waitForFunction((want) => { const i = document.querySelector(".hud-action-icon"); return (i.hidden ? "" : i.src.split("/").pop()) === want; }, want, { timeout: 2000 }).then(() => want, () => "not shown");
+      t.expect.equal(await icon("43-0.png"), "43-0.png", "the food icon on the deer");
       await t.until((slot) => !T.animals().some((a) => a.slot === slot), { arg: deer, max: 4000, what: "the deer dead" });
       await t.step(50, false);
-      await t.page.waitForTimeout(50);
-      t.expect.equal(await icon(), "43-0.png", "the food icon on its meat");
+      t.expect.equal(await icon("43-0.png"), "43-0.png", "the food icon on its meat");
     },
   },
   {

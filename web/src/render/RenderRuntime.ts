@@ -1073,7 +1073,7 @@ export function renderMap(rt: LegacyRuntimeState, range: LegacyMapRedrawRange, t
     height: rt.game.mapHeight,
     gridB: rt.gridB,
     gridC: rt.gridC,
-    onComposite: (record, x, y) => packed.drawComposite(record, x, y),
+    onComposite: (record, x, y) => { if (!(hdArt.active && hdArt.drawStoneTile(record, x, y))) packed.drawComposite(record, x, y); },
     onMarker: (value, ah, ai) => drawMapMarker(rt, value, 0, ah, ai, packed),
   }, { column: rt.game.cameraColumn, row: rt.game.cameraRow }, range, dirty);
 }

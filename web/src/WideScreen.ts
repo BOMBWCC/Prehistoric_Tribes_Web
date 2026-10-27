@@ -84,9 +84,10 @@ export class WideScreen {
   splash = false;
   /** Choosing a chief: a candidate has been tapped, so the original's panel shows them. */
   candidatePanel = false;
-  /** A touch key script is running (Hud.ts sets it): the original's bars it passes through, e.g. the
-   *  command bar on the way to the build list, are not drawn (BUG-016). */
-  scripting = false;
+  /** Whether a touch key script is running (main.ts: TouchControls.busy): the original's bars it
+   *  passes through, e.g. the command bar on the way to the build list, are not drawn (BUG-016).
+   *  Asked while drawing -- a flag the HUD set after each frame let the first frame show them (BUG-021). */
+  scriptRunning: () => boolean = () => false;
   /** The HD villager panel is up (Hud.ts sets it): the original's (slot 4) is not drawn (BUG-017). */
   villagerSheet = false;
   /** Touch or mouse play (the last input was a pointer): the map's cursor has no hand. */
@@ -398,6 +399,10 @@ export class WideScreen {
       this.scene = image && { image, x: window.column * TILE_W - left - 11, y: window.row * TILE_H - top - 8 + shake, zoom: 1, sprites: false };
     }
     oldArt.where = before;
+  }
+
+  private get scripting(): boolean {
+    return this.scriptRunning() && this.runtime.game.loopMode === 1;
   }
 
   /** Every display frame: puts the pieces on screen (cheap; renderWide did the drawing). */

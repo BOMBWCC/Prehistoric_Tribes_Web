@@ -84,6 +84,23 @@ export default [
     },
   },
   {
+    name: "custom maps: berry bushes within 15 tiles of the camp, at least 2 on every map",
+    async run(t) {
+      const near = await t.eval(() => [7, 8, 9, 10, 11].map((q) => {
+        S.enter(q);
+        const rt = window.__prehistoricRuntime, e = rt.denseState;
+        const camp = T.buildings().find((b) => b.kind === 3);
+        let n = 0;
+        for (let s = 0; s < 50; s += 1) {
+          const kind = e[9833 + s];
+          if (kind >= 1 && kind <= 4 && Math.max(Math.abs(e[9733 + s] - camp.x), Math.abs(e[9783 + s] - camp.y)) <= 15) n += 1;
+        }
+        return n;
+      }));
+      t.expect.ok(near.every((n) => n >= 2), `berry bushes near the camp, maps 7..11: ${near.join(", ")}`);
+    },
+  },
+  {
     name: "win: the enemy force gone -> the won picture, the score, the main menu",
     async run(t) {
       await t.eval(() => { S.enter(11); S.step(3); S.win(); });

@@ -68,6 +68,7 @@ window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
 // Touch and mouse: taps and drags on the screen (TouchControls) plus the HUD buttons over it.
 const touch = attachTouchControls(screen, runtime, keys);
+screen.scriptRunning = () => touch.busy;
 // Keys bring back the original's hand cursor; a tap or click takes it away again.
 window.addEventListener("keydown", () => { screen.touchPlay = false; });
 window.addEventListener("pointerdown", () => { screen.touchPlay = true; });
@@ -337,7 +338,7 @@ if (isDevelopmentHost) {
   });
 }
 
-// The HD art's list (render/HdArt.ts); the pictures themselves load as the map needs them.
+// The HD art's list (render/HdArt.ts); the HUD's pictures load now, the map's as the map needs them.
 void hdArt.load();
 void boot().catch((error: unknown) => {
   bootStatus = `error: ${error instanceof Error ? error.message : String(error)}`;
