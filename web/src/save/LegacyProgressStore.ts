@@ -59,11 +59,27 @@ export class LegacyProgressStore {
     }
   }
 
-  /** Replace record 1 using the exact f.d(int) slot-1/2 wire format. */
-  saveGameplay(slot: 1 | 2, record: RmsGameplayRecord): void {
+  /** Replace record 1 using the exact f.d(int) slot-1/2 wire format; record 2 (not in the
+   *  original) holds the units' names as JSON text. */
+  saveGameplay(slot: 1 | 2, record: RmsGameplayRecord, names: readonly string[]): void {
     const store = RecordStore.open(this.storeName(slot));
     try {
       store.replaceRecord(encodeGameplayRecord(record));
+      store.addRecord(new TextEncoder().encode(JSON.stringify(names)));
+    } finally {
+      store.close();
+    }
+  }
+
+  /** The units' names saved with slot 1/2 (record 2); none in a save made before they were kept. */
+  loadNames(slot: 1 | 2): string[] {
+    const store = RecordStore.open(this.storeName(slot));
+    try {
+      if (store.getNumRecords() < 2) return [];
+      const names: unknown = JSON.parse(new TextDecoder().decode(store.getRecord(2)));
+      return Array.isArray(names) ? names.map((name) => (typeof name === "string" ? name : "")) : [];
+    } catch {
+      return [];
     } finally {
       store.close();
     }

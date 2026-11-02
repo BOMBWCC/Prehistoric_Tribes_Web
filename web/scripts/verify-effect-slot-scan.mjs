@@ -10,7 +10,7 @@ const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
 }).outputText;
 const module = { exports: {} };
 vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
-const { stepLegacyEffectSlotScan, isLegacyWithinViewport } = module.exports;
+const { stepLegacyEffectSlotScan, stepLegacyEffectSlotTimers, isLegacyWithinViewport } = module.exports;
 
 // isLegacyWithinViewport: exact half-open [origin, origin+size) bounds check.
 {
@@ -44,8 +44,8 @@ function freshState(overrides = {}) {
   assert.deepEqual(calls, []);
 }
 
-// timer < 20 (still animating): draws the footprint, does NOT clear the slot,
-// still increments the timer.
+// timer < 20 (still animating): draws the footprint and writes nothing (the timers are
+// stepLegacyEffectSlotTimers', the game step's, since 2026-10-27).
 {
   const state = freshState();
   state.slotGrid[0][5] = 7; // entity id 7 in slot 5
@@ -60,13 +60,9 @@ function freshState(overrides = {}) {
   const otherCalls = [];
   stepLegacyEffectSlotScan(state, {
     onSpriteDraw: (...a) => draws.push(a),
-    onRect: () => otherCalls.push("rect"),
-    onSlotAction: () => otherCalls.push("action"),
-    onModeThreeExpire: () => otherCalls.push("expire"),
   });
-  assert.deepEqual(otherCalls, []); // expire-only callbacks must not fire
   assert.equal(state.slotGrid[0][5], 7); // slot NOT freed
-  assert.equal(state.slotGrid[1][5], 4); // timer incremented 3 -> 4
+  assert.equal(state.slotGrid[1][5], 3); // timer untouched
   // width=3,height=1: col in {0,2}, row in {0}. x=5,y=5.
   assert.deepEqual(draws, [
     [74, (5 + 0 - 0) * 22, (5 + 0 - 0) * 16, 4 * 0 + 2 * 0 + 3 - 1],
@@ -86,43 +82,55 @@ function freshState(overrides = {}) {
   assert.deepEqual(draws, []);
 }
 
-// timer >= 20 (expired): frees the slot, draws no sprite, fires onRect/onSlotAction,
-// and onModeThreeExpire only when the mode byte is exactly 3.
+// The timers: each call adds 1; a slot reaching 20 is freed and fires onModeThreeExpire (mode 3
+// only, which also sets BLD_WORK = 3), onRect and onSlotAction.
 {
   const state = freshState();
   state.slotGrid[0][2] = 9;
-  state.slotGrid[1][2] = 20;
+  state.slotGrid[1][2] = 19;
   state.slotGrid[2][2] = 3; // mode byte
+  state.slotGrid[0][4] = 6;
+  state.slotGrid[1][4] = 3;
   state.dense[8383 + 9] = 5;
-  state.dense[8444 + 9] = 8; // local y = 7
+  state.dense[8444 + 9] = 8;
   state.dense[8749 + 9] = 0;
   state.packedOffsets[138] = 500;
   state.packedBytes[500 + 104 + 0] = 4; // width
   state.packedBytes[500 + 130 + 0] = 6; // height
   const calls = [];
-  stepLegacyEffectSlotScan(state, {
+  const callbacks = {
     onRect: (...a) => calls.push(["rect", ...a]),
     onSlotAction: (...a) => calls.push(["action", ...a]),
     onModeThreeExpire: (...a) => calls.push(["expire", ...a]),
-    onSpriteDraw: () => calls.push("draw"),
-  });
+  };
+  stepLegacyEffectSlotTimers(state.slotGrid, state.dense, state.packedBytes, state.packedOffsets, callbacks);
   assert.equal(state.slotGrid[0][2], 0, "slot must be freed");
+  assert.equal(state.slotGrid[1][4], 4);
   assert.equal(state.dense[8627 + 9], 3);
   assert.deepEqual(calls, [
     ["expire", 9, false],
-    ["rect", 5, 8, 4, 6], // (x, y-1+1, width, height) = (x, y, w, h)
+    ["rect", 5, 8, 4, 6],
     ["action", 9],
   ]);
+  // The drawing skips a slot at 20 or more.
+  const expired = freshState();
+  expired.slotGrid[0][0] = 9;
+  expired.slotGrid[1][0] = 20;
+  expired.dense[8383 + 9] = 2;
+  expired.dense[8444 + 9] = 3;
+  const draws = [];
+  stepLegacyEffectSlotScan(expired, { onSpriteDraw: (...a) => draws.push(a) });
+  assert.deepEqual(draws, []);
 }
 
-// timer >= 20 but mode byte !== 3: onModeThreeExpire must not fire.
+// Reaching 20 with a mode byte !== 3: onModeThreeExpire must not fire.
 {
   const state = freshState();
   state.slotGrid[0][2] = 9;
-  state.slotGrid[1][2] = 25;
+  state.slotGrid[1][2] = 19;
   state.slotGrid[2][2] = 1; // not 3
   const calls = [];
-  stepLegacyEffectSlotScan(state, {
+  stepLegacyEffectSlotTimers(state.slotGrid, state.dense, state.packedBytes, state.packedOffsets, {
     onModeThreeExpire: () => calls.push("expire"),
     onRect: () => calls.push("rect"),
     onSlotAction: () => calls.push("action"),

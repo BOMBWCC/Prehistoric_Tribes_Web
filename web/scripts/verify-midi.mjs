@@ -14,7 +14,7 @@ vm.runInNewContext(output, {
 });
 const { parseStandardMidi } = module.exports;
 
-const bytes = fs.readFileSync(new URL("../../extracted/sa", import.meta.url));
+const bytes = fs.readFileSync(new URL("../public/assets/sa", import.meta.url));
 const parsed = parseStandardMidi(new Uint8Array(bytes.buffer, bytes.byteOffset, 8014));
 assert.equal(parsed.format, 1);
 assert.equal(parsed.division, 480);

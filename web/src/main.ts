@@ -1,13 +1,13 @@
 import "./styles.css";
 import { LogicalCanvas } from "./platform/Canvas";
-import { loadOriginalResources } from "./ResourceBootstrap";
+import { loadOriginalArt, loadOriginalResources } from "./ResourceBootstrap";
 import { FixedLoop } from "./platform/FixedLoop";
 import { attachOriginalKeyboard, KeyState } from "./platform/Input";
 import { LegacyRuntimeState } from "./core/LegacyRuntimeState";
-import { stepLegacyPaintScreen } from "./render/LegacyPaintScreen";
 import { attachTouchControls } from "./TouchControls";
 import { WideScreen } from "./WideScreen";
 import { attachSettings } from "./Settings";
+import { attachHelp } from "./HelpCard";
 import { attachAlerts } from "./Alerts";
 import { attachHud } from "./Hud";
 import { hdArt } from "./render/HdArt";
@@ -15,6 +15,9 @@ import { oldArt } from "./platform/OldArt";
 import { attachMenuHud } from "./MenuHud";
 import { attachStartMenu, savedLanguage, savedMusic } from "./StartMenu";
 import { attachStoryHud } from "./StoryHud";
+import { languageFolder, loadVillagerNames } from "./story/StoryData";
+import { loadUiTexts, translate } from "./text/UiText";
+import { PixiMap } from "./render/PixiMap";
 // The Chinese strings; docs/translation-zh-CN.json is their single source.
 import zhTranslation from "../../docs/translation-zh-CN.json";
 
@@ -31,6 +34,9 @@ app.append(canvas.element);
 const screen = new WideScreen(runtime, canvas);
 screen.element.className = "screen";
 app.append(screen.element);
+// The map, drawn with WebGL under the screen canvas (modernization step 3, docs/modernization-plan.md §4.3).
+const pixiMap = new PixiMap(runtime, screen);
+void pixiMap.start(app, screen.element);
 const isDevelopmentHost = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
 if (isDevelopmentHost) {
   (window as Window & { __prehistoricRuntime?: LegacyRuntimeState }).__prehistoricRuntime = runtime;
@@ -68,15 +74,14 @@ window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
 // Touch and mouse: taps and drags on the screen (TouchControls) plus the HUD buttons over it.
 const touch = attachTouchControls(screen, runtime, keys);
-screen.scriptRunning = () => touch.busy;
 // Keys bring back the original's hand cursor; a tap or click takes it away again.
 window.addEventListener("keydown", () => { screen.touchPlay = false; });
 window.addEventListener("pointerdown", () => { screen.touchPlay = true; });
 const notify = attachAlerts(app, runtime, touch);
-const hud = attachHud(app, runtime, screen, touch, attachSettings(app, screen, runtime), notify);
+const hud = attachHud(app, runtime, screen, touch, attachSettings(app, screen, runtime), attachHelp(app, runtime), notify);
 const menuHud = attachMenuHud(app, runtime, screen, touch);
 const startMenu = attachStartMenu(app, runtime, screen, touch);
-const storyHud = attachStoryHud(app, runtime, screen, touch);
+const storyHud = attachStoryHud(app, runtime, screen, touch, notify);
 // Pinch and double-tap zoom on iOS Safari, which ignores the viewport's user-scalable=no.
 for (const type of ["gesturestart", "gesturechange", "dblclick"]) {
   document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
@@ -110,6 +115,11 @@ function tick(): void {
   // Keep the original fixed-tick ordering: project DOM key edges, run the
   // bytecode-backed state machine, then dispatch the frame handler.
   touch.step();
+  // A campaign story: the world waits until it has been played (StoryHud, docs/modernization-plan.md §4.4).
+  if (storyHud.step()) {
+    keys.endTick();
+    return;
+  }
   for (const key of originalKeys) {
     if (keys.wasPressed(key)) runtime.input.press(key);
     if (keys.wasReleased(key)) runtime.input.release(key);
@@ -129,9 +139,12 @@ function tick(): void {
   if (!runtime.game.b) loop.stop();
 }
 
-let renders = 0;
 let starting = false;
+// The web UI's words (ui.json), read once; the parts built once take the language's words again when it changes.
+let uiLanguage = -1;
+const uiTexts = loadUiTexts(() => languageFolder(runtime.language)).then(() => { uiLanguage = -1; });
 function render(): void {
+  if (uiLanguage !== runtime.language) { uiLanguage = runtime.language; translate(); }
   oldArt.where = showsFrameAs();
   paint();
   // f.run offsets 161..215: if ad:I or ae:I is set after the first paint, both
@@ -141,11 +154,13 @@ function render(): void {
     runtime.game.ae = 0;
     paint();
   }
-  // The oracle runner sets __prehistoricWideEvery to draw the larger view on every Nth frame only.
-  const every = (window as Window & { __prehistoricWideEvery?: number }).__prehistoricWideEvery ?? 1;
-  if (renders++ % every === 0) screen.renderWide();
+  screen.updateView();
+  pixiMap.update();
   screen.compose();
   hud.update();
+  // The markers and ticks on the map show this step's state at once, not only from the next display
+  // frame (track() runs there too, for drags): what can be tapped never depends on display timing.
+  hud.track();
   menuHud.update();
   startMenu.update();
   storyHud.update();
@@ -157,34 +172,19 @@ function render(): void {
   }
 }
 
+/**
+ * What f.paint() leaves in the game state (offset 600..602: z:Z = false). Its drawing -- the
+ * original's 240 x 320 frame, its HUD bars, its texts -- is not done since 2026-10-29: the screen is
+ * the WebGL map and the web pages (docs/modernization-plan.md §4.3); the original's frame and its
+ * image packs are not needed to play.
+ */
 function paint(): void {
-  canvas.clear("#000000");
-  // Exact top-level f.paint() dispatch (offset 0..5: `if (v:B != 1) goto
-  // 465`): v==1 is the gameplay branch (offsets 8..462, ported as
-  // renderGameplayTo/stepGameplayPaintComposite); v!=1 is every menu/
-  // dialog/cutscene screen (offsets 465..605, LegacyPaintScreen).
-  if (runtime.game.loopMode === 1) {
-    runtime.renderGameplayTo(canvas.graphics);
-  } else if (runtime.offscreenTargets) {
-    stepLegacyPaintScreen(
-      {
-        cameraSFlag: runtime.game.cameraSFlag,
-        jSceneFlag: runtime.game.jSceneFlag,
-        aPInt: runtime.game.aPInt,
-      },
-      canvas.graphics,
-      runtime.offscreenTargets.images[0],
-    );
-  }
-  const imageGroup0 = runtime.imageGroups[0];
-  if (imageGroup0) runtime.geometryRenderer.renderTo(canvas.graphics, imageGroup0);
-  // Offset 600..602: z:Z = false, the tail BOTH branches fall through to.
   runtime.game.paintSyncFlag = false;
 }
 
 const loop = new FixedLoop({ tickMs: 120, update: tick, render });
 // Between ticks the screen is only recomposed: a drag moves the view smoothly.
-const composeEveryFrame = () => { screen.compose(); hud.track(); requestAnimationFrame(composeEveryFrame); };
+const composeEveryFrame = () => { screen.compose(); pixiMap.render(); hud.track(); requestAnimationFrame(composeEveryFrame); };
 requestAnimationFrame(composeEveryFrame);
 
 async function boot(): Promise<void> {
@@ -194,11 +194,11 @@ async function boot(): Promise<void> {
   if (debugBootTookOver) return;
   bootStatus = "loading resources";
   refreshDebugOverlay();
-  const resources = await loadOriginalResources();
+  const [resources, names] = await Promise.all([loadOriginalResources(), loadVillagerNames(), uiTexts]);
   if (debugBootTookOver) return;
+  runtime.villagerNames = names;
   runtime
     .withPackedData(resources.pd0)
-    .withImageGroups(resources.pi0, resources.pi9, resources.pi8)
     .withMaResource(resources.ma)
     .withMidiResource(resources.sa)
     .withLanguageResources(resources.languageS, resources.languageT, resources.languageD0)
@@ -301,16 +301,18 @@ function debugEnterMapViaMenu(maxTicks = 200): number {
   return runtime.game.screen === 28 && runtime.game.loopMode === 1 ? maxTicks : -1;
 }
 
-async function debugBootWithoutSplash(): Promise<void> {
+/** `originals`: also load the original's image packs (the tools that measure or export its art). */
+async function debugBootWithoutSplash(options: { originals?: boolean } = {}): Promise<void> {
   debugBootTookOver = true;
   screen.splash = false;
   loop.stop();
   bootStatus = "debug: loading resources";
   refreshDebugOverlay();
-  const resources = await loadOriginalResources();
+  const [resources, names, art] = await Promise.all([loadOriginalResources(), loadVillagerNames(), options.originals ? loadOriginalArt() : null, uiTexts]);
+  runtime.villagerNames = names;
+  if (art) runtime.withImageGroups(...art);
   runtime
     .withPackedData(resources.pd0)
-    .withImageGroups(resources.pi0, resources.pi9, resources.pi8)
     .withMaResource(resources.ma)
     .withMidiResource(resources.sa)
     .withLanguageResources(resources.languageS, resources.languageT, resources.languageD0)
@@ -332,9 +334,10 @@ if (isDevelopmentHost) {
     __prehistoricDebugEnterMapViaMenu: (maxTicks = 200) => debugEnterMapViaMenu(maxTicks),
     __prehistoricDebugTick: (count = 1) => { for (let i = 0; i < count; i += 1) tick(); },
     __prehistoricDebugRender: () => { render(); },
-    __prehistoricDebugBootWithoutSplash: () => debugBootWithoutSplash(),
+    __prehistoricDebugBootWithoutSplash: (options?: { originals?: boolean }) => debugBootWithoutSplash(options),
     __prehistoricDebugRuntime: runtime,
     __prehistoricScreen: screen,
+    __prehistoricPixiMap: pixiMap,
   });
 }
 

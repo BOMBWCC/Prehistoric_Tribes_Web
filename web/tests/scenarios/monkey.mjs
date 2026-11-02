@@ -3,7 +3,7 @@
 // no panel out of step with the game). Same seed, same run.
 
 const BUTTONS = [".hud-build-button", ".hud-cmd", ".hud-cmd-item", ".hud-sheet-close", ".hud-card", ".hud-sheet-row .hud-item",
-  ".hud-place", ".hud-fab", ".hud-order-tick", ".hud-member", ".hud-sheet-tick", ".hud-squad", ".story-hud", ".minimap-close"];
+  ".hud-place", ".hud-fab", ".hud-member", ".hud-sheet-tick", ".hud-squad", ".story-hud", ".minimap-close"];
 
 /** A small LCG, so the run is the same every time. */
 function random(seed) {
@@ -23,7 +23,8 @@ async function broken(t) {
     for (const [name, value] of Object.entries(stock)) if (value < 0) problems.push(`${name} ${value}`);
     if (![0, 1, 2, 3, 4].includes(g.barMode)) problems.push(`barMode ${g.barMode}`);
     const shown = (s) => [...document.querySelectorAll(s)].some((el) => !el.closest("[hidden]") && el.getClientRects().length > 0);
-    if (g.loopMode === 1 && shown(".hud-villager") && g.barMode !== 1) problems.push(`villager panel with barMode ${g.barMode}`);
+    // A villager panel: the selected villager's (w 1) or one from a bar's portraits, a chief's candidate (w 2).
+    if (g.loopMode === 1 && shown(".hud-villager") && g.barMode !== 1 && g.barMode !== 2) problems.push(`villager panel with barMode ${g.barMode}`);
     if (g.loopMode === 1 && shown(".hud-sheet .hud-sheet-row") && g.barMode !== 2 && g.barMode !== 4) problems.push(`building panel with barMode ${g.barMode}`);
     return problems;
   });

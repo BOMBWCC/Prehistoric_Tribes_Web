@@ -87,6 +87,7 @@ import { stepLegacyAnimatedSlotScan } from "../render/LegacyAnimatedSlotScan";
 import { stepLegacyEffectSlotScan, isLegacyWithinViewport, enqueueLegacyEffectSlot } from "../render/LegacyEffectSlotScan";
 import { stepLegacyCRect } from "../render/LegacyEffectRectMark";
 import { dispatchLegacyGameplayCellBody, type LegacyGameplayCellBodyState } from "../render/LegacyGameplayCellBodyDispatch";
+import { stepDemolitionDust, stepHitEffects, stepSeenBuildings } from "../sim/world/MapUpkeep";
 import { markLegacyEntityFootprint, LEGACY_ENTITY_FOOTPRINT_WIDTH_MASKS, type LegacyEntityFootprintMarkState } from "../sim/units/LegacyEntityFootprintMark";
 import { drawLegacyMapMarkerPieces, prepareLegacyMapMarkerDispatch } from "../render/LegacyMapMarkerDispatch";
 import { stepLegacyMapMarkerDetail } from "../render/LegacyMapMarkerDetail";
@@ -226,6 +227,7 @@ import { allocateLegacySubsystemBTenSlot, releaseLegacySubsystemBTenSlot, releas
 import { findLegacyNearestCandidate } from "../sim/world/LegacyNearestCandidateSearch";
 import { checkLegacyCellCompatibility } from "../sim/world/LegacyCellCompatibilityCheck";
 import { initializeLegacyEntityRecord, indexLegacyEntityRecord } from "../sim/world/LegacyEntityRecordLifecycle";
+import type { VillagerNames } from "../story/StoryData";
 import { stepLegacyEntityDPredicate } from "../sim/units/LegacyEntityDPredicate";
 import { stepLegacyEntityHousing } from "../sim/units/LegacyEntityHousing";
 import { stepLegacyEntityCrowdDecay, stepLegacyEntityCrowdSpread } from "../sim/units/LegacyEntityCrowdStress";
@@ -360,6 +362,9 @@ export class LegacyRuntimeState {
   readonly progressStore = new LegacyProgressStore();
   /** f's constructor uses new java.util.Random(1). */
   readonly random = new LegacyRandom(1);
+  /** The drawing's own random numbers (2026-10-27): a number's wobble, the menu's clouds, scene 24's
+   *  shake, the score's last digit. Never the rules' `random`, so drawing does not change the game. */
+  readonly viewRandom = new LegacyRandom(2);
   /** Development-only trace of the latest table-driven f.ao() call. */
   readonly aoTrace = { count: 0, inputQ: -1, inputZ: -1, value: -1, outputQ: -1 };
   /** Exact f.b[6] MIDI selection table initialized by e.c(). */
@@ -458,8 +463,6 @@ export class LegacyRuntimeState {
    *  phase 3 notices (Alerts.ts). */
   onMessage?: (type: number, x: number, y: number, value: number) => void;
   touchMenuQ = -1;
-  /** Not in the original: x of the last number the bottom bar (record 1010) drew, -1 for none. */
-  touchBarNumberX = -1;
   readonly offscreenTargets = typeof document === "undefined" ? undefined : new LegacyOffscreenTargets();
   /**
    * f.an() (Back key) fields, live since 2026-09-27. Only Q/R/H/vInt used to
@@ -556,8 +559,15 @@ export class LegacyRuntimeState {
    *  `drawingVillagerPanel`; WideView.villagerPanelOf reads it for the HD villager panel (Hud.ts). */
   villagerPanelDraft: { asset: number; text: string; x: number; y: number }[] = [];
   drawingVillagerPanel = false;
-  /** Not in the original: the /pi8 picture the last c(byte) chose (the story picture). */
-  shownPicture = 0;
+  /** Not in the original: how many dialogues f.b(int) has started, and the camera and mission
+   *  before the last one -- StoryHud plays them and puts the camera back (docs/modernization-plan.md §4.4). */
+  storyStarts = 0;
+  /** Not in the original: each unit's name as text, given when f.g(int) rolls its name index
+   *  (UnitRuntime.initializeUnitRecord) and kept in the save, so a language change renames nobody. */
+  readonly unitNames: string[] = new Array(101).fill("");
+  /** The name libraries (i18n/<language>/names.json), read at boot. */
+  villagerNames: Record<string, VillagerNames> = {};
+  storyCamera = { column: 0, row: 0, mission: 0 };
   /** Raw c.b()/c.a(Graphics,int) row-composition state. */
   readonly cComposition: LegacyCCompositionState = {
     g: new Int16Array(64), h: new Int16Array(64), r: 0, s: 0, t: 0, q: 0, p: 0,
@@ -752,7 +762,7 @@ export class LegacyRuntimeState {
   cRenderExtras(): LegacyCRenderExtras {
     return {
       onNumber: (x, y, width, text, value) => { this.geometry.queueTextWithWidth(x, y, width, text, value); },
-      random: (mask, divisor) => this.randomRemainder(mask, divisor),
+      random: (mask, divisor) => this.viewRandomRemainder(mask, divisor),
       pools: this.mainArrays.aShort,
       onIcon: (record, x, y) => drawPackedComposite(this, record, x, y),
     };
@@ -1153,6 +1163,11 @@ export class LegacyRuntimeState {
     return legacyRandomRemainder(this.random, mask, divisor);
   }
 
+  /** `randomRemainder` on the drawing's own `viewRandom`. */
+  viewRandomRemainder(mask: number, divisor: number): number {
+    return legacyRandomRemainder(this.viewRandom, mask, divisor);
+  }
+
   /** Raw mode 1..4 coordinate-write segment of b.a(IIII). */
   applyAuxiliaryModeWrites(input: Omit<Parameters<typeof applyLegacyAuxiliaryModeWrites>[0], "dense" | "packedOffsets">): LegacyAuxiliaryModeWriteResult {
     return applyLegacyAuxiliaryModeWrites({
@@ -1283,6 +1298,14 @@ export class LegacyRuntimeState {
    * behind a dialogue. Shared by both call sites since 2026-10-08 (oracle).
    */
   stepOriginalJ(): void {
+    // Rules the original ran while drawing the map (f.u()), the game's own since 2026-10-27.
+    stepDemolitionDust(this);
+    stepHitEffects(this);
+    this.stepWorldFrame();
+    stepSeenBuildings(this);
+  }
+
+  private stepWorldFrame(): void {
     this.stepFrame({
       map: this.gridC,
       // f.j() offset 134: f.c(int,int,int,int), the repaint of a cleared
@@ -2615,8 +2638,9 @@ export class LegacyRuntimeState {
 
   stepEntityAction(...args: RtArgs<typeof stepEntityAction>): ReturnType<typeof stepEntityAction> { return stepEntityAction(this, ...args); }
 
-  /** class c's final void a(int,int,int) (#445), f.q()'s own scan/draw call. */
-  drawCScan(arg1: number, x: number, y: number): void {
+  /** class c's final void a(int,int,int) (#445), f.q()'s own scan/draw call. `onIcon` (the WebGL
+   *  map, render/MapScene.ts): each digit's region reported there instead of drawn. */
+  drawCScan(arg1: number, x: number, y: number, onIcon?: (sourceX: number, sourceY: number, width: number, height: number, dx: number, dy: number, anchor: number) => void): void {
     const t = this.resourceTables;
     drawLegacyCScan({
       k: 0, l: 0, m: 0, n: 0, o: 0, b: t.cBByte, c: t.cCByte,
@@ -2624,8 +2648,9 @@ export class LegacyRuntimeState {
       rowDByte: t.rowDByte, rowEByte: t.rowEByte,
       geometryB: t.geometryB, geometryC: t.geometryC,
     }, this.packedBytes, this.packedOffsets, arg1, x, y, {
-      onRandomRemainder: (mask, divisor) => this.randomRemainder(mask, divisor),
+      onRandomRemainder: (mask, divisor) => this.viewRandomRemainder(mask, divisor),
       onDrawIcon: (sourceX, sourceY, width, height, dx, dy, anchor) => {
+        if (onIcon) { onIcon(sourceX, sourceY, width, height, dx, dy, anchor); return; }
         const image = this.imageGroups[0]?.get(26)?.image;
         const target = this.offscreenTargets?.graphics[1];
         if (!image || !target) return;

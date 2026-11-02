@@ -72,7 +72,9 @@ export class LegacyGeometryRenderer {
   }
 
   /** Execute the original drawRegion wrapper semantics against image group 0. */
-  renderTo(graphics: Graphics, imageGroup0: ImagePack): void {
+  renderTo(graphics: Graphics, imageGroup0: ImagePack | undefined): void {
+    // Without the original's image packs (2026-10-29: not part of the game) nothing is drawn.
+    if (!imageGroup0) return;
     for (const command of this.emit()) {
       const image = imageGroup0.get(command.imageIndex)?.image;
       if (!image) continue;

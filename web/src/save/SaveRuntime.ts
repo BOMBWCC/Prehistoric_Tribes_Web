@@ -1,7 +1,8 @@
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { LegacyGameState } from "../core/LegacyGameState";
 import type { RmsGameplayRecord, SparseLocationGroup } from "./RmsGameplayRecord";
-import { initializeLegacyEntityRecord, indexLegacyEntityRecord } from "../sim/world/LegacyEntityRecordLifecycle";
+import { indexLegacyEntityRecord } from "../sim/world/LegacyEntityRecordLifecycle";
+import { initializeUnitRecord } from "../sim/units/UnitRuntime";
 import { markLegacySpatialRecord } from "../sim/world/LegacySpatialRecordUpdate";
 import { stepLegacyByteActionQueue } from "../ui/LegacyByteActionQueue";
 import { LEGACY_SPATIAL_LAYER_INDEX, copyRows, cloneRows, copyCube, cloneCube } from "../core/LegacyRuntimeState";
@@ -29,7 +30,7 @@ export function recordOptions(rt: LegacyRuntimeState) {
   const life = rt.entityRecordLifecycleInput();
   return {
     framePending: () => { g.pendingP = true; },
-    onRecordInitialized: (id: number) => initializeLegacyEntityRecord(life, id),
+    onRecordInitialized: (id: number) => initializeUnitRecord(rt, id),
     onRecordIndexed: (id: number) => indexLegacyEntityRecord(life, id),
     // f.a(1,x,y,id) -- the SAME stepLegacyByteActionQueue #433 the
     // type=100/5 call sites use (offset 1473 of the record allocator).
@@ -212,6 +213,8 @@ export function loadGameplayFromStore(rt: LegacyRuntimeState, slot: 1 | 2, mapWi
   // decode stride, so a tutorial load came back 64x48 instead of 40x32.
   if (rt.maResource && rt.packedData) rt.loadMap(record.qByte & 0xff);
   rt.hydrateGameplayRecord(record);
+  const names = rt.progressStore.loadNames(slot);
+  rt.unitNames.forEach((_, id) => { rt.unitNames[id] = names[id] ?? ""; });
   // f.d(int) offsets 172..182: a free-play load (slot 2) restores the
   // difficulty b:B from the saved d:B.
   if (slot === 2) rt.game.difficulty = rt.game.persistedDByte;
@@ -233,7 +236,7 @@ export function loadGameplayFromStore(rt: LegacyRuntimeState, slot: 1 | 2, mapWi
 
 /** Save the current raw runtime buffers using the original slot-1/2 schema. */
 export function saveGameplayToStore(rt: LegacyRuntimeState, slot: 1 | 2): void {
-  rt.progressStore.saveGameplay(slot, rt.snapshotGameplayRecord());
+  rt.progressStore.saveGameplay(slot, rt.snapshotGameplayRecord(), rt.unitNames);
 }
 
 /** Exact f.e(int) save boundary used by f.am()'s T=1 branch. */

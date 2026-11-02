@@ -30,7 +30,6 @@ const EDGE_BAND = 0.1; // share of the screen at each edge where a box drag scro
 const EDGE_SPEED = 110; // CSS pixels per second at the very edge (slow, like Warcraft's)
 const TILE_W = 22;
 const TILE_H = 16;
-const SWIPE_PX = 24; // game pixels for a card swipe
 
 type Script = Generator<void, void, void>;
 
@@ -75,8 +74,6 @@ export type TouchControls = {
   readonly busy: boolean;
   /** While set, a tap on the map goes here instead (with the villager tapped, or 0). */
   setMapTapHandler(handler: ((villager: number) => void) | null): void;
-  /** Moves the cursor to map tile (tx, ty), panning the game's camera if needed (an order's spot). */
-  aim(tx: number, ty: number): void;
   /** Closes any open bar, the build cards or a selection (right soft key until w == 0). */
   closeBars(): void;
   /** The start menu's choices (round 4) played into the original's menus from the main menu (Q 0):
@@ -335,37 +332,6 @@ export function attachTouchControls(
     if (!gesture) follow = false;
   };
 
-  // ---- the bottom panel ----
-  const tapPanel = (x: number, y: number) => {
-    if (y >= 298 && x < 24) { run(tapKey(OriginalKey.SOFT_LEFT)); return; }
-    if (y >= 298 && x >= 216) { run(tapKey(OriginalKey.SOFT_RIGHT)); return; }
-    if (game.barMode === 2 && game.selectionBa >= 80) { run(tapKey(OriginalKey.FIRE)); return; } // a build card
-    if (game.barMode === 2 && y >= 294) {
-      if (x >= 192) { run(tapKey(OriginalKey.RIGHT)); return; }
-      const slot = Math.floor((x - 22) / 34);
-      if (slot < 0 || slot > 4) return;
-      if (game.entityFocusFlag || game.choosingChief) {
-        // A row of portraits (villagers, a new chief): the first tap moves the highlight,
-        // a second tap on it confirms.
-        if (game.menuCursor === slot) run(tapKey(OriginalKey.FIRE));
-        else run(navigate(() => game.menuCursor, slot, OriginalKey.LEFT, OriginalKey.RIGHT, false));
-        return;
-      }
-      // An item with a quantity (the selected slot draws a number, e.g. the weapon workshop): its
-      // upper half is UP, its lower half DOWN. Choosing such a slot only selects it; a command icon
-      // is chosen and confirmed with one tap.
-      // The bar draws the selected slot's number at 63 + 34 * slot (its icon sits at 39 + 34 * slot).
-      const quantity = () => Math.abs(runtime.touchBarNumberX - (63 + 34 * game.menuCursor)) <= 4;
-      if (slot === game.menuCursor && quantity()) { run(tapKey(y < 306 ? OriginalKey.UP : OriginalKey.DOWN)); return; }
-      if (slot === game.menuCursor) { run(tapKey(OriginalKey.FIRE)); return; }
-      run((function* () {
-        yield* navigate(() => game.menuCursor, slot, OriginalKey.LEFT, OriginalKey.RIGHT, false);
-        yield; // let the bar draw the newly selected slot
-        if (game.menuCursor === slot && !quantity()) yield* tapKey(OriginalKey.FIRE);
-      })());
-    }
-  };
-
   // ---- screens other than the map: menus, dialogue, story ----
   const tapScreen = (x: number, y: number) => {
     // The soft keys' corner icons are covered (WideScreen.menuFrame); the HUD's ✓ / ✗ replace them.
@@ -400,7 +366,6 @@ export function attachTouchControls(
   const tap = (x: number, y: number, on: Gesture["on"]) => {
     if (on === "map" && mapTapHandler) { mapTapHandler(villagerAt(x, y)?.id ?? 0); return; }
     if (on === "screen") tapScreen(x, y);
-    else if (on === "panel") tapPanel(x, y);
     else if (on === "map") tapMap(x, y);
   };
 
@@ -408,23 +373,36 @@ export function attachTouchControls(
   type Gesture = {
     id: number; sx: number; sy: number; cx: number; cy: number; // CSS pixels: at the press, and now
     x0: number; y0: number; gx: number; gy: number; // frame pixels: at the press, and now
-    drag: boolean; on: "map" | "panel" | "screen" | "top"; at: number; // performance.now() at the press
+    drag: boolean; on: "map" | "screen" | "top"; at: number; // performance.now() at the press
     /** Placing a building, pressed on its footprint: the drag moves it (UI design "放置建筑",
      *  2026-10-22), keeping the pressed tile's offset from the cursor. */
     grip: [number, number] | null;
   };
   let gesture: Gesture | null = null;
+  // A second finger on the map while the first drags it: pinch zoom about the point between them
+  // (user 2026-10-29), moving both pans too. Never a tap; when one finger lifts, the other drags on.
+  let pinch: { id: number; x: number; y: number } | null = null; // client pixels
 
   canvas.addEventListener("pointerdown", (event) => {
-    if (event.button !== 0 || gesture) return;
+    if (event.button !== 0) return;
+    if (gesture) {
+      if (!pinch && !box && !gesture.grip && gesture.on === "map" && toGame(event).on === "map") {
+        event.preventDefault();
+        capture(canvas, event.pointerId);
+        pinch = { id: event.pointerId, x: event.clientX, y: event.clientY };
+        gesture.drag = true;
+        arc.style.display = "none";
+      }
+      return;
+    }
     event.preventDefault();
     capture(canvas, event.pointerId);
     const point = toGame(event);
     const gx = point.x;
     const gy = point.y;
-    const on = point.on === "bottom" ? "panel" : point.on;
+    const { on } = point;
     let grip: [number, number] | null = null;
-    const area = on === "map" && game.cSInt !== 100 ? controls.footprint() : null;
+    const area = on === "map" ? controls.footprint() : null;
     if (area) {
       const [tx, ty] = tileAt(gx, gy);
       if (tx >= area.column && tx < area.column + area.columns && ty >= area.row && ty < area.row + area.rows) {
@@ -437,6 +415,24 @@ export function attachTouchControls(
   });
 
   canvas.addEventListener("pointermove", (event) => {
+    if (gesture && pinch && (event.pointerId === gesture.id || event.pointerId === pinch.id)) {
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const ax = (gesture.cx + pinch.x) / 2 - rect.left;
+      const ay = (gesture.cy + pinch.y) / 2 - rect.top;
+      const apart = Math.hypot(gesture.cx - pinch.x, gesture.cy - pinch.y);
+      const finger = event.pointerId === gesture.id ? gesture : pinch;
+      if (finger === gesture) { gesture.cx = event.clientX; gesture.cy = event.clientY; }
+      else { pinch.x = event.clientX; pinch.y = event.clientY; }
+      const bx = (gesture.cx + pinch.x) / 2 - rect.left;
+      const by = (gesture.cy + pinch.y) / 2 - rect.top;
+      const now = Math.hypot(gesture.cx - pinch.x, gesture.cy - pinch.y);
+      if (apart > 0 && now > 0) screen.zoomAt(now / apart, ax, ay);
+      const k = screen.gamePixelsPerCssPixel();
+      screen.panBy((ax - bx) * k, (ay - by) * k);
+      follow = true;
+      return;
+    }
     if (!gesture || event.pointerId !== gesture.id) return;
     event.preventDefault();
     const { x: gx, y: gy } = toGame(event);
@@ -464,7 +460,15 @@ export function attachTouchControls(
     gesture.cy = event.clientY;
   });
 
+  /** One finger of a pinch lifted: the other one drags on. */
+  const endPinch = (event: PointerEvent): boolean => {
+    if (!gesture || !pinch || (event.pointerId !== gesture.id && event.pointerId !== pinch.id)) return false;
+    if (event.pointerId === gesture.id) { gesture.id = pinch.id; gesture.cx = pinch.x; gesture.cy = pinch.y; }
+    pinch = null;
+    return true;
+  };
   const finish = (event: PointerEvent) => {
+    if (endPinch(event)) return;
     if (!gesture || event.pointerId !== gesture.id) return;
     const g = gesture;
     gesture = null;
@@ -473,16 +477,10 @@ export function attachTouchControls(
     if (box) { box = null; run(tapKey(OriginalKey.FIRE)); return; }
     // A press held past the arc's start without completing it is no tap.
     if (!g.drag && performance.now() - g.at < LONG_MS) { tap(g.x0, g.y0, g.on); return; }
-    if (!g.drag) return;
-    if (g.on === "panel" && game.barMode === 2) {
-      // A horizontal swipe on the build card (or a bar) changes the item: a swipe to the left
-      // shows the next one, i.e. RIGHT.
-      const dx = toGame(event).x - g.x0;
-      if (Math.abs(dx) >= SWIPE_PX) run(tapKey(dx < 0 ? OriginalKey.RIGHT : OriginalKey.LEFT));
-    }
   };
   canvas.addEventListener("pointerup", finish);
   canvas.addEventListener("pointercancel", (event) => {
+    if (endPinch(event)) return;
     if (!gesture || event.pointerId !== gesture.id) return;
     if (box) cancelBox();
     arc.style.display = "none";
@@ -636,7 +634,6 @@ export function attachTouchControls(
     },
     setMapTapHandler(handler: ((villager: number) => void) | null) { mapTapHandler = handler; },
     closeBars() { run(backOut()); },
-    aim(tx: number, ty: number) { moveCursorTo(tx, ty); },
     startGame(plan) {
       const rows: Record<number, number> = { 0: 0, 2: plan.custom ? 1 : 0, 3: plan.resume ? 0 : 1, 13: plan.difficulty, 9: plan.map };
       run((function* () {
@@ -740,16 +737,17 @@ export function attachTouchControls(
       follow = false;
     },
     step() {
-      // Entering building placement by touch: the footprint starts in the middle of the screen
-      // (f.C:B/f.D:B, the cursor's home), not wherever the cursor last was.
+      // Entering placement by touch (a building, a rally / call to arms): it starts on the tile in
+      // the middle of the screen at that moment, placeable or not (BUG-046, user 2026-11-02) -- not
+      // wherever the cursor last was, nor the cursor's home (f.C:B/f.D:B), which is the middle of
+      // the original's camera, not of the wide view.
       tick += 1;
       if (game.loopMode === 1 && game.barMode === 3 && lastW !== 3 && tick - touchTick < 16) {
-        game.cursorColumn = game.cursorTargetColumn;
-        game.cursorRow = game.cursorTargetRow;
+        const [tx, ty] = screen.centreTile();
+        moveCursorTo(tx, ty);
       }
       lastW = game.barMode;
       stepInput();
-      runtime.touchBarNumberX = -1; // the coming tick's bar draw sets it again (read above first)
     },
   };
   return controls;

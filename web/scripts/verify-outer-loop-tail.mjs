@@ -27,6 +27,7 @@ function loadModule(specifier, fromDir) {
 }
 
 const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
+const { stepDemolitionDust, stepHitEffects } = loadModule("./sim/world/MapUpkeep", srcDir);
 
 // No active slots in either the r() (mainArrays.d) or s() (mainArrays.e)
 // tables: both scans are genuine no-ops, no exception, no throw.
@@ -35,25 +36,28 @@ const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
   assert.doesNotThrow(() => rt.stepGameplayOuterLoop());
 }
 
-// s() alone: an expiring effect slot (timer>=20) fires onSlotAction ->
-// stepLegacyFD (final void d(int)) for real, setting pendingP when
-// wByte===2 and the slot's id matches qCounter.
+// s()'s timers are the game step's since 2026-10-27 (sim/world/MapUpkeep.ts): the drawing
+// leaves an expiring slot alone; stepDemolitionDust expires it, its onSlotAction ->
+// stepLegacyFD (final void d(int)) setting pendingP when wByte===2 and the slot's id matches
+// qCounter.
 {
   const rt = new LegacyRuntimeState();
   rt.mainArrays.e[0][0] = 7; // slot 0: entity id 7
-  rt.mainArrays.e[1][0] = 20; // timer already expired
+  rt.mainArrays.e[1][0] = 19; // reaches 20 on the next step
   rt.game.barMode = 2;
   rt.game.qCounter = 7;
   rt.game.pendingP = false;
   rt.stepGameplayOuterLoop();
+  assert.equal(rt.game.pendingP, false);
+  assert.equal(rt.mainArrays.e[0][0], 7);
+  stepDemolitionDust(rt);
   assert.equal(rt.game.pendingP, true);
   assert.equal(rt.mainArrays.e[0][0], 0); // slot freed
 }
 
 // r(): an active kind-1 slot that passes the viewport/occupancy gate reads
-// f.b:[S] (#245 = saveOffsets). CORRECTED 2026-09-28: this used to assert
-// the retracted "permanently null" throw; r() now completes, so s() runs
-// in the same tick and its expiring slot sets P.
+// f.b:[S] (#245 = saveOffsets) and draws without throwing or writing; the
+// step's stepHitEffects advances its frame.
 {
   const rt = new LegacyRuntimeState();
   rt.game.cameraColumn = 0;
@@ -65,13 +69,10 @@ const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
   rt.mainArrays.d[6][0] = 1; // slotKind 1 -> triggers the null-deref branch
   rt.denseState[1919 + 0] = 1; // shouldDraw's extra slotKind===1 gate
   rt.occupancyClass = () => 0; // stub: force the "passable" class so the gate passes
-  rt.mainArrays.e[0][1] = 9; // an s()-side expiring slot that should NOT fire this tick
-  rt.mainArrays.e[1][1] = 20;
-  rt.game.barMode = 2;
-  rt.game.qCounter = 9;
-  rt.game.pendingP = false;
   assert.doesNotThrow(() => rt.stepGameplayOuterLoop());
-  assert.equal(rt.game.pendingP, true); // s() ran after r()
+  assert.equal(rt.mainArrays.d[1][0], 0);
+  stepHitEffects(rt);
+  assert.equal(rt.mainArrays.d[0][0], 0); // byteRows[9][5] is 0 here: the first step ends it
 }
 
 // Row-end-marker tail: ad===0 && ae===0 && outerLoopNFlag -> record 30 at (218,11).

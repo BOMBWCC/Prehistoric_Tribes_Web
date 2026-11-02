@@ -1,4 +1,3 @@
-import { hdArt } from "../../render/HdArt";
 import type { LegacyRuntimeState } from "../../core/LegacyRuntimeState";
 import { LegacyGameState } from "../../core/LegacyGameState";
 import type { Graphics } from "../../platform/Graphics";
@@ -52,7 +51,8 @@ import { stepLegacySpriteLayerLoop } from "../../render/LegacySpriteLayerLoop";
 import { stepLegacySpriteLayerPredicateA, stepLegacySpriteLayerPredicateB } from "../../render/LegacySpriteLayerPredicates";
 import { stepLegacyEntityOverlayDraw } from "../../render/LegacyEntityOverlayDraw";
 import { stepLegacyAp, stepLegacyAj } from "../../ui/LegacyStateMachine";
-import { BLD_HP, BLD_KIND, BLD_OWNER, BLD_WORK, BLD_WORKER_HEAD, BLD_X, BLD_Y, UNIT_NEXT_WORKER } from "../../core/DenseLayout";
+import { BLD_HP, BLD_KIND, BLD_OWNER, BLD_WORK, BLD_WORKER_HEAD, BLD_X, BLD_Y, UNIT_NAME, UNIT_NEXT_WORKER } from "../../core/DenseLayout";
+import { villagerName } from "../../story/StoryData";
 import { liveView } from "../../core/LegacyRuntimeState";
 import { stepSubsystemAnFor, stepSubsystemP, subsystemB, subsystemBBoolean, subsystemD, subsystemEntityAAlert, subsystemEntityJTrigger, subsystemEntityTransform, subsystemG, subsystemH, subsystemMarkerRescan, subsystemMarkerScan, subsystemPrivateO, subsystemRecordRecovery, subsystemTenSlotRelease, subsystemTenSlotReleaseEntity } from "../tribe/TribeRuntime";
 import { T_BUILDING } from "../../core/DataTables";
@@ -573,7 +573,7 @@ export function stepEntityKPredicate(rt: LegacyRuntimeState, id: number, team: n
         onSelectionRefresh: (a, b, c, d) => rt.runSelectionFlagsRefresh(a, b, c, d),
       }, victim),
       onRegister: (copy) => indexLegacyEntityRecord(rt.entityRecordLifecycleInput(), copy),
-      onRefresh: (copy) => initializeLegacyEntityRecord(rt.entityRecordLifecycleInput(), copy),
+      onRefresh: (copy) => initializeUnitRecord(rt, copy),
       onMoveTrigger: (action, moveId, id2) => rt.entityMove(action, moveId, id2),
     }, record),
     onVacate: (kind, x, y, target) => rt.vacateEntity(kind, x, y, target),
@@ -712,6 +712,12 @@ export function stepEntityDecisionCheck(rt: LegacyRuntimeState, id: number): boo
 }
 
 /** Shared inputs for `f.g(int)` / `f.b(byte)` (LegacyEntityRecordLifecycle.ts). */
+/** f.g(int): the unit's name index, and its name as text from the current language's library. */
+export function initializeUnitRecord(rt: LegacyRuntimeState, id: number): void {
+  initializeLegacyEntityRecord(rt.entityRecordLifecycleInput(), id);
+  rt.unitNames[id] = villagerName(rt.villagerNames, rt.language, rt.denseState[UNIT_NAME + id] ?? 0);
+}
+
 export function entityRecordLifecycleInput(rt: LegacyRuntimeState) {
   return {
     state: rt.denseState,
@@ -1118,15 +1124,12 @@ export function stepEntityAction(rt: LegacyRuntimeState, id: number, x: number, 
   // chief/selected unit's orange clothes showed yellow): the renderer kept the value from before p().
   const game = rt.game;
   let loopAn: { an: number } | null = null;
-  // The HD wide view (render/HdArt.ts): an animal's frame with an HD picture -- its sprite layers
-  // go to a scratch canvas, and the picture where they landed.
-  const hdAnimal = hdArt.active && arg5 === 108 ? hdArt.planAnimal(rt, id, x, y) : null;
   const packed = data && rt.imageGroups[0]
     ? new LegacyPackedSpriteRenderer({
         shortTables: data.shortTables,
         byteTables: data.byteTables,
         imageGroups: rt.imageGroups,
-        graphics: hdAnimal?.graphics ?? graphics[rt.game.targetSlot] as Graphics,
+        graphics: graphics[rt.game.targetSlot] as Graphics,
         get an() { return loopAn ? loopAn.an : game.anInt; },
       })
     : undefined;
@@ -1174,7 +1177,6 @@ export function stepEntityAction(rt: LegacyRuntimeState, id: number, x: number, 
         onDrawSprite: (index, x, y) => packed?.drawSprite(index, x, y),
         onDrawComposite: (index, x, y) => packed?.drawComposite(index, x, y),
       });
-      hdAnimal?.after();
       rt.game.anInt = loop.an;
       rt.game.aoInt = loop.ao;
       rt.game.apInt = loop.ap;

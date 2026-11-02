@@ -7,7 +7,8 @@
 //   npm run scenarios -- --jobs 1     tests run side by side (default 2: the user's machine stays usable)
 //   npm run scenarios -- --bless      accept the current results as the new baselines (tests/baseline/)
 //
-// A test file in tests/scenarios/ exports an array of { name, boot?: "debug" | "real", run(t) }.
+// A test file in tests/scenarios/ exports an array of { name, boot?: "debug" | "real", query?, dpr?, run(t) }
+// (query: added to the page's address; dpr: the device pixel ratio, default 1).
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -33,24 +34,24 @@ for (const file of fs.readdirSync(path.join(webDir, "tests/scenarios")).filter((
 }
 const chosen = tests.filter((test) => filters.length === 0 || filters.some((f) => test.name.includes(f) || test.file.includes(f)));
 
-const server = await createServer({ root: webDir, logLevel: "error", server: { port: 0, hmr: false, watch: null } });
+const server = await createServer({ root: webDir, logLevel: "error", server: { port: 0, strictPort: false, host: "localhost", hmr: false, watch: null } }); // any free port, not the dev server's fixed 5173
 await server.listen();
 const url = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 
 /** The helpers a test's run(t) gets. */
 async function makeContext(test) {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: test.dpr ?? 1, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.addInitScript(() => { try { localStorage.clear(); } catch { /* none */ } });
-  await page.goto(url);
+  await page.goto(url + (test.query ?? ""));
   if (test.boot === "real") {
     await page.waitForFunction(() => document.querySelector(".start-menu")?.dataset.page === "main", null, { timeout: 60_000 });
   } else {
     await page.waitForFunction(() => !!window.__prehistoricDebugBootWithoutSplash);
-    await page.evaluate(async () => { window.__prehistoricWideEvery = 1; await window.__prehistoricDebugBootWithoutSplash(); });
+    await page.evaluate(async () => { await window.__prehistoricDebugBootWithoutSplash(); });
     await page.addScriptTag({ path: path.join(root, "tools/debug/stage.js") });
     await page.addScriptTag({ path: path.join(webDir, "tests/inspect.js") });
   }
@@ -61,7 +62,7 @@ async function makeContext(test) {
     /** Runs `fn` in the page (S, T and the runtime are there) with `arg`. */
     eval: (fn, arg) => page.evaluate(fn, arg),
     /** Ticks and draws `n` frames, as the real loop does. `wide` false skips the HD map view (faster). */
-    step: (n = 1, wide = true) => page.evaluate(([n, wide]) => { window.__prehistoricWideEvery = wide ? 1 : 1000; S.step(n); }, [n, wide]),
+    step: (n = 1) => page.evaluate((n) => S.step(n), n),
     /** Steps until `predicate` (a page function of `arg`) is true, `chunk` frames at a time; returns
      *  the frames it took, fails after `max`. */
     async until(predicate, { max = 3000, chunk = 25, arg, wide = false, what = "condition" } = {}) {
@@ -122,6 +123,12 @@ async function runOne(test) {
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   } finally {
+    // OLD_ART=<file>: what of the original's pictures reached the screen (platform/OldArt.ts), one
+    // JSON line per scenario -- for checking what still needs the original's image packs.
+    if (process.env.OLD_ART) {
+      const art = await t.page.evaluate(() => window.__oldArt?.() ?? []).catch(() => []);
+      fs.appendFileSync(process.env.OLD_ART, `${JSON.stringify({ test: `${test.file} / ${test.name}`, art })}\n`);
+    }
     await context.close();
   }
   const seconds = ((Date.now() - started) / 1000).toFixed(1);

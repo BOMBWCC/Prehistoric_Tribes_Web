@@ -1,0 +1,362 @@
+{
+  "intro": [
+    {"picture":"story-00.jpg","speaker":"narrator","pages":["Long ago these lands were a verdant wonderland.","giant mammoths roamed the forests, huge birds eclipsed the sun with their mighty wings and beasts of","unimaginable size and power swam the lakes and rivers.","there was no place for man in this wild world..."]},
+    {"picture":"story-01.jpg","speaker":"narrator","pages":["Then the ice age began and killed everything."]},
+    {"picture":"story-02.jpg","speaker":"narrator","pages":["Well, almost everything... i mean you wouldn't be here reading this if everything had died...","anyway, among the few creatures that survived was primitive man.","eking out a meagre and extremely chilly existence, huddled around fires in dismal caves.","so it was with one tribe in particular, the avnotaklu tribe, until one day..."]}
+  ],
+  "cave-awakening": [
+    {"scene":"cave-wake"},
+    {"scene":"cave-mumbo"},
+    {"speaker":"mumbo","pages":["Chief! chiieeef! you have to come and see this!"]},
+    {"scene":"cave-chief"},
+    {"speaker":"chief","pages":["Mumbo! you buffoon! what's all this fuss?!?"]},
+    {"scene":"cave-mumbo"},
+    {"speaker":"mumbo","pages":["The-the-the-the-the ice! i-i-it's gone! th-th-the ice age is o-over!","the s-s-sun is sh-shining, the birds are s-s-singing...","it's beautiful!"]},
+    {"scene":"cave-chief"},
+    {"speaker":"chief","pages":["What are you gibbering about? i didn't know you had a stutter?!?"]},
+    {"scene":"cave-mumbo"},
+    {"speaker":"mumbo","pages":["I d-d-don't chief, it's cold out there that's all!","you don't understand, we can go outside again!"]},
+    {"scene":"cave-chief"},
+    {"speaker":"chief","pages":["What?!? outside?!?","i always knew you were a mammoth short of a herd mumba, but this","takes the cake!"]},
+    {"scene":"cave-mumbo"},
+    {"speaker":"mumbo","pages":["What's a cake? oh never mind that now, come and see for yourself!"]},
+    {"scene":"cave-chief"},
+    {"speaker":"chief","pages":["By all that's unwashed and hairy, he's right!","i always knew you were a clever one mumba! triiiiiiibe! listen up!"]},
+    {"scene":"cave-gather"},
+    {"scene":"cave-shout"},
+    {"speaker":"chief","pages":["The time has come to leave this cave and venture forth!","get your behinds out there!"]},
+    {"scene":"cave-leave"}
+  ],
+  "arrival": [
+    {"speaker":"mumbo","pages":["It...","it's been so long since we saw the sunlight playing on the water,","the animals gamboling on the lush green grass, the trees","swaying gently in the breeze..."]},
+    {"speaker":"chief","pages":["I'm hungry! and it's cold! go and find me some shelter...","and get me something to eat while you're at it!","what do you think this is, a poetry workshop?","jump to it you slack-jawed simpletons!"]},
+    {"speaker":"mumbo","pages":["Thousands of years in a cave and all he can think about is his","stomach...","well, better get building...","let's start with some huts, a store and a kitchen, we'll need to","gather materials to build with...","let's get to work!"]}
+  ],
+  "mumbo-hello": [
+    {"scene":"mumbo-hello"},
+    {"speaker":"mumbo","pages":["Hi there, they say that i could talk the hind legs off a mammoth, so","i've been chosen to teach you how to get things done around","here.","At the top of the screen you can see the current population of","our tribe, the amount of living space and the amount of recources","we have stored."]}
+  ],
+  "tut-chiefs-hut": [
+    {"speaker":"mumbo","pages":["The building in front of me is the hub of our village, the chief's hut.","this is where our cultured, sensitive...","well this is where our chief lives anyway.","first-rate chap, by the way, if a little unhinged.","sometimes the elders gather here to sleep- errr, i mean discuss","vital issues!","First of all let's build a store for the things we gather.","tap the build button in the bottom right corner to open the","building list.","find the store, its cost is shown under its picture.","tap it and a see-through store will appear on the map.","hold the store and drag it onto a free space.","green underneath means it fits, red means it can't go there.","once you have found a suitable space, tap the tick at its top right to","place the building."]}
+  ],
+  "tut-building-site": [
+    {"speaker":"mumbo","pages":["Good! now we must send a villager to the building site.","tap any villager to select them.","Once selected, an information panel will appear at the bottom","of the screen, see?","take a look around, i'll wait here...","don't worry, i'm not in any hurry...","i mean, it's not as if i have my own things to be getting on with..."]}
+  ],
+  "tut-skills": [
+    {"speaker":"mumbo","pages":["Each person has a set of skills.","when they're young, their skills are very basic.","as a villager performs a task their skill in that task gets higher.","the higher the skill, the better and faster the task is performed.","Select a villager with a high building skill, then tap the building","site to send them to build the store.","an icon flashes where you tapped to show the order was given.","notice how his building skill improves as he builds it."]}
+  ],
+  "tut-more-builders": [
+    {"speaker":"mumbo","pages":["If you're in a hurry, or just pure impatient, you can send an additional","worker to the yard to help build it faster.","Let's gather some wood and stones to build with.","select a villager, then tap a tree to send them to harvest wood."]}
+  ],
+  "tut-stones": [
+    {"speaker":"mumbo","pages":["Now do the same, but tap some stones instead of a tree,","there's plenty of them around, after all, this is the stone age!","i can't believe i just said that..."]}
+  ],
+  "tut-huts-kitchen": [
+    {"speaker":"mumbo","pages":["Why don't we try and build some huts and a kitchen while we're","waiting for the store to be built.","gadzooks, was that a bear?!?","oh, it was just the chiefs stomach rumbling.","we'd better hurry up and gather some food.","that bush next to the chiefs hut is covered with berries, let's try","that."]}
+  ],
+  "tut-huts": [
+    {"speaker":"mumbo","pages":["Huts are needed for resting and... errrr...","privacy, if you take my meaning. you don't? oh...","well, when a caveman and a cavewoman love each other very much","they may decide to make a little caveperson...","that's why you need huts.","try and make sure everyone in the village has somewhere to","sleep or they get cranky."]}
+  ],
+  "tut-orders": [
+    {"speaker":"mumbo","pages":["Now let's try ordering some people about.","after all, what's the point in having all this power if you can't","abuse it?","press and hold on the map, then drag your finger to stretch a","frame over some villagers.","let go to select them as a group.","with a group selected, tap the '+' on the right to save them as a","squad.","tap the squad at any time to select them again, and the view","jumps to them.","press and hold it to replace or disband the squad."]}
+  ],
+  "tut-find-people": [
+    {"speaker":"mumbo","pages":["Let me show you another useful thing, that will help you to","find your villagers quickly.","tap the command button in the bottom right and choose","'villagers', a row of your villagers will appear at the bottom.","tap a face to see full information about that villager, then tap the","tick to select them."]}
+  ],
+  "kitchen-built": [
+    {"speaker":"mumbo","pages":["Ah good, the kitchen is finished...","notice the exclamation mark on it?","that means we need to find someone to cook for us.","select a villager, then tap the kitchen to send them to cook."]}
+  ],
+  "tut-mumbo-leaves": [
+    {"speaker":"mumbo","pages":["Good job! i'm going to grab some food, i'll be back a bit later.","in the meantime you can practice what you've learnt, there's still","much to do!"]}
+  ],
+  "savages-coming": [
+    {"speaker":"mumbo","pages":["Chief! some strange feral looking men are running towards the","camp very quickly, what should we do?"]},
+    {"speaker":"chief","pages":["Ah, it's probably just our new neighbours coming to","congratulate us on our fine new village!","or maybe they're door to door salesmen?"]},
+    {"speaker":"mumbo","pages":["Ermmm... they look very angry...","and they seem to be brandishing clubs in a threatening manner..."]},
+    {"speaker":"chief","pages":["Nonsense! who on earth would want to harm us?","now go and welcome them! that's an order!"]},
+    {"speaker":"mumbo","pages":["Y-y-yes chief... *gulp*"]},
+    {"speaker":"chief","pages":["What is it with people and stutters around here?"]},
+    {"speaker":"mumbo","pages":["Arrrgh! that hurts! ouch! why? oh god why!"]},
+    {"speaker":"chief","pages":["Oh my... i guess they're not friendly after all...","we'd probably better stop them..."]}
+  ],
+  "tut-call-to-arms": [
+    {"speaker":"mumbo","pages":["Me again!","now seems like the perfect opportunity to teach you the 'call to","arms' command!","this command will order all of your villagers to grab","whatever weapons are available and assemble at a location.","tap the command button (the horn) in the bottom right and","choose 'call to arms!","'. a flag appears in the middle of the screen: drag the map to put it","where they should gather, then tap the tick."]}
+  ],
+  "tut-send-back": [
+    {"speaker":"mumbo","pages":["Scary aren't they? i wouldn't want to mess with them...","to send them back to work, tap the command button again and","choose 'back to work'!"]}
+  ],
+  "close-call": [
+    {"speaker":"mumbo","pages":["Well that was a close call, we could have been toast then!"]},
+    {"speaker":"chief","pages":["What's toast?","lucky i noticed their violent intentions, otherwise someone","could've gotten hurt!","well... someone else could've gotten hurt.","it seems that our neighbours may have different dietary","requirements to us...","one of them bit me!"]},
+    {"speaker":"mumbo","pages":["You don't mean that they're..."]},
+    {"speaker":"chief","pages":["Yes! zombies! it's probably only a matter of time before i turn!","save me!"]},
+    {"speaker":"mumbo","pages":["I was actually thinking cannibals chief...","but your explanation is far more plausible.","either way, we'd better start thinking about protecting ourselves","unless we want to spend our last minutes smothered in ketchup","with wooden stakes up our..."]},
+    {"speaker":"chief","pages":["You're right!","i know let's build ourselves a gym, with a spar and a juice bar","and a flirty receptionist named 'kim'!"]},
+    {"speaker":"shaman","pages":["Yes! well, no! but yes to the gym!","and we can make ourselves new and better weapons!","fists and stones are no match for spears and clubs!","let's build ourselves an armoury too!"]},
+    {"speaker":"chief","pages":["We should also build some kind of range where we can improve","our throwing skills..."]},
+    {"speaker":"mumbo","pages":["You mean like a throwing range?"]},
+    {"speaker":"chief","pages":["Exactly! egads i'm clever, no wonder i'm chief!","so then, i hereby decree that we must build a gym, an armoury and a","throwing range!","we'll be ready if those zombies come after us again!","And don't forget to keep an eye out!","we never know when our cannibalistic counterparts will","come sniffing around here again!","we must keep our people safe... especially me!"]}
+  ],
+  "tut-weapons": [
+    {"speaker":"mumbo","pages":["What the chief wants, the chief gets.","to train warriors we'll need weapons.","after all, what's a warrior without a weapon?","let's build an armoury, to make weapons and a gym and a range for","our warriors to learn how to use them."]}
+  ],
+  "tut-chief": [
+    {"speaker":"mumbo","pages":["I ought to mention a bit about the chief.","being chief is a big deal around here, everyone looks to them for","guidance and support.","whoever is chief gives a bonus to themselves and everyone around","them in whatever task they are doing.","for example, warriors will fight harder if the chief is around.","look busy, the boss is coming!"]}
+  ],
+  "tut-happiness": [
+    {"speaker":"mumbo","pages":["While those are building, let's talk about happiness.","are you happy? i hope so!","in the tribe, happiness determines how willing people are to","reproduce and work.","unhappy people will mope about and ignore your commands.","rest, food and 'tent-time' raise their spirits.","enemy attacks, death, especially the chief's death, hunger,","tiredness and a lack of living space will depress your villagers.","Keep an eye out for what people are thinking, people's","wants and needs appear as thoughts above their heads.","this will help you to understand how to make them happy.","Let's see if we can't put some smiles on these faces!","we can upgrade huts so that people recuperate faster in them, plus","they make for a more romantic environment.","i mean which would you choose? a hovel or a 5 star hotel?"]}
+  ],
+  "tut-upgrade-hut": [
+    {"speaker":"mumbo","pages":["To upgrade the hut, tap it and choose 'upgrade' in the building panel at","the bottom.","you'll need to get a builder in to actually finish the task.","Repairing works in a similar way to upgrading.","if a building is damaged the repair button will appear in its panel","when you tap it."]}
+  ],
+  "armoury-built": [
+    {"speaker":"mumbo","pages":["Ah the armoury is ready, it's time to lock and load!","first of all we need to find someone to man it.","select someone and then tap the armoury.","now, with nobody selected, tap the armoury again: the","panel at the bottom shows which weapons you can make here.","each weapon's cost is shown under it.","swipe left or right to change how many to make, and the","armourer will spring into action!"]}
+  ],
+  "tut-weapon-store": [
+    {"speaker":"mumbo","pages":["When the armourer finishes making a weapon he will bring it","to the store for your villagers to collect.","let's arm a villager.","with nobody selected, tap the store to see what's been made and","how many.","tap a weapon, then tap the tribe member you want to arm on the map","and tap the tick.","there we go. careful! you'll have someone's eye out with that!","to arm more villagers, choose a weapon from the store again."]}
+  ],
+  "tut-training": [
+    {"speaker":"mumbo","pages":["Now you can send the armed villagers to train, by selecting","them and clicking on the gym.","just remember that they must have a weapon to train.","when their skill reaches maximum they will leave the gym of","their own accord."]}
+  ],
+  "warriors-arrive": [
+    {"speaker":"mumbo","pages":["Hail chief, here are our finest and most ferocious warriors!"]},
+    {"speaker":"chief","pages":["Good, good, they look like they could give those zombies a good","pummeling!","now let's go and see what sort of decrepit hovels those","man-eating psychopaths call home...","who knows, maybe we'll be able to reason with them?"]}
+  ],
+  "do-better": [
+    {"speaker":"mumbo","pages":["Not bad but we can do better!","let's have a think about how we can improve it.","don't worry though, real warriors are tempered in the fray!","It's time to go and take on the world!","tap the command button and choose 'form up!","', drag the map to put the flag where they should gather, then","tap the tick.","this will gather all of your available warriors at that spot.","to send them away again, choose 'dismiss' from the command","button."]}
+  ],
+  "peace-talk": [
+    {"scene":"peace-talk"},
+    {"speaker":"mumbo","pages":["Dear man-eating psychopaths, we...."]},
+    {"speaker":"cannibal","pages":["Grrrrr! rwwaaooorrrr! grrrrr!"]},
+    {"speaker":"mumbo","pages":["We come in peace!"]},
+    {"speaker":"cannibal","pages":["Grrrr! woof! woof! grrrrrrrrrrr!"]},
+    {"speaker":"mumbo","pages":["We'd better get out of here now if we want to leave in peace, one piece","that is!","leg it!"]}
+  ],
+  "not-friends": [
+    {"speaker":"mumbo","pages":["We found them and it appears that they're not interested in being","our friends...","in fact i think they want to kill and eat us all.","and there are lots of them..."]},
+    {"speaker":"chief","pages":["Nonsense! our men are worth three of theirs!"]},
+    {"speaker":"mumbo","pages":["Even if that were true, they'd still outnumber us ten to one!"]},
+    {"speaker":"chief","pages":["I see... that's a lot of slavering, blood-crazed maniacs...","maybe we should wait until our numbers have grown before we pick a","fight..."]}
+  ],
+  "fish-and-hunt": [
+    {"speaker":"mumbo","pages":["Now that we are armed to the teeth, we can fish or hunt to get","food.","hunting gives not only food but also bones, which are needed to","make better weapons and upgrade buildings.","To fish, select a tribesman with a spear and tap where the fish","splash in the water.","Hunting can be dangerous, wild animals will attack","your hunters so they must be well trained and armed."]}
+  ],
+  "ready": [
+    {"speaker":"mumbo","pages":["Ok, now you should know everything you need to survive.","but keep your wits about you, because your tribe doesn't have","any of their own!"]}
+  ],
+  "m2-intro": [
+    {"picture":"story-03.jpg","speaker":"narrator","pages":["Thus the avnotaklu tribe chased it's hostile neighbours from the land.","they liked the look of their enemies village, particularly what they had done with the curtains.","so they decided to move in.","they found the land bounteous, with animals roaming free and fruit in abundance.","and so the elders met to discuss the tribes' fate and how to get the smell of cooked caveman out of the carpet..."]}
+  ],
+  "enemy-among-us": [
+    {"speaker":"chief","pages":["Our enemy could be anywhere...","he may even be amongst us right now! is it you? or you? hmmm?"]},
+    {"speaker":"mumbo","pages":["They're cannibals not chameleons chief...","besides, our builders have learnt to craft watch towers, so that","we can see further and defend from range.","we should build some around the village and post sentries."]},
+    {"speaker":"shaman","pages":["We lost many people in the last fight...","if we have another head on confrontation like that there'll be none","of us left...","we should build a place where we can study the art of stealth and","misdirection, so that we can take our foes by surprise."]},
+    {"speaker":"chief","pages":["I like it! we could call them the pia!","the prehistoric intelligence agency!","we'll need to give them badges..."]},
+    {"speaker":"mumbo","pages":["Ooooookay, on a slightly less whimsical note, our armourer","says that he can produce better weapons and traps to","keep the savage crazies at bay."]},
+    {"speaker":"chief","pages":["You know guys... i've been thinking...","maybe the gods are angry with us?"]},
+    {"speaker":"mumbo","pages":["What gods?"]},
+    {"speaker":"chief","pages":["You know, the gods... the ones that make it rain and stuff!"]},
+    {"speaker":"mumbo","pages":["Isn't that a bit of an assumption?","i mean, maybe it's water vapour gathering in the skies and forming","clouds, which then burst and release the water back onto the","earth?"]},
+    {"speaker":"chief","pages":["Pffffftt, listen to yourself and your 'watery ghost clouds'!","you're crazy you are!","besides, now is not the time for a theological debate!","let us honour the gods with a sanctuary... just in case.","I want to see towers, a pia centre and a sanctuary  to the gods","built by sunrise!"]}
+  ],
+  "cannibals-speak": [
+    {"scene":"cannibal-speaks"},
+    {"speaker":"cannibal","pages":["We here speak!"]},
+    {"speaker":"mumbo","pages":["Haha! look, he's trying to speak! haha!"]},
+    {"speaker":"cannibal","pages":["You take we land! we take land back!"]},
+    {"speaker":"mumbo","pages":["Our land now! you go or we kill! you illiterate... err...","no-speak-no-good person!"]},
+    {"speaker":"cannibal","pages":["Well i say! there's no need to be rude! right! that's it!","no more mister nice-savage!"]}
+  ],
+  "fight-back": [
+    {"speaker":"mumbo","pages":["Are we gonna take this lying down?","i say we give these ragamuffins a damn good hiding!"]},
+    {"speaker":"chief","pages":["Oh wise and venerable shaman, what do the gods say?"]},
+    {"speaker":"shaman","pages":["Hang on a mo... uh-huh.. yup.. yeah, they say do it."]},
+    {"speaker":"chief","pages":["Well, if the gods say we go, that's good enough for me!","are you sure that's what they said?"]},
+    {"speaker":"shaman","pages":["Of course i'm sure, would i lie to you?"]},
+    {"speaker":"chief","pages":["Oh, right, yes..","then let's show these savages what it means to trifle with the","avnotaklu!"]}
+  ],
+  "raid": [
+    {"scene":"raid"}
+  ],
+  "captives": [
+    {"scene":"captives"},
+    {"speaker":"cannibal","pages":["I say, that's shown them!","these helpless women and children look delectable!","You thought you'd won, but we tricked you!","muaha-ahaha-ahem... yes, very clever."]}
+  ],
+  "taken-away": [
+    {"scene":"taken-away"},
+    {"speaker":"mumbo","pages":["They've nicked all our women and kids!"]},
+    {"speaker":"shaman","pages":["Woohoo! we're free! free from the yolk of female oppression!"]},
+    {"speaker":"mumbo","pages":["What are you so happy about genius?!?","don't you know the first thing about reproduction?","who's going to have our babies! we're done for!"]},
+    {"speaker":"chief","pages":["Come men! let us go and save our people from the cooking pot!"]}
+  ],
+  "m3-intro": [
+    {"picture":"story-04.jpg","speaker":"narrator","pages":["And so it was that the avnotaklu separated and went in search of their families...","they searched high and low, near and far and farther still, higher and lower and... well you get the idea..."]}
+  ],
+  "smell-food": [
+    {"speaker":"chief","pages":["Mmmmm, do you smell that? it smells delicious!","i'm starving, what do you think they're cooking?"]},
+    {"speaker":"mumbo","pages":["Your family idiot!","we must find our way to them as soon as we can!","there is no time to lose!"]}
+  ],
+  "sabretooth": [
+    {"speaker":"mumbo","pages":["Crikey! that's a lot of big sharp pointy teeth!","we'd better sneak around them... you go first!"]},
+    {"speaker":"shaman","pages":["Why me?"]},
+    {"speaker":"mumbo","pages":["Age... before beauty...?"]},
+    {"speaker":"shaman","pages":["Oh never mind!"]}
+  ],
+  "enemy-camp": [
+    {"speaker":"mumbo","pages":["Ssssssshhh! i think that's their settlement...","let's see if we can't get closer..."]},
+    {"speaker":"shaman","pages":["Okay good luck!"]},
+    {"speaker":"mumbo","pages":["I was actually thinking of sending the scout we have next to us..."]},
+    {"speaker":"shaman","pages":["Oh right! yes, of course...","are you sure you don't want me to go? because i would go...","only i've got this cough..."]},
+    {"speaker":"scout","pages":["I'll just go then shall i? fine."]}
+  ],
+  "scout-report": [
+    {"speaker":"scout","pages":["I've found them!","the guards are old and weak and all the others are busy","dancing round a fire...","stupid primitives!","i say we rush in, kill them all and leave as heroes!"]},
+    {"speaker":"mumbo","pages":["or we could build this giant wooden mammoth, then we wait","til sundown and..."]},
+    {"speaker":"shaman","pages":["Are you mad?!? i don't want to get eaten! do you want to get eaten!","all covered in gravy... no wait, onion gravy... a fine wine..."]},
+    {"speaker":"mumbo","pages":["Shut up bonehead! we need a plan!"]},
+    {"speaker":"shaman","pages":["Oh yeah? well i have a plan!"]},
+    {"speaker":"mumbo","pages":["Oh yeah? what plan's that then?"]},
+    {"speaker":"shaman","pages":["We could lead a pack of ravenous blood thirsty tigers into","their camp and let them do our dirty work for us?"]},
+    {"speaker":"mumbo","pages":["Where are we going to get a large pack of ravenous blood","thirsty tigers at a time like this!?!"]},
+    {"speaker":"shaman","pages":["Sometimes i look at you and i fear for the future of our race..."]}
+  ],
+  "lure-tiger": [
+    {"scene":"lure-tiger"},
+    {"speaker":"mumbo","pages":["Here kitty kitty! who's a vicious little killer then, eh?"]},
+    {"scene":"tiger-chase"},
+    {"speaker":"mumbo","pages":["You can't catch me nyah nyah!"]},
+    {"scene":"tiger-attack"},
+    {"speaker":"mumbo","pages":["Eeep! time to leave!"]}
+  ],
+  "find-captives": [
+    {"speaker":"mumbo","pages":["It looks like they've had their fill, we'd better find the women","and kids before they get hungry again!"]},
+    {"speaker":"shaman","pages":["They're in this hut... hmm the doors locked...","i think we're gonna have to break it down..."]}
+  ],
+  "rescued": [
+    {"speaker":"mumbo","pages":["You saved us, our big strong, muscular heroes!"]},
+    {"scene":"reunion"},
+    {"speaker":"shaman","pages":["Where's there a hut around here when you need one!"]}
+  ],
+  "back-home": [
+    {"picture":"story-05.jpg","speaker":"narrator","pages":["And so the men and women of the avnotaklu tribe made their way back home, i won't bore you with the details, it's not","very interesting anyway...","but their joy at returning home was to be short lived..."]}
+  ],
+  "village-flattened": [
+    {"scene":"village-flattened"},
+    {"speaker":"chief","pages":["Our village seems somewhat flatter than when we left it.","who's that curious looking chap over there?","what day is it today? what's my name?"]},
+    {"speaker":"mumbo","pages":["I'll go talk to him... Hail stranger, we are the avnotaklu!","what brings you to our village? well what's left of it anyway..."]},
+    {"speaker":"jafar","pages":["My name is jafar and i have come to lead you to the promised land!"]},
+    {"speaker":"mumbo","pages":["Promised land?"]},
+    {"speaker":"jafar","pages":["Yes, where the sun shines all year round, the trees are ripe with","the sweetest fruit and the women are beautiful and have","huge..."]},
+    {"speaker":"chief","pages":["Where is this land?!? we're going there. immediately."]},
+    {"speaker":"jafar","pages":["Aha my friend!","my land lies far under the setting sun, where the women dance naked","in the moonlight, shaking their..."]},
+    {"speaker":"chief","pages":["Right, come on, theres nothing for us here now except maybe","zombies, off we go!"]},
+    {"speaker":"mumbo","pages":["Aren't you even curious about what happened to our village?","he didn't even tell us where this land is supposed to be?"]},
+    {"speaker":"jafar","pages":["You must head south until the moon turns itself around.","errrrr, then go left.","then go straight on past the mountain, take another left and it","should be right in front of you...","dancing... naked..."]},
+    {"speaker":"chief","pages":["Come on, we've wasted enough time! let's go!"]},
+    {"speaker":"mumbo","pages":["But what about the elders?"]},
+    {"speaker":"chief","pages":["They agree. look see, all agreeing. now move!"]},
+    {"scene":"follow-jafar"}
+  ],
+  "m4-intro": [
+    {"picture":"story-06.jpg","speaker":"narrator","pages":["And so it was that the avnotaklu once again left their homes.","you'd think they'd have learnt really, after everything they'd been through, but nooooo, they just had to go","gallivanting off..."]},
+    {"picture":"story-07.jpg","speaker":"narrator","pages":["After many days a mountain loomed on the horizon and at it's feet there stood an oasis.","the tribesmen decided to build a camp to rest before continuing with their journey..."]}
+  ],
+  "rest-stop": [
+    {"speaker":"chief","pages":["Let's stop here and rest a while.","we have water, food and there are no zombies as far as i can","see."]},
+    {"speaker":"mumbo","pages":["Chief, the tribe are miserable, they don't want to go any","further, can't we just go home?"]},
+    {"speaker":"chief","pages":["No! we must carry on!","there's nothing but zombies for us back home!","we cannot give up on this naked dancing! paradise!","i mean paradise!"]},
+    {"scene":"quake"},
+    {"speaker":"shaman","pages":["You guys aren't gonna like this...","i've just had a chat with the guys upstairs and they say they're","not happy with us..."]},
+    {"speaker":"chief","pages":["Behold! they have blocked the way back, tis a sign!","we must go on!"]},
+    {"speaker":"shaman","pages":["It's a sign alright chief, a sign that we're stuffed!","i had this dream, yeah and we were all walking through the","desert and we were attacked by barbarians.","everyone ran away except the chief who turned and fought, but","they killed him..."]},
+    {"speaker":"mumbo","pages":["Have you been eating those cactii again?"]},
+    {"speaker":"shaman","pages":["Well... yeah... but that's not the point.","the gods are angry at us for betraying our leader.","so unless you all want to end up dead or enslaved by barbarians","you'd better do as i say and protect the chief."]},
+    {"speaker":"mumbo","pages":["Do we actually have any proof that you can talk to the gods?"]},
+    {"speaker":"shaman","pages":["The gods say you're an idiot and they're gonna smite you to pieces if","you're not careful."]},
+    {"speaker":"mumbo","pages":["Oooooh, i'm scared!"]},
+    {"speaker":"chief","pages":["Silence! i think you're missing the point here, i'm going to die! dead!","no naked dancing, just death!","and all you can think about is whether or not any of what he just","said is actually true!"]},
+    {"speaker":"mumbo","pages":["You make a good case... alright, let's try and keep him in one piece!"]}
+  ],
+  "found-cave": [
+    {"speaker":"mumbo","pages":["Chief! we've found a cave!","It looks deep, maybe it leads through the mountain?","shall we investigate?"]},
+    {"speaker":"chief","pages":["Are you nuts?","we've spent thousands of years in a cave and you want to go","scurrying back into the first one you find?!?","besides, what about the promised land? no way!"]}
+  ],
+  "visitors": [
+    {"speaker":"mumbo","pages":["Chief! looks like we may have some visitors..."]},
+    {"speaker":"stranger","pages":["A thousand greetings, oh mighty chief, we've been expecting you!"]},
+    {"speaker":"chief","pages":["You! where is this promised land! i see no naked dancing!","we've trekked for days across the desert to get here, thanks to","you!"]},
+    {"speaker":"stranger","pages":["This is not the land you seek, but you are here!","and we are in need of slaves, yes, dire need!","it is you who will dance for us fat boy! Attack!","take the women and the children... kill the old ones and the chief!","especially the chief!"]},
+    {"speaker":"mumbo","pages":["The prophecy! that cactii-addled shaman was right!","protect the chief!"]}
+  ],
+  "news": [
+    {"speaker":"mumbo","pages":["Do you want the good news or the bad news?"]},
+    {"speaker":"chief","pages":["Errmmm, the bad news, then the good news will make it better."]},
+    {"speaker":"mumbo","pages":["Well the bad news is that there's only one way out of this hell","hole and that's through the enemies camp."]},
+    {"speaker":"chief","pages":["But that's terrible! what's the good news!"]},
+    {"speaker":"mumbo","pages":["There is no good news... i just didn't want you to hit me..."]},
+    {"speaker":"chief","pages":["Then we'll cut our way through! just as well that you let me know.","and don't worry, i'm not going to hit you...","i'm going to hit you lots!"]},
+    {"speaker":"mumbo","pages":["Ouch! i should've seen that coming.","our people are in a bad way, i'll go talk to the shaman about healing","them...","starting with me."]}
+  ],
+  "watering-hole": [
+    {"speaker":"mumbo","pages":["It seems like we've built our camp near someones watering","hole...","those tigers don't look pleased to see us!"]},
+    {"speaker":"chief","pages":["Zombies, tigers, barbarians, what next?","we'd better keep an eye on them... those teeth look sharp!"]},
+    {"speaker":"mumbo","pages":["Hmmm, we used them against our enemies once...","why not try it again?"]},
+    {"speaker":"chief","pages":["Well volunteered!","better get training, those cats can run pretty fast you know!"]},
+    {"speaker":"shaman","pages":["I've learned some new moves, yeah?","i can conjure disease on the ground and give people niagra to...","well... get them in the mood...","the gods say i'll need a better sanctuary though...","and as many wives as i want."]},
+    {"speaker":"chief","pages":["We're going to have to use every means at our disposal to get out of","this place if we want our freedom."]}
+  ],
+  "m5-intro": [
+    {"picture":"story-08.jpg","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
+  ],
+  "m6-intro": [
+    {"picture":"story-09.jpg","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
+  ],
+  "arrival-promised-land": [
+    {"speaker":"chief","pages":["We have journeyed far and wide to find this place and despite the","distinct lack of naked dancing, it's pretty good!","We have nowhere to go home to and i am tired of wandering, so let us","make this place our home.","we do not know what danger lies in store, but we shall defend","our new home against all comers!","We do not know when peril will strike... oh there it is."]}
+  ],
+  "victory": [
+    {"speaker":"chief","pages":["Well, that showed them.","here we will build the settlement to end all settlements and more","importantly, our home!","now get on with it!"]}
+  ],
+  "barbarians": [
+    {"speaker":"chief","pages":["More barbarians!","i've had enough of these guys, let's deal with them once and for","all!","we will fight for peace!"]},
+    {"speaker":"mumbo","pages":["Err, fighting for peace?","isn't that a bit of a contradiction in terms?"]},
+    {"speaker":"chief","pages":["Shut up and start killing!"]}
+  ],
+  "ending": [
+    {"picture":"story-10.webp","speaker":"narrator","pages":["And so it was that the avnotaklu came to find their home.","so if you ever wonder why we are the way we are, all you have to do is look at where we came from!"]}
+  ],
+  "shaman-intro": [
+    {"scene":"newcomer-shaman"},
+    {"speaker":"shaman","pages":["Alright?","i'm the shaman, i'm the gods' voice around here which means i get","to do pretty much whatever i like, yeah?","this is my sanctuary, where i heal the sick and wounded but i can","also use my voodoo outside.","I can only do two spells at the moment but as the gods get to","know me they will show me more.","'healing' heals people and 'defence' means they get hurt less in","combat.","If you want to heal someone, just send him here.","you can also tap the sanctuary, choose the spell in its panel and","then tap the villager.","you can also queue people and i will  deal with them in turn, just","don't rush me, yeah?","the same goes for 'defence', communing with the gods has","never been so easy!"]}
+  ],
+  "pia-intro": [
+    {"scene":"newcomer-pia"},
+    {"speaker":"scout","pages":["Hi, i'm the first member of the prehistoric intelligence agency.","we can see further than your average tribesman and can hide","in bushes to become undetectable.","the higher our skill, the closer we can get to the enemy without","being seen.","we know everything about everyone... including you!","We can also detect enemy scouts, but that door can swing both","ways, so we must be careful about sneaking up on people.","still, we'll learn more in time, no-one can hide from us, no-one!"]}
+  ],
+  "shaman-upgraded": [
+    {"scene":"newcomer-shaman-up"},
+    {"speaker":"shaman","pages":["Yeah that's more like it!","i can brew the niagra love potion now and call forth plagues to","smite the enemy!","niagra stimulates passion and makes villagers more likely","to go and rattle huts...","'disease' is a nasty spell, so you'd better be careful with it.","it doesn't differentiate friend from foe and it spreads quick!","beware the power of the gods... yeah?"]}
+  ],
+  "upgrade-kitchen": [
+    {"speaker":"mumbo","pages":["I think we need a bigger kitchen...","we can upgrade it to make it seat more and be more comfortable.","this will make the villagers happier!"]}
+  ],
+  "upgrade-armoury": [
+    {"speaker":"mumbo","pages":["An upgrade is available for the armoury, this will allow us to make","better weapons and traps!"]}
+  ],
+  "upgrade-gym": [
+    {"speaker":"mumbo","pages":["We can upgrade the gym and the range now, which will mean that","our warriors can train their skills higher and increase their hit","points quicker!","feel the burn!"]}
+  ],
+  "upgrade-disco": [
+    {"speaker":"mumbo","pages":["We could add a jacuzzi and a bar to the disco, to help these jive","turkeys mellow, you dig?","alright!"]}
+  ],
+  "upgrade-tower": [
+    {"speaker":"mumbo","pages":["Our towers can be upgraded, to make them sturdier and more","resilient to attack."]}
+  ],
+  "upgrade-sanctuary": [
+    {"speaker":"mumbo","pages":["We can improve the sanctuary, which will allow our shaman to","cast better spells."]}
+  ],
+  "upgrade-pia": [
+    {"speaker":"mumbo","pages":["The pia centre can be upgraded now!","this will allow our agents to train their skill higher!"]}
+  ]
+}

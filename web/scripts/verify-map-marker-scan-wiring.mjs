@@ -39,7 +39,9 @@ function loadModule(specifier, fromDir) {
 
 const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
 
-// --- decay pass runs for real (part 1: dense[8871+i] bit-0 clear, dense[9176+i] clamp) ---
+// --- the decay pass (part 1: dense[8871+i] bit-0 clear, dense[9176+i] clamp) runs inside the
+// drawing, which puts both ranges back afterwards (2026-10-27: the game keeps only whether a
+// building was seen, sim/world/MapUpkeep.ts) ---
 {
   const rt = new LegacyRuntimeState();
   rt.denseState[8871 + 5] = 3; // bit 0 set
@@ -53,8 +55,8 @@ const { LegacyRuntimeState } = loadModule("./core/LegacyRuntimeState", srcDir);
   } catch (e) { threw = String(e); }
 
   assert.equal(threw, null);
-  assert.equal(rt.denseState[8871 + 5], 2); // bit 0 cleared (3 & 254 = 2)
-  assert.equal(rt.denseState[9176 + 5], 5); // clamped down from 9
+  assert.equal(rt.denseState[8871 + 5], 3);
+  assert.equal(rt.denseState[9176 + 5], 9);
 }
 
 // --- resourceNodeTable really is game.xSlotTable (part 3: resource-node sprite draw) ---

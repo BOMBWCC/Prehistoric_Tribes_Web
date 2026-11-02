@@ -26,7 +26,7 @@ export function attachMiniMap(app: HTMLElement, runtime: LegacyRuntimeState, scr
   const close = document.createElement("button");
   close.type = "button";
   close.className = "minimap-close";
-  close.setAttribute("aria-label", "返回游戏");
+  close.dataset.uiLabel = "a11y.backToGame";
   close.innerHTML = '<img src="hd/ui/btn-close.png" alt="">';
   page.append(scroller, close);
   app.append(page);

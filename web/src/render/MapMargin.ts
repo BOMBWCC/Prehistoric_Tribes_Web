@@ -32,6 +32,15 @@ const picture = (id: number) => {
   return image;
 };
 
+/** Every picture the border uses, loaded (the WebGL map draws the border once). */
+export function loadMarginPictures(): Promise<void> {
+  return Promise.all([...TREES, ...BUSHES, ROCK].map((id) => new Promise<void>((resolve) => {
+    const image = picture(id);
+    if (image.complete) resolve();
+    else { image.addEventListener("load", () => resolve()); image.addEventListener("error", () => resolve()); }
+  }))).then(() => {});
+}
+
 /** A fixed pseudo-random number 0..n-1 for tile (x, y). */
 const pick = (x: number, y: number, n: number, salt = 0) => {
   let h = Math.imul(x + 1013, 73856093) ^ Math.imul(y + 2029, 19349663) ^ Math.imul(salt + 7, 83492791);

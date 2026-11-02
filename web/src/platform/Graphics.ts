@@ -120,6 +120,15 @@ export class Graphics {
     this.context.drawImage(image, x + this.translation.x, y + this.translation.y, width, height);
   }
 
+  /** HD art: `image` mirrored left to right over (x, y, width, height). */
+  drawScaledMirrored(image: CanvasImageSource, x: number, y: number, width: number, height: number): void {
+    this.context.save();
+    this.context.translate(x + this.translation.x + width, y + this.translation.y);
+    this.context.scale(-1, 1);
+    this.context.drawImage(image, 0, 0, width, height);
+    this.context.restore();
+  }
+
   /** HD art: a region of an upscaled sheet over (x, y, width, height). */
   drawRegionScaled(image: CanvasImageSource, sx: number, sy: number, sw: number, sh: number, x: number, y: number, width: number, height: number): void {
     this.context.drawImage(image, sx, sy, sw, sh, x + this.translation.x, y + this.translation.y, width, height);

@@ -10,7 +10,7 @@ const output = ts.transpileModule(fs.readFileSync(path, "utf8"), {
 }).outputText;
 const module = { exports: {} };
 vm.runInNewContext(output, { require: denseRequire, module, exports: module.exports, Int8Array, Int16Array });
-const { stepLegacyAnimatedSlotScan } = module.exports;
+const { stepLegacyAnimatedSlotScan, stepLegacyAnimatedSlotTimers } = module.exports;
 
 function freshState(overrides = {}) {
   return {
@@ -37,8 +37,8 @@ function freshState(overrides = {}) {
   assert.deepEqual(calls, []);
 }
 
-// Failing the gate (bad position) frees the slot AND returns from the WHOLE
-// method immediately -- a LATER active slot must never be reached.
+// Failing the gate (bad position) is not drawn and writes nothing; the scan goes on (2026-10-27:
+// the original freed the slot and returned, the drawing only reads now).
 {
   const state = freshState();
   state.slotTable[0][2] = 5; // will fail (isWithinViewport false)
@@ -49,12 +49,12 @@ function freshState(overrides = {}) {
     classifyOccupancy: () => 0,
     onSpriteDraw: () => calls.push("draw"),
   });
-  assert.equal(state.slotTable[0][2], 0, "failing slot must be freed");
-  assert.equal(state.slotTable[0][10], 9, "later slot must be untouched -- never reached");
+  assert.equal(state.slotTable[0][2], 5);
+  assert.equal(state.slotTable[0][10], 9);
   assert.deepEqual(calls, []);
 }
 
-// classifyOccupancy!=0 also fails the gate, same early-return behavior.
+// classifyOccupancy!=0 also fails the gate.
 {
   const state = freshState();
   state.slotTable[0][0] = 5;
@@ -64,7 +64,7 @@ function freshState(overrides = {}) {
     classifyOccupancy: () => 1, // not 0 -> bad position
     onSpriteDraw: () => calls.push("draw"),
   });
-  assert.equal(state.slotTable[0][0], 0);
+  assert.equal(state.slotTable[0][0], 5);
   assert.deepEqual(calls, []);
 }
 
@@ -90,7 +90,7 @@ function freshState(overrides = {}) {
   assert.deepEqual(draws[0], [30, 8 * 22, 8 * 16, 0]);
 }
 
-// slotKind===1, e[1919+aq]<=0 -> shouldDraw false (the slotKind===1-specific gate) -> frees+returns.
+// slotKind===1, e[1919+aq]<=0 -> shouldDraw false (the slotKind===1-specific gate).
 {
   const state = freshState();
   state.slotTable[0][1] = 5;
@@ -103,7 +103,7 @@ function freshState(overrides = {}) {
     classifyOccupancy: () => 0,
     onSpriteDraw: () => calls.push("draw"),
   });
-  assert.equal(state.slotTable[0][1], 0);
+  assert.equal(state.slotTable[0][1], 5);
   assert.deepEqual(calls, []);
 }
 
@@ -125,7 +125,7 @@ function freshState(overrides = {}) {
     onSpriteDraw: (...a) => calls.push(a),
   });
   assert.equal(calls.length, 1);
-  assert.equal(state.slotTable[2][1], 0, "slotKind===2 clears the nibble byte before the frame search");
+  assert.equal(state.slotTable[2][1], 0);
 }
 
 // Full slotKind===1 table-walk, hand-derived expected values (see commit
@@ -178,6 +178,8 @@ function freshState(overrides = {}) {
 
   // pixelX = (20-0)*22 + (3+7) = 440+10 = 450; pixelY = (15-0)*16 + (2+4) = 240+6 = 246
   assert.deepEqual(draws, [[50, 450, 246, 2]]);
+  assert.equal(state.slotTable[1][slot], 2, "the drawing does not advance the phase");
+  stepLegacyAnimatedSlotTimers(state.slotTable, state.dense, state.byteRows);
   assert.equal(state.slotTable[1][slot], 3, "phase incremented 2 -> 3");
   assert.equal(state.slotTable[0][slot], 50, "record stays active: 3 < byteRows[9][50]=10");
 }
@@ -193,9 +195,21 @@ function freshState(overrides = {}) {
   state.dense[8383 + aq] = 1;
   state.dense[8444 + aq] = 1;
   state.byteRows[9][40] = 5; // limit: nextPhase(5) >= 5 -> frees
-  stepLegacyAnimatedSlotScan(state, { isWithinViewport: () => true, classifyOccupancy: () => 0 });
+  stepLegacyAnimatedSlotTimers(state.slotTable, state.dense, state.byteRows);
   assert.equal(state.slotTable[1][slot], 5);
   assert.equal(state.slotTable[0][slot], 0, "slot freed once phase reaches the limit");
+}
+
+// A unit's effect (kind 1) is freed when the unit has died.
+{
+  const state = freshState();
+  state.slotTable[0][3] = 40;
+  state.slotTable[5][3] = 7;
+  state.slotTable[6][3] = 1;
+  state.byteRows[9][40] = 9;
+  state.dense[1919 + 7] = 0;
+  stepLegacyAnimatedSlotTimers(state.slotTable, state.dense, state.byteRows);
+  assert.equal(state.slotTable[0][3], 0);
 }
 
 console.log("f.r() animated-slot scan (frame-table lookup) OK");

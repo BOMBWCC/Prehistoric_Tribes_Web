@@ -1,6 +1,5 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
-import { UNIT_NAME } from "./core/DenseLayout";
-import { capitalise, originalText } from "./OriginalText";
+import { ALERT_KEYS, capitalise, ui } from "./text/UiText";
 import type { TouchControls } from "./TouchControls";
 
 /**
@@ -27,24 +26,20 @@ const QUIET_MS = 15000;
 const REPEAT_MS = 30000;
 const ATTACK_TYPE = 7;
 
-/** Queue type -> record of the /s table (f.X(): k[50] = 41 + u[0]); 1/2 and 3/4 follow a name. */
-const NAMED_TYPES = new Set([1, 2, 3, 4]);
 /** Each queue type's icon (UI design "提示与消息" C, 2026-10-27; hd/ui): born, dead, building ready,
  *  enemy sighted, under attack, building lost, need resources, max buildings, max villagers. */
 const TYPE_ICONS: Record<number, string> = {
   1: "pt-child", 2: "pt-child", 3: "mood-5", 4: "mood-5", 5: "bld-hut", 6: "club", 7: "mood-5", 8: "demolish", 9: "icon-stone", 10: "bld-hut", 11: "icon-people",
 };
 
-/** Adds the feed; returns a function that posts a line of text (no place) to it, with an hd/ui
- *  icon, red-edged when `alert`. */
-export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touch: TouchControls): (text: string, icon?: string, alert?: boolean) => void {
+/** Adds the feed; returns a function that posts a line of text to it, with an hd/ui icon, red-edged
+ *  when `alert`, jumping to tile (x, y) when tapped if it has one. */
+export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touch: TouchControls): (text: string, icon?: string, alert?: boolean, x?: number, y?: number) => void {
   const feed = document.createElement("div");
   feed.className = "notice-feed";
   feed.setAttribute("role", "log");
   feed.setAttribute("aria-live", "polite");
   app.append(feed);
-
-  const label = (record: number) => originalText(runtime, "s", record);
 
   const remove = (line: HTMLElement) => {
     line.classList.add("leaving");
@@ -105,16 +100,15 @@ export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touc
     const now = performance.now();
     const quiet = now - lastBlow >= QUIET_MS;
     lastBlow = now;
-    if (quiet) post(capitalise(label(41 + ATTACK_TYPE)), x, y, true, TYPE_ICONS[ATTACK_TYPE]!);
+    if (quiet) post(ui(ALERT_KEYS[ATTACK_TYPE]!), x, y, true, TYPE_ICONS[ATTACK_TYPE]!);
   };
 
   runtime.onMessage = (type, x, y, value) => {
     if (type === ATTACK_TYPE || type < 1 || type > 11) return;
-    let text = label(41 + type);
-    if (NAMED_TYPES.has(type)) text = label(108 + (runtime.denseState[UNIT_NAME + value] ?? 0)) + text;
-    post(capitalise(text.trim()), x, y, false, TYPE_ICONS[type] ?? "");
+    // The original's words for the type (f.X(): /s 41 + type); born and dead (1..4) with the name.
+    post(ui(ALERT_KEYS[type]!, { name: capitalise(runtime.unitNames[value] ?? "") }), x, y, false, TYPE_ICONS[type] ?? "");
   };
 
   // Posted on purpose (e.g. "game saved."): shown every time, not held back like repeats.
-  return (text, icon = "", alert = false) => { lastShown.delete(text); post(text, 0, 0, alert, icon); };
+  return (text, icon = "", alert = false, x = 0, y = 0) => { lastShown.delete(text); post(text, x, y, alert, icon); };
 }

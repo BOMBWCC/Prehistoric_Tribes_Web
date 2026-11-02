@@ -1,0 +1,10 @@
+{
+  "narrator": {},
+  "chief": { "face": "face-0736" },
+  "mumbo": { "face": "face-mumbo" },
+  "shaman": { "face": "face-0727" },
+  "scout": { "face": "face-0746" },
+  "cannibal": { "face": "face-cannibal" },
+  "jafar": { "face": "face-jafar" },
+  "stranger": { "face": "face-stranger" }
+}

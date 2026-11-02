@@ -1,4 +1,5 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
+import { ui } from "./text/UiText";
 import { stepAs } from "./ui/UiRuntime";
 import type { WideScreen } from "./WideScreen";
 
@@ -11,8 +12,8 @@ import type { WideScreen } from "./WideScreen";
  * - head info: the original command bar's INFO switch f.aq:B -- which villagers show their health
  *   bar and skill badge (0 all, 1 the selected or pointed-at one, 2 none: the original's start
  *   value; a hurt villager's bar shows anyway);
- * - view size, which the user wanted here rather than as a pinch gesture: each step is a whole
- *   number of device pixels per game pixel, so the pixel art stays sharp.
+ * - view size: each step is a whole number of device pixels per game pixel; a pinch on the map
+ *   (2026-10-29) zooms between the steps until the slider is moved again.
  */
 
 const ZOOM_KEY = "pt.zoomOut";
@@ -35,24 +36,24 @@ export function attachSettings(app: HTMLElement, screen: WideScreen, runtime: Le
   const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.png" alt="">`;
   const dialog = document.createElement("dialog");
   dialog.className = "card settings";
-  dialog.setAttribute("aria-label", "设置");
+  dialog.dataset.uiLabel = "menu.settings";
   dialog.innerHTML = `
     <form method="dialog">
       ${art("ui/deco-vine", "deco top")}${art("ui/deco-grass", "deco bottom")}
       <span class="plate">${art("ui/plate-normal")}${art("ui/glyph-settings", "glyph")}</span>
       <div class="rows">
-        <label>${art("menu/sound-on")}<span>音乐</span><input type="checkbox" name="music"></label>
-        <label>${art("ui/glyph-help")}<span>提示</span><input type="checkbox" name="hints"></label>
-        <label>${art("ui/heart")}<span>头顶信息</span>
+        <label>${art("menu/sound-on")}<span data-ui="settings.music"></span><input type="checkbox" name="music"></label>
+        <label>${art("ui/glyph-help")}<span data-ui="settings.hints"></span><input type="checkbox" name="hints"></label>
+        <label>${art("ui/heart")}<span data-ui="settings.overhead"></span>
           <select name="info">
-            <option value="0">全部村民 ›</option>
-            <option value="1">选中的 ›</option>
-            <option value="2">受伤时 ›</option>
+            <option value="0" data-ui="settings.overheadAll"></option>
+            <option value="1" data-ui="settings.overheadSelected"></option>
+            <option value="2" data-ui="settings.overheadHurt"></option>
           </select>
         </label>
-        <label>${art("ui/cmd-map")}<span>视野大小<output name="zoomText"></output></span><input type="range" name="zoom" min="0" step="1"></label>
+        <label>${art("ui/cmd-map")}<span><span data-ui="settings.zoom"></span><output name="zoomText"></output></span><input type="range" name="zoom" min="0" step="1"></label>
       </div>
-      <button class="corner no" value="close" aria-label="关闭">${art("ui/btn-close")}</button>
+      <button class="corner no" value="close" data-ui-label="a11y.close">${art("ui/btn-close")}</button>
     </form>`;
   const form = dialog.querySelector("form")!;
   const slider = form.elements.namedItem("zoom") as HTMLInputElement;
@@ -81,10 +82,11 @@ export function attachSettings(app: HTMLElement, screen: WideScreen, runtime: Le
     slider.max = String(levels.length - 1);
     slider.value = String(Math.min(screen.zoomOut, levels.length - 1));
     const view = screen.viewTiles(levels[Number(slider.value)]!);
-    text.value = `约 ${view.columns} × ${view.rows} 格`;
+    text.value = ui("settings.zoomTiles", { columns: view.columns, rows: view.rows });
   };
   slider.addEventListener("input", () => {
     screen.zoomOut = Number(slider.value);
+    screen.pinchScale = 0;
     try { localStorage.setItem(ZOOM_KEY, slider.value); } catch { /* not saved */ }
     show();
   });

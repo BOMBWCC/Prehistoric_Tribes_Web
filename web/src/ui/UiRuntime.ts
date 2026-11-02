@@ -1294,7 +1294,7 @@ export function stepFrameDispatch(rt: LegacyRuntimeState,
         },
         onFrameCommand: (command, x, y) => rt.drawFrameCommandPrimitive(command, x, y),
         geometry: rt.gGeometry,
-        randomRemainder: (mask, divisor) => rt.randomRemainder(mask, divisor),
+        randomRemainder: (mask, divisor) => rt.viewRandomRemainder(mask, divisor),
         onPrimitive: (index, x, y) => {
           rt.framePrimitives.push([index, x, y]);
           callbacks.onPrimitive?.(index, x, y);
@@ -1362,7 +1362,7 @@ export function stepFrameDispatch(rt: LegacyRuntimeState,
         // .ts's stepLegacyP) and nothing else was left to redraw it.
         onSpriteDraw: (record, x, y, phase) => {
           rt.frameHelperCalls.push({ kind: "p-sprite", record, x, y, mode: phase });
-          if (!rt.offscreenTargets || !rt.packedData || !rt.imageGroups[0]) return;
+          if (!rt.offscreenTargets || !rt.packedData) return;
           const graphics = rt.offscreenTargets.graphics[rt.pFrameState.targetSlot];
           const packed = new LegacyPackedSpriteRenderer({
             shortTables: rt.packedData.shortTables,
@@ -1374,7 +1374,7 @@ export function stepFrameDispatch(rt: LegacyRuntimeState,
             onSpriteRecord: (spriteRecord, drawX, drawY) => packed.drawComposite(spriteRecord, drawX, drawY),
           });
         },
-        randomRemainder: (mask, divisor) => rt.randomRemainder(mask, divisor),
+        randomRemainder: (mask, divisor) => rt.viewRandomRemainder(mask, divisor),
       });
     } else if (handler === "H" || handler === "I" || handler === "J" || handler === "K" || handler === "L" || handler === "N") {
       stepLegacySimpleFrameHandler(handler, rt.simpleFrameState, {

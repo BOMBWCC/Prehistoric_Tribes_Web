@@ -3,7 +3,7 @@
 //
 //   node web/scripts/import-hd.mjs           (again after the art changes, e.g. the pixel-size pass)
 //
-//   parts/<piece>.png         villager parts and other single pieces (terrain/pieces), by drawSprite
+//   parts/<piece>.png         villager parts and other single pieces (terrain/pieces, missing-art/processed), by drawSprite
 //                             piece index (j[20..24])
 //   parts-v<n>/<piece>.png    the same parts recoloured for pi9 variant n (drawSprite's an remap)
 //   terrain/<sheet>.png       whole pi0 sheets, upscaled
@@ -15,8 +15,12 @@
 //   ui/<name>.png             the round-3 UI (design/hud, design/panels; command buttons as cmd-*)
 //   menu/...                  the round-4 start-up and menus (design/menu/processed; bg-* as .jpg)
 //   cave/bubble-*.png         the opening cave scene's speech bubbles, whole (WideView.ts renderSceneSprites)
-//   story/story-<nn>.jpg|webp story pictures, pi8 entry nn (10 / 11 the cut-out end pictures); story/faces/face-<composite>.png dialogue faces
-// See docs/hd-art-handoff.md.
+//   story/story-<nn>.jpg|webp story pictures, pi8 entry nn (10 / 11 the cut-out end pictures); story/faces/face-<composite>.png dialogue faces, face-<speaker>.png the fixed characters
+//   story/scenes/...          the story scenes' pictures (design/story/scenes/processed: scene-<nn>.jpg, cave-*)
+//   ui/, menu/                the 2026-10-29 UI pictures (design/ui-0429/processed): chief-hat, btn-next to ui/;
+//                             bg-menu-sky.jpg, cloud-<n>.png to menu/
+// Then run `npm --prefix web run catalog` (scripts/make-catalog.mjs): this empties web/public/hd, catalog.json
+// (where each picture goes) included. See docs/hd-art-handoff.md.
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -47,6 +51,12 @@ if (fs.existsSync(path.join(design, "terrain/pieces"))) {
     copy(path.join(design, "terrain/pieces", f), `parts/${piece}.png`);
     manifest.parts.push(piece);
   }
+}
+// The redrawn missing pieces (design/missing-art/README.md): sheet<nn>-f<piece>.png.
+for (const f of list("missing-art/processed")) {
+  const piece = Number(/-f(\d+)\.png$/.exec(f)[1]);
+  copy(path.join(design, "missing-art/processed", f), `parts/${piece}.png`);
+  manifest.parts.push(piece);
 }
 for (const v of fs.readdirSync(path.join(design, "villagers/hd-variants"))) {
   const n = Number(v.slice(1));
@@ -114,9 +124,19 @@ for (const f of fs.readdirSync(menu, { recursive: true }).filter((f) => (f.endsW
   if (!/^bg-/.test(f)) { copy(path.join(menu, f), `menu/${f}`); continue; }
   execFileSync("magick", [path.join(menu, f), "-quality", "85", path.join(out, "menu", f.replace(/\.png$/, ".jpg"))]);
 }
-// The round-4 story pictures (pi8 n as story-<nn>) and dialogue faces (composite 720 + n as face-<c>).
+// The round-4 story pictures (pi8 n as story-<nn>) and dialogue faces (composite 720 + n as face-<c>; the fixed characters as face-<speaker>).
 for (const [dir, to] of [["story/processed", "story"], ["story/faces/processed", "story/faces"]]) {
-  for (const f of fs.readdirSync(path.join(design, dir)).filter((f) => /^(story-\d+\.jpg|face-\d+\.png)$/.test(f))) copy(path.join(design, dir, f), `${to}/${f}`);
+  for (const f of fs.readdirSync(path.join(design, dir)).filter((f) => /^(story-\d+\.jpg|face-[a-z0-9]+\.png)$/.test(f))) copy(path.join(design, dir, f), `${to}/${f}`);
+}
+// The story scenes (story/StoryScenes.ts): whole map scenes and the cave's layers.
+const scenes = path.join(design, "story/scenes/processed");
+for (const f of fs.readdirSync(scenes).filter((f) => /\.(jpg|png)$/.test(f))) copy(path.join(scenes, f), `story/scenes/${f}`);
+// The 2026-10-29 UI pictures: the chief's hat and the story box's ▼ with the UI; the cloudless sky and its clouds with the menus.
+const ui0429 = path.join(design, "ui-0429/processed");
+for (const f of fs.readdirSync(ui0429).filter((f) => /\.(jpg|png)$/.test(f))) {
+  const to = /^(bg-|cloud-)/.test(f) ? "menu" : "ui";
+  copy(path.join(ui0429, f), `${to}/${f}`);
+  if (to === "ui") manifest.ui.push(f);
 }
 // The opening cave scene's speech bubbles, whole (design/effects/cave/processed/bubble-*.png).
 const cave = path.join(design, "effects/cave/processed");

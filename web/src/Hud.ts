@@ -1,10 +1,9 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { OriginalKey } from "./platform/Input";
-import { originalIcon, originalItemIcon } from "./OriginalIcons";
 import { oldArt } from "./platform/OldArt";
-import { capitalise, originalText } from "./OriginalText";
+import { BUILDING_KEYS, capitalise, labelKey, messageKey, setLabel, ui } from "./text/UiText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_NAME, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
+import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
 import { villagerPanelOf } from "./render/WideView";
@@ -45,6 +44,7 @@ export function attachHud(
   screen: WideScreen,
   touch: TouchControls,
   openSettings: () => void,
+  openHelp: () => void,
   notify: (text: string, icon?: string, alert?: boolean) => void,
 ): { update(): void; track(): void } {
   const game = runtime.game;
@@ -57,7 +57,7 @@ export function attachHud(
     element.type = "button";
     element.className = className;
     element.textContent = text;
-    if (label) element.setAttribute("aria-label", label);
+    if (label) setLabel(element, label);
     return element;
   };
 
@@ -68,7 +68,7 @@ export function attachHud(
   bar.className = "hud-bar";
   bar.hidden = true;
   bar.innerHTML = `<img class="hud-bar-bg" src="${UI}bar-bg.png" alt=""><img class="hud-bar-deco left" src="${UI}deco-top-left.png" alt=""><img class="hud-bar-deco right" src="${UI}deco-top-right.png" alt="">`;
-  const counters = ([["people", "人口"], ["food", "食物"], ["wood", "木材"], ["stone", "石头"], ["bones", "骨头"]] as const).map(([icon, name]) => {
+  const counters = ([["people", "a11y.people"], ["food", "a11y.food"], ["wood", "a11y.wood"], ["stone", "a11y.stone"], ["bones", "a11y.bones"]] as const).map(([icon, name]) => {
     const group = document.createElement("div");
     group.className = `hud-count ${icon}`;
     group.setAttribute("role", "img");
@@ -90,14 +90,14 @@ export function attachHud(
       const text = texts[i]!;
       if (text === counter.text) return;
       counter.text = text;
-      counter.group.setAttribute("aria-label", `${counter.name} ${text}`);
+      counter.group.setAttribute("aria-label", `${ui(counter.name)} ${text}`);
       counter.digits.innerHTML = Array.from(text, (c) => `<img src="${UI}digit-${c === "/" ? "slash" : c}.png" alt="">`).join("");
     });
   };
 
   // ---- top right: the game menu, which pauses the game: a stone plate (pressed while open), the
   // items as plates with glyphs dropping down under it ----
-  const menuButton = button("hud-menu-button", "", "游戏菜单");
+  const menuButton = button("hud-menu-button", "", "a11y.gameMenu");
   menuButton.innerHTML = `<img class="up" src="${UI}plate-normal.png" alt=""><img class="down" src="${UI}plate-pressed.png" alt=""><img class="glyph" src="${UI}glyph-menu.png" alt="">`;
   const menuList = document.createElement("div");
   menuList.className = "hud-menu";
@@ -110,8 +110,6 @@ export function attachHud(
   /** The pause menu's screens (Q 10 with a save, 11 without). */
   const inPauseMenu = () => game.screen === 10 || game.screen === 11;
   let paused = false;
-  /** Help: "asked" until the original's help screen is up, "shown" until it is left again. */
-  let help: "no" | "asked" | "shown" = "no";
   /** The still screen is the game menu's own (the start-up has one too, main.ts). */
   let stillIsMine = false;
   const pause = () => {
@@ -138,8 +136,8 @@ export function attachHud(
   confirmBox.className = "card confirm";
   confirmBox.innerHTML = `<form method="dialog">${img("deco-vine", "deco top")}${img("deco-grass", "deco bottom")}`
     + `<span class="plate">${img("plate-normal")}${img("glyph-quit", "glyph")}</span><p></p>`
-    + `<button class="corner yes" value="yes" aria-label="确定">${img("btn-tick")}</button>`
-    + `<button class="corner no" value="no" aria-label="取消">${img("btn-close")}</button></form>`;
+    + `<button class="corner yes" value="yes" data-ui-label="a11y.ok">${img("btn-tick")}</button>`
+    + `<button class="corner no" value="no" data-ui-label="a11y.cancel">${img("btn-close")}</button></form>`;
   confirmBox.addEventListener("keydown", (event) => event.stopPropagation());
   app.append(confirmBox);
   const ask = (glyph: string, text: string, then: () => void) => {
@@ -150,15 +148,14 @@ export function attachHud(
     confirmBox.showModal();
   };
   // The pause menu's messages: game saved (/t 67), not enough memory to save (66, red-edged).
-  const run = (item: PauseItem) => touch.pauseMenu(item, (record) => notify(originalText(runtime, "t", record), "glyph-save", record === 66));
-  const message = (record: number) => originalText(runtime, "t", record);
+  const run = (item: PauseItem) => touch.pauseMenu(item, (record) => notify(ui(record === 66 ? "alerts.saveFailed" : "alerts.saved"), "glyph-save", record === 66));
   const menuItems: { label: string; glyph: string; act: () => void; enabled?: () => boolean }[] = [
-    { label: "保存", glyph: "save", act: () => (game.screen === 10 ? ask("save", message(64), () => run("save")) : run("save")) },
-    { label: "读取", glyph: "load", enabled: () => game.screen === 10, act: () => ask("load", message(63), () => { paused = false; menuList.hidden = true; run("load"); }) },
-    { label: "设置", glyph: "settings", act: openSettings },
-    // Help shows the original's help pages (to be rewritten); back from them, the menu returns.
-    { label: "帮助", glyph: "help", act: () => { help = "asked"; screen.frozen = false; run("help"); } },
-    { label: "退出", glyph: "quit", act: () => ask("quit", message(65), () => { paused = false; menuList.hidden = true; run("quit"); }) },
+    { label: "menu.save", glyph: "save", act: () => (game.screen === 10 ? ask("save", ui("confirm.save"), () => run("save")) : run("save")) },
+    { label: "menu.load", glyph: "load", enabled: () => game.screen === 10, act: () => ask("load", ui("confirm.load"), () => { paused = false; menuList.hidden = true; run("load"); }) },
+    { label: "menu.settings", glyph: "settings", act: openSettings },
+    // Help: the web help card (HelpCard.ts, BUG-035), over the game menu like the settings.
+    { label: "menu.help", glyph: "help", act: openHelp },
+    { label: "menu.quit", glyph: "quit", act: () => ask("quit", ui("confirm.quit"), () => { paused = false; menuList.hidden = true; run("quit"); }) },
   ];
   const menuEntries = menuItems.map((item) => {
     const entry = button("hud-menu-item", "", item.label);
@@ -203,24 +200,26 @@ export function attachHud(
 
   // ---- bottom right (round 3, user 2026-10-21/22; mock-up "命令与小队"): the build button, the
   // command button above it, the squads at the right edge. Everything for the right thumb. ----
-  const buildButton = button("hud-build-button", "", "建造");
+  const buildButton = button("hud-build-button", "", "a11y.build");
   buildButton.innerHTML = img("build-a", "up") + img("build-b", "down");
   buildButton.addEventListener("click", () => touch.command([10]));
 
-  // ✓ / ✕ where something waits for confirming or going back: choosing a chief, aiming a weapon or
-  // spell, the building menu (select the villager), placing (back to the build list).
-  const fab = button("hud-fab", "", "确定");
+  // ✓ / ✕ where something waits for confirming or going back: aiming a weapon or spell, placing
+  // (back to the build list).
+  const fab = button("hud-fab", "", "a11y.ok");
   fab.innerHTML = img("btn-tick", "tick") + img("btn-x", "back");
   fab.addEventListener("click", () => {
-    if (choosing) { confirmChief(); return; }
     if (picking) { confirmPick(); return; }
-    // While placing it is the way back (the right soft key: back to the build cards).
-    if (game.barMode === 3) touch.pressKey(OriginalKey.SOFT_RIGHT);
+    // While placing it is the way back (the right soft key: back to the build cards). Choosing a
+    // rally / call-to-arms spot (s 100) it goes straight back to the map, past the original's
+    // command bar the soft key would show (BUG-029); the keyboard's soft key still shows it.
+    if (game.barMode === 3 && game.cSInt === 100) touch.closeBars();
+    else if (game.barMode === 3) touch.pressKey(OriginalKey.SOFT_RIGHT);
   });
 
   // The command button: unfolds call to arms, form up, the map upwards; lit (with the running
   // command's icon at its corner) while call to arms or form up is on. The same item cancels it.
-  const cmdButton = button("hud-cmd", "", "命令");
+  const cmdButton = button("hud-cmd", "", "a11y.commands");
   cmdButton.innerHTML = img("cmd-plate") + img("cmd-horn", "glyph") + img("cmd-arms", "badge");
   const cmdShade = document.createElement("div");
   cmdShade.className = "hud-cmd-shade";
@@ -233,9 +232,12 @@ export function attachHud(
   cmdShade.addEventListener("click", closeCommands);
   const miniMap = attachMiniMap(app, runtime, screen);
   const commands = [
-    { glyph: "cmd-arms", name: () => (game.callToArmsActive ? "回去干活" : "全员备战"), active: () => game.callToArmsActive, act: () => order("cmd-arms", game.callToArmsActive, [12, 15]) },
-    { glyph: "cmd-rally", name: () => (game.formUpActive ? "解散" : "集结"), active: () => game.formUpActive, act: () => order("cmd-rally", game.formUpActive, [11, 14]) },
-    { glyph: "cmd-map", name: () => "小地图", active: () => false, act: () => miniMap.open() },
+    { glyph: "cmd-arms", name: () => (game.callToArmsActive ? "orders.backToWork" : "orders.callToArms"), active: () => game.callToArmsActive, act: () => order("cmd-arms", game.callToArmsActive, [12, 15]) },
+    { glyph: "cmd-rally", name: () => (game.formUpActive ? "orders.disband" : "orders.formUp"), active: () => game.formUpActive, act: () => order("cmd-rally", game.formUpActive, [11, 14]) },
+    // The villager list: the command bar's VILLAGERS (13), a row of heads (the original's
+    // f.r list).
+    { glyph: "cmd-villagers", name: () => "orders.villagers", active: () => false, act: () => touch.command([13]) },
+    { glyph: "cmd-map", name: () => "orders.map", active: () => false, act: () => miniMap.open() },
   ].map((command, index) => {
     const entry = button("hud-cmd-item", "", command.name());
     entry.innerHTML = img("cmd-plate") + img(command.glyph, "glyph");
@@ -251,7 +253,7 @@ export function attachHud(
     badge.hidden = running === "";
     if (running && !badge.src.endsWith(`${running}.png`)) badge.src = `${UI}${running}.png`;
     for (const { entry, command } of commands) {
-      entry.setAttribute("aria-label", command.name());
+      if (entry.dataset.uiLabel !== command.name()) setLabel(entry, command.name());
       entry.classList.toggle("active", command.active());
       // A running order's item cancels it: its icon with a red cross (UI design, 2026-10-22).
       const glyph = entry.querySelector<HTMLImageElement>(".glyph")!;
@@ -260,33 +262,27 @@ export function attachHud(
     }
   };
 
-  // ---- form up (rally) and call to arms (UI design "小地图、集结与备战", 2026-10-22): the order's
-  // icon stands in the middle of the screen and the cursor follows the tile under it while the map
-  // is dragged (the original's w == 3 spot, f.s 100); ✓ at its top right is FIRE, then the icon pops
-  // and a ring spreads. Cancelling is the same menu item, now with the cancel icon. ----
+  // ---- form up (rally) and call to arms (UI design "小地图、集结与备战", 2026-10-22; BUG-028, user
+  // 2026-10-29; BUG-046, user 2026-11-02): placed like a building, with its code. The order's flag, a
+  // villager high, starts on the tile in the middle of the screen and stays on its map tile (the
+  // cursor: the original's w == 3 spot, f.s 100); dragged, it moves, and a drag elsewhere moves the
+  // map (TouchControls). Green where it may go and red where not, ✓ at its top right (grey then), ✕ at
+  // the bottom right backs out. Placed, the flag stays on its tile -- it pops, rings spread, then it
+  // blinks -- until the same menu item, now with the cancel icon, cancels the order. ----
   let ordering = ""; // the order's glyph while its spot is being chosen
   const order = (glyph: string, running: boolean, codes: number[]) => {
     if (!running) ordering = glyph;
     touch.command(codes);
   };
-  const orderMark = document.createElement("div");
-  orderMark.className = "hud-order";
-  orderMark.hidden = true;
-  const orderTick = button("hud-order-tick", "", "确定");
-  orderTick.innerHTML = img("btn-tick");
-  orderTick.hidden = true;
-  const orderBurst = document.createElement("div");
-  orderBurst.className = "hud-order-burst";
-  orderBurst.hidden = true;
-  hud.append(orderMark, orderBurst, orderTick);
-  let burstTimer = 0;
-  orderTick.addEventListener("click", () => {
-    touch.pressKey(OriginalKey.FIRE);
-    orderBurst.innerHTML = `<i class="ring"></i>${img("cmd-plate", "pop")}${img(ordering, "pop glyph")}`;
-    orderBurst.hidden = false;
-    window.clearTimeout(burstTimer);
-    burstTimer = window.setTimeout(() => { orderBurst.hidden = true; }, 900);
-  });
+  /** Where a rally / call to arms may go: explored ground with nothing on it but people or animals
+   *  (gridC >= 0: no water, tree, rock, resource or building). Not in the original, which takes any tile. */
+  const orderSpotOk = (x: number, y: number) => (runtime.gridC[y]?.[x] ?? -1) >= 0 && runtime.occupancyClass(x, y) !== 2;
+  const orderFlag = document.createElement("div");
+  orderFlag.className = "hud-order-flag";
+  orderFlag.innerHTML = `<i class="ring"></i><i class="ring late"></i><img alt="">`;
+  orderFlag.hidden = true;
+  const orderFlagPicture = orderFlag.querySelector("img")!;
+  app.append(orderFlag);
 
   const squadCount = (row: number) => {
     const members = runtime.mainArrays.aByte[row];
@@ -309,9 +305,9 @@ export function attachHud(
   const squadPop = document.createElement("div");
   squadPop.className = "hud-squad-pop";
   squadPop.hidden = true;
-  const replaceButton = button("hud-squad-action", "", "替换：用选中的人覆盖这一队");
+  const replaceButton = button("hud-squad-action", "", "a11y.replaceSquad");
   replaceButton.innerHTML = img("cmd-replace");
-  const disbandButton = button("hud-squad-action", "", "解散这一队");
+  const disbandButton = button("hud-squad-action", "", "a11y.disbandSquad");
   disbandButton.innerHTML = img("cmd-disband");
   squadPop.append(replaceButton, disbandButton);
   let popFor: Squad | null = null;
@@ -330,9 +326,10 @@ export function attachHud(
     if (!squadPop.hidden && !squadPop.contains(target) && !squadBox.contains(target)) closePop();
   });
   const squadChips = SQUADS.map((squad, index) => {
-    const chip = button("hud-squad", "", `小队${index + 1}`);
+    const chip = button("hud-squad", "");
+    setLabel(chip, "hud.squad", { n: index + 1 });
     chip.innerHTML = `${img("pt-man", "head")}<span class="count"></span>`;
-    const held = longPress(chip, () => `小队${index + 1}`, () => {
+    const held = longPress(chip, () => ui("hud.squad", { n: index + 1 }), () => {
       popFor = squad;
       replaceButton.hidden = game.barMode !== 1;
       const box = chip.getBoundingClientRect();
@@ -346,7 +343,7 @@ export function attachHud(
     squadBox.append(chip);
     return { chip, squad, count: chip.querySelector<HTMLElement>(".count")!, shown: "" };
   });
-  const plusChip = button("hud-squad plus", "", "把选中的人存成一队");
+  const plusChip = button("hud-squad plus", "", "a11y.newSquad");
   plusChip.innerHTML = `${img("pt-man", "head")}<b>+</b>`;
   plusChip.addEventListener("click", () => {
     const free = SQUADS.find((squad) => squadCount(squad.row) === 0);
@@ -371,10 +368,10 @@ export function attachHud(
   const actions = document.createElement("div");
   actions.className = "hud-actions";
   hud.append(actions);
-  const left = button("hud-action", "◀", "左");
-  const right = button("hud-action", "▶", "右");
-  const cancel = button("hud-action cancel", "✕", "取消");
-  const cancelBox = button("hud-action cancel", "✕", "取消框选");
+  const left = button("hud-action", "◀", "a11y.left");
+  const right = button("hud-action", "▶", "a11y.right");
+  const cancel = button("hud-action cancel", "✕", "a11y.cancel");
+  const cancelBox = button("hud-action cancel", "✕", "a11y.cancelBox");
   actions.append(left, right, cancelBox, cancel);
   touch.bindKey(left, OriginalKey.LEFT);
   touch.bindKey(right, OriginalKey.RIGHT);
@@ -390,12 +387,14 @@ export function attachHud(
   sheet.className = "hud-sheet";
   sheet.hidden = true;
   sheet.innerHTML = img("deco-grass", "deco bottom") + img("deco-vine", "deco top");
-  const sheetClose = button("hud-sheet-close", "", "关闭");
+  const sheetClose = button("hud-sheet-close", "", "a11y.close");
   sheetClose.innerHTML = img("btn-close");
   // Backs out of the build cards and the command bar they came from (right soft key, each).
   sheetClose.addEventListener("click", () => {
     if (confirming) { confirming = false; return; }
     if (viewing) { viewing = 0; return; } // back to the row of several villagers
+    if (insideId) { insideId = 0; return; } // back to the building
+    if (choosing) { candidateSheet = false; return; } // a chief must still be chosen
     touch.closeBars();
   });
   hud.append(sheet);
@@ -410,12 +409,17 @@ export function attachHud(
   const pageDots = document.createElement("div");
   pageDots.className = "hud-sheet-dots";
   sheet.append(buildList, pageDots, sheetClose);
-  /** Level-1 price of a building kind: t138 rows 10 wood, 11 stone, 12 bones (hut 15 / 5). */
-  const price = (kind: number) => {
+  /** A price in t138 rows 10 wood, 11 stone, 12 bones: column 0..11 a building kind's level-1 price
+   *  (hut 15 / 5), which is also what its upgrade shows; 12 + n weapon n, 20..22 the traps. */
+  const price = (column: number) => {
     const table = runtime.packedOffsets[T_BUILDING] ?? 0;
-    return [10, 11, 12].map((row) => runtime.packedBytes[table + row * 26 + kind] ?? 0);
+    return [10, 11, 12].map((row) => runtime.packedBytes[table + row * 26 + column] ?? 0);
   };
   const RESOURCES = ["wood", "stone", "bones"];
+  /** A price's resources that cost something: an icon and the number each. */
+  const priceHtml = (need: number[]) => need
+    .map((amount, i) => (amount > 0 ? `<span>${img(`icon-${RESOURCES[i]}`)}<span class="n">${digits(String(amount))}</span></span>` : ""))
+    .join("");
   let shownKinds = "";
   let shownCosts = "";
   const drawBuildList = () => {
@@ -429,7 +433,7 @@ export function attachHud(
         const entry = document.createElement("button");
         entry.type = "button";
         entry.className = "hud-card";
-        entry.setAttribute("aria-label", capitalise(originalText(runtime, "s", kind)));
+        setLabel(entry, BUILDING_KEYS[kind] ?? "");
         entry.dataset.kind = String(kind);
         entry.innerHTML = `<span class="pic">${img(`ub-${BUILDING_ICONS[kind]}`)}</span><span class="cost"></span>`;
         entry.addEventListener("click", () => touch.pickInBar(index));
@@ -441,9 +445,7 @@ export function attachHud(
       shownCosts = costs;
       for (const entry of Array.from(buildList.children) as HTMLElement[]) {
         const need = price(Number(entry.dataset.kind));
-        entry.querySelector(".cost")!.innerHTML = need
-          .map((amount, i) => (amount > 0 ? `<span>${img(`icon-${RESOURCES[i]}`)}<span class="n">${digits(String(amount))}</span></span>` : ""))
-          .join("");
+        entry.querySelector(".cost")!.innerHTML = priceHtml(need);
       }
     }
     drawDots(buildList, kinds.length, 97);
@@ -459,20 +461,23 @@ export function attachHud(
   buildList.addEventListener("scroll", () => drawBuildList());
 
   // ---- choosing a new chief (the original's K:Z with its row of candidates, w == 2, f.r:[B = -id):
-  // the game goes on (user, 2026-10-17); a tap on a villager moves the row's cursor to them, so the original's panel
-  // shows them under the bar (as when a villager is selected), and the function button turns into
-  // "确定": FIRE, FIRE in the row (user, 2026-10-17) ----
+  // the game goes on (user, 2026-10-17/28). As when a villager is tapped: a tap on one opens their
+  // villager panel and puts the chief's head with a tick over them; the tick makes them chief (FIRE,
+  // FIRE in the row); another tap picks someone else. The panel's ✕ only closes the panel: a
+  // chief must be chosen. UI design "选族长" (2026-10-29): the prompt shows the chief's camp and no ✕;
+  // the hat (chief-hat) with ✓ at its bottom right; once confirmed "<name> 当上了族长" and the hat
+  // stays over them a moment, then fades. ----
   // The prompt (UI design "提示与消息" D, 2026-10-27): a panel at the bottom like the sheet, the
-  // chief's head and the words in the middle; ✓ (the function button) on its top edge.
+  // icon and the words in the middle; ✓ (the function button) on its top edge.
   const promptPanel = (icon: string) => {
     const panel = document.createElement("div");
     panel.className = "hud-prompt";
     panel.hidden = true;
-    panel.innerHTML = `${img("deco-grass", "deco bottom")}${img("deco-vine", "deco top")}<div class="hud-prompt-line">${img(icon, "icon")}<span></span></div>`;
+    panel.innerHTML = `${img("deco-grass", "deco bottom")}${img("deco-vine", "deco top")}<div class="hud-prompt-line"><img class="icon" src="${icon.includes("/") ? icon : `${UI}${icon}.png`}" alt=""><span></span></div>`;
     hud.append(panel);
     return { panel, icon: panel.querySelector<HTMLImageElement>(".icon")!, words: panel.querySelector("span")! };
   };
-  const chiefPrompt = promptPanel("pt-chief");
+  const chiefPrompt = promptPanel("hd/buildings/3-1.png"); // the chief's camp
   const candidates = () => {
     if (!game.choosingChief || game.barMode !== 2 || game.loopMode !== 1) return [];
     const row = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
@@ -480,38 +485,74 @@ export function attachHud(
   };
   let choosing = false;
   let candidate = 0;
+  let candidateSheet = false; // the candidate's villager panel is open
   const tapWhileChoosing = (villager: number) => {
-    const index = candidates().indexOf(villager);
-    if (villager <= 0 || index < 0) { notify("只能选成年村民当族长", "pt-chief"); return; }
+    if (villager <= 0 || !candidates().includes(villager)) { notify(ui("chief.adultsOnly"), "chief-hat"); return; }
     candidate = villager;
-    screen.candidatePanel = true;
-    touch.pickInBar(index, 0);
+    candidateSheet = true;
   };
+  let crowned = 0; // the new chief, while the hat stays over them
+  let crownedUntil = 0;
+  const CROWNED_MS = 1800; // the hat's stay, its fade (styles.css) included
   const confirmChief = () => {
     const index = candidates().indexOf(candidate);
-    if (index >= 0) touch.pickInBar(index, 2);
+    if (index < 0) return;
+    touch.pickInBar(index, 2);
+    crowned = candidate;
+    crownedUntil = performance.now() + CROWNED_MS;
+    notify(ui("chief.chosen", { name: capitalise(runtime.unitNames[candidate] ?? "") }), "chief-hat");
   };
+  const chiefMark = button("hud-chief-mark", "", "a11y.makeChief");
+  chiefMark.innerHTML = img("chief-hat", "hat") + img("btn-tick", "tick");
+  chiefMark.hidden = true;
+  chiefMark.addEventListener("click", confirmChief);
+  app.append(chiefMark);
 
   // ---- the building panel (round 3, user 2026-10-20/21): a building selected with one tap shows
   // its bar (f.r:[B, filled by f.Z() from aa(), ab(), ac()) in the bottom sheet, left to right:
   // demolish, repair, upgrade (or their cancels), the building's own items, the villagers inside
   // (heads whose hat shows the job). A tap does what FIRE on that item does; a villager's portrait
-  // only shows them (the original's panel) and ✓ then selects them as a tap on the map does;
+  // opens their villager panel (✕ back to the building) and ✓ there selects them as a tap on the map
+  // does. Upgrades, weapons and traps show their price under them (the original's cost box, user
+  // 2026-10-28), a weapon also the skill it needs. The command bar (w 2, slot 5: what the order
+  // spot's ✕ goes back to, or keys) and the VILLAGERS row it opens show in the same row;
   // demolish turns the sheet into the question with ✓ / ✕; the armoury's weapons change their
   // count by a sideways swipe (UP / DOWN). The chief's camp shows the faint "nothing to do here". ----
   const ARMOURY = 0;
   const CHIEFS_HUT = 3;
-  const label = (record: number) => capitalise(originalText(runtime, "s", record));
   const barCodes = () => Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
-  const buildingKind = () => runtime.denseState[BLD_KIND + game.qCounter] ?? 0;
+  /** The open building's kind; -1 for the command bar. */
+  const buildingKind = () => (screen.buildingMenuOpen ? runtime.denseState[BLD_KIND + game.qCounter] ?? 0 : -1);
   /** The names the bar's items have in the original's labels: weapons and traps /s 12.., the
-   *  commands /s 21.. (code 10 is "build"); a villager's name /s 108 + their name index. */
-  const itemName = (code: number) => (code < 0 ? label(108 + (runtime.denseState[UNIT_NAME - code] ?? 0)) : label(code <= 8 ? code + 12 : code + 11));
+   *  commands /s 21.. (code 10 is "build"); a villager's own name. */
+  const itemName = (code: number) => (code < 0 ? capitalise(runtime.unitNames[-code] ?? "") : ui(labelKey(code <= 8 ? code + 12 : code + 11)));
   /** The panel icon of a bar code (design/panels). */
   const PANEL_ICONS: Record<number, string> = {
     0: "club", 1: "stone", 2: "spear", 3: "stone-axe", 4: "bone-mace", 5: "tomahawk", 6: "net-trap", 7: "spring-trap", 8: "pit-trap",
     16: "upgrade", 17: "demolish", 19: "healing", 20: "defence", 21: "love-potion", 22: "disease",
     26: "repair", 27: "cancel-upgrade", 28: "cancel-repair", 29: "unload",
+    // The command bar: build, form up, call to arms, villagers, dismiss, back to work, map info
+    // (all / selected / none); villagers and the map info are stand-ins.
+    10: "build-a", 11: "cmd-rally", 12: "cmd-arms", 13: "pt-man", 14: "cmd-rally-cancel", 15: "cmd-arms-cancel",
+    23: "cmd-map", 24: "cmd-map", 25: "cmd-map",
+  };
+  /** Weapon n's skill (t138 row 13, column 12 + n: the original box's composite 574 + it, the panel's
+   *  skill icon) and the level it needs (row 14). */
+  const weaponSkill = (code: number) => {
+    const table = (runtime.packedOffsets[T_BUILDING] ?? 0) + 12 + code;
+    return { icon: SKILLS[574 + (runtime.packedBytes[table + 13 * 26] ?? 0)] ?? "z", level: runtime.packedBytes[table + 14 * 26] ?? 0 };
+  };
+  /** Under an item of building `kind`: the price of an upgrade (the kind's) and of the armoury's
+   *  weapons and traps, the skill a weapon needs. */
+  const costHtml = (code: number, kind: number) => {
+    const column = code === 16 ? kind : kind === ARMOURY && code >= 0 && code <= 8 ? (code <= 5 ? 12 + code : 14 + code) : -1;
+    if (column < 0) return "";
+    let html = `<span class="line">${priceHtml(price(column))}</span>`;
+    if (column >= 12 && column < 18) {
+      const skill = weaponSkill(code);
+      if (skill.level > 0) html += `<span class="line"><span>${img(`sk-${skill.icon}`)}<span class="n">${digits(String(skill.level))}</span></span></span>`;
+    }
+    return `<span class="cost">${html}</span>`;
   };
   /** Left-to-right group of a bar code: demolish, repair, upgrade, own items, villagers. */
   const group = (code: number) => (code === 17 ? 0 : code === 26 || code === 28 ? 1 : code === 16 || code === 27 ? 2 : code < 0 ? 4 : 3);
@@ -531,8 +572,8 @@ export function attachHud(
   panelRow.className = "hud-sheet-row";
   const confirmRow = document.createElement("div");
   confirmRow.className = "hud-sheet-confirm";
-  confirmRow.innerHTML = `${img("demolish")}<span>是否确认拆除？</span>`;
-  const sheetTick = button("hud-sheet-tick", "", "确定");
+  confirmRow.innerHTML = `${img("demolish")}<span data-ui="confirm.demolish"></span>`;
+  const sheetTick = button("hud-sheet-tick", "", "a11y.ok");
   sheetTick.innerHTML = img("btn-tick");
   // An item confirming (w == 4, BUG-019): the original's own line for it ("nothing to do here" ...)
   // in the sheet, closed with its ✕.
@@ -550,18 +591,23 @@ export function attachHud(
     selectChosen();
   });
   let shownBar = "";
+  let insideId = 0; // a villager whose portrait was tapped: their panel shows
   const tapBarItem = (index: number, code: number) => {
-    if (code < 0 || (buildingKind() === ARMOURY && code <= 5)) { touch.pickInBar(index, 0); return; }
+    if (code < 0) { insideId = -code; return; }
+    if (buildingKind() === ARMOURY && code <= 5) { touch.pickInBar(index, 0); return; }
     if (code === 17) { confirming = true; return; }
+    // The command bar's form up / call to arms: their spot is chosen as from the command button.
+    if (code === 11 || code === 12) ordering = code === 11 ? "cmd-rally" : "cmd-arms";
     touch.pickInBar(index);
   };
   const drawBuildingMenu = () => {
     const codes = barCodes();
     const kind = buildingKind();
-    const key = `${game.qCounter}:${codes.join(",")}`;
+    const key = `${kind}:${game.qCounter}:${codes.join(",")}`;
     if (key !== shownBar) {
       shownBar = key;
       confirming = false;
+      insideId = 0;
       const entries = codes
         .map((code, index) => ({ code, index }))
         .filter(({ code }) => !(kind === CHIEFS_HUT && code === 17))
@@ -571,7 +617,7 @@ export function attachHud(
         const nothing = document.createElement("span");
         nothing.className = "hud-item nothing";
         nothing.setAttribute("role", "img");
-        nothing.setAttribute("aria-label", "这里没什么可做");
+        setLabel(nothing, "panel.nothingHere");
         nothing.innerHTML = img("nothing");
         items.push(nothing);
       }
@@ -587,7 +633,7 @@ export function attachHud(
         entry.dataset.index = String(index);
         entry.dataset.code = String(code);
         entry.setAttribute("aria-label", itemName(code));
-        entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>`;
+        entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>${costHtml(code, kind)}`;
         const held = longPress(entry, () => itemName(code));
         let swiped = false;
         if (kind === ARMOURY && code >= 0 && code <= 5) {
@@ -623,18 +669,22 @@ export function attachHud(
       if (n.dataset.text !== text) { n.dataset.text = text; n.innerHTML = text ? digits(text) : ""; }
     }
     const notice = game.barMode === 4 && !confirming;
-    const words = notice && game.resourceSectionW === game.vInt ? capitalise(originalText(runtime, "t", runtime.shownTextRecord)) : "";
+    // The line l(int) put up (d[4] = /t 33 + its number: "nothing to do here" ...).
+    const line = game.zlDShorts[4] ?? 0;
+    const words = notice && line > 0 ? ui(messageKey(line)) : "";
     if (noticeRow.textContent !== words) noticeRow.textContent = words;
-    show(panelRow, !confirming && !notice);
+    if (notice || confirming) insideId = 0;
+    show(panelRow, !confirming && !notice && !insideId);
     show(confirmRow, confirming);
     show(noticeRow, notice);
-    // ✓ left of ✕: confirming the demolish, or selecting the villager whose portrait is chosen.
-    show(sheetTick, confirming || (!notice && (barCodes()[game.menuCursor] ?? 0) < 0));
+    // ✓ left of ✕: confirming the demolish, or selecting the villager whose panel shows (or whose
+    // portrait the cursor is on, keys).
+    show(sheetTick, confirming || (!notice && (insideId > 0 || (barCodes()[game.menuCursor] ?? 0) < 0)));
   };
-  /** ✓ with a villager's portrait chosen: that villager is selected. */
+  /** ✓ with a villager's panel open (or their portrait chosen): that villager is selected. */
   const selectChosen = () => {
-    const code = barCodes()[game.menuCursor] ?? 0;
-    if (code < 0) touch.selectVillager(-code);
+    const id = insideId || -(barCodes()[game.menuCursor] ?? 0);
+    if (id > 0) touch.selectVillager(id);
   };
 
   // ---- the villager panel (BUG-017; UI design "村民面板", user 2026-10-23: follow it): in the bottom
@@ -712,7 +762,7 @@ export function attachHud(
       const entry = document.createElement("button");
       entry.type = "button";
       entry.className = "hud-item hud-member";
-      entry.setAttribute("aria-label", label(108 + (e[UNIT_NAME + id] ?? 0)));
+      entry.setAttribute("aria-label", capitalise(runtime.unitNames[id] ?? ""));
       const held = e[UNIT_HELD_ITEM + id] ?? 9;
       entry.innerHTML = `${img(portrait(id, -1))}${img(PANEL_ICONS[held] && held < 9 ? PANEL_ICONS[held]! : "empty-hand", "weapon")}`;
       entry.addEventListener("click", () => { viewing = id; });
@@ -724,6 +774,7 @@ export function attachHud(
   // selection stays as it is; their panel is the original's, drawn privately (villagerPanelOf),
   // again every few seconds while it shows; ✕ turns into back.
   let viewing = 0;
+  let soloId = 0; // the one villager whose panel shows (picked, or a squad of one)
   let viewedId = 0;
   let viewedCells: typeof runtime.villagerPanelDraft = [];
   let viewedAt = 0;
@@ -763,6 +814,7 @@ export function attachHud(
   app.append(actionIcon);
   const ACTION_FRAMES: Record<number, number> = { 35: 5 }; // the move arrows' animation
   const ACTION_SIZE = 0.85; // tiles
+  const VILLAGER_H = 24; // game pixels: about a grown villager's height (the rally's icon, BUG-028)
   const ACTION_FLASH_MS = 800;
 
   // ---- placing a building (UI design "放置建筑", 2026-10-22): the building's level-1 HD picture as a
@@ -776,11 +828,15 @@ export function attachHud(
   ghost.innerHTML = '<i class="patch"></i><img alt="" draggable="false">';
   const ghostPatch = ghost.querySelector<HTMLElement>(".patch")!;
   const ghostPicture = ghost.querySelector<HTMLImageElement>("img")!;
-  const placeTick = button("hud-place", "", "放置");
+  const placeTick = button("hud-place", "", "a11y.place");
   placeTick.innerHTML = img("btn-tick");
   placeTick.hidden = true;
   app.append(ghost, placeTick);
-  placeTick.addEventListener("click", () => { if (game.cRFlag) touch.pressKey(OriginalKey.FIRE); });
+  placeTick.addEventListener("click", () => {
+    if (ordering === "" || game.cSInt !== 100) { if (game.cRFlag) touch.pressKey(OriginalKey.FIRE); return; }
+    if (!orderSpotOk(game.cameraColumn + game.cursorColumn, game.cameraRow + game.cursorRow)) return;
+    touch.pressKey(OriginalKey.FIRE);
+  });
   /** The building kind (0..11) whose site f.s places: t138[416 + kind] (S.site's table), or -1. */
   const placedKind = (s: number) => {
     const table = runtime.packedOffsets[T_BUILDING] ?? 0;
@@ -819,7 +875,7 @@ export function attachHud(
     const onMap = screen.touchPlay && game.loopMode === 1 && game.barMode === 1 && !screen.frozen;
     const recent = performance.now() - lastTouch < ACTION_FLASH_MS;
     const flash = recent && onMap ? touchAction.icon : 0;
-    const job = !flash && onMap && screen.villagerSheet ? jobIcon(game.selectedId) : null;
+    const job = !flash && onMap && screen.villagerSheet ? jobIcon(soloId) : null;
     const icon = flash || job?.icon || 0;
     actionIcon.hidden = icon === 0;
     if (icon) {
@@ -831,6 +887,35 @@ export function attachHud(
       const size = tile * ACTION_SIZE;
       Object.assign(actionIcon.style, { left: `${at.x + tile / 2 - size / 2}px`, top: `${at.y + (tile * 16) / 22 / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
     }
+    // The placed order's flag on its tile (f.q:[B), a villager high, while the order is on.
+    const k22 = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x; // CSS pixels per 22 game pixels
+    const flagSize = (k22 * VILLAGER_H) / 22;
+    const placed = game.callToArmsActive ? "cmd-arms" : game.formUpActive ? "cmd-rally" : "";
+    const flagShown = placed !== "" && screen.onMap && !screen.frozen;
+    if (flagShown && orderFlag.hidden) {
+      // Just placed (or back on the map): pop and rings, then the blink.
+      orderFlag.classList.remove("burst");
+      void orderFlag.offsetWidth;
+      orderFlag.classList.add("burst");
+    }
+    orderFlag.hidden = !flagShown;
+    if (flagShown) {
+      if (!orderFlagPicture.src.endsWith(`${placed}.png`)) orderFlagPicture.src = `hd/ui/${placed}.png`;
+      const spot = screen.tileToCss(game.outerLoopRowEndMarker[0]!, game.outerLoopRowEndMarker[1]!);
+      Object.assign(orderFlag.style, { left: `${spot.x + k22 / 2 - flagSize / 2}px`, top: `${spot.y + (k22 * 16) / 22 - flagSize}px`, width: `${flagSize}px`, height: `${flagSize}px` });
+    }
+    // The chief's hat and its tick over the new chief's candidate; the hat alone, fading, over the new chief.
+    if (crowned && performance.now() > crownedUntil) crowned = 0;
+    const wearer = choosing && candidate > 0 ? candidate : crowned;
+    const hat = wearer > 0 && !screen.frozen ? touch.villagerTile(wearer) : null;
+    chiefMark.hidden = !hat;
+    chiefMark.classList.toggle("crowned", !choosing && crowned > 0);
+    if (hat) {
+      const head = screen.tileToCss(hat[0], hat[1]);
+      const k = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
+      chiefMark.style.left = `${head.x + k / 2}px`;
+      chiefMark.style.top = `${head.y - k * 0.12}px`;
+    }
     // The aimed item over the chosen villager's head.
     const tile = picking && pickTarget > 0 ? touch.villagerTile(pickTarget) : null;
     marker.hidden = !tile || screen.frozen;
@@ -840,35 +925,37 @@ export function attachHud(
       marker.style.left = `${head.x + k / 2}px`;
       marker.style.top = `${head.y - k * 0.35}px`;
     }
-    if (!orderMark.hidden) {
-      const [tx, ty] = screen.centreTile();
-      if (tx !== game.cameraColumn + game.cursorColumn || ty !== game.cameraRow + game.cursorRow) touch.aim(tx, ty);
-    }
     const area = touch.footprint();
-    const kind = area ? placedKind(game.cSInt) : -1;
-    if (!area || kind < 0 || screen.frozen || picking || !orderMark.hidden) { placeTick.hidden = true; ghost.hidden = true; return; }
+    // An order's spot (f.s 100, chosen through the menu) or a building's site.
+    const spot = area && game.cSInt === 100 && ordering !== "" ? ordering : "";
+    const kind = area && !spot ? placedKind(game.cSInt) : -1;
+    if (!area || (kind < 0 && !spot) || screen.frozen || picking) { placeTick.hidden = true; ghost.hidden = true; return; }
     const from = screen.tileToCss(area.column, area.row);
     const to = screen.tileToCss(area.column + area.columns, area.row + area.rows);
-    const blocked = !game.cRFlag;
+    const blocked = spot ? !orderSpotOk(area.column, area.row) : !game.cRFlag;
+    ghost.classList.toggle("order", spot !== "");
     ghost.classList.toggle("blocked", blocked);
     placeTick.classList.toggle("blocked", blocked);
     placeTick.setAttribute("aria-disabled", String(blocked));
     Object.assign(ghostPatch.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${to.x - from.x}px`, height: `${to.y - from.y}px` });
-    const src = `hd/buildings/${kind}-1.png`;
+    const src = spot ? `hd/ui/${spot}.png` : `hd/buildings/${kind}-1.png`;
     if (!ghostPicture.src.endsWith(src)) ghostPicture.src = src;
-    // The picture at the map's scale: its pixels / the HD scale = game pixels, standing on the footprint.
+    // The picture at the map's scale: its pixels / the HD scale = game pixels, standing on the footprint
+    // (an order's flag: a villager high).
     const cssPerGame = (screen.tileToCss(1, 0).x - screen.tileToCss(0, 0).x) / 22;
-    const k = hdArt.scale(runtime);
-    const w = (ghostPicture.naturalWidth / k) * cssPerGame;
-    const h = (ghostPicture.naturalHeight / k) * cssPerGame;
+    const k = hdArt.scale();
+    const w = spot ? flagSize : (ghostPicture.naturalWidth / k) * cssPerGame;
+    const h = spot ? flagSize : (ghostPicture.naturalHeight / k) * cssPerGame;
     const left = (from.x + to.x) / 2 - w / 2;
     const top = to.y - h;
     Object.assign(ghostPicture.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
     ghost.hidden = false;
     const size = 40;
     const width = screen.element.clientWidth;
-    placeTick.style.left = `${Math.max(4, Math.min(width - size - 4, left + w - size / 2))}px`;
-    placeTick.style.top = `${Math.max(4, top - size / 2)}px`;
+    // An order's flag is smaller than the tick: the tick goes beside it, off the flag, so a finger
+    // on the flag drags it instead of placing it (BUG-046).
+    placeTick.style.left = `${Math.max(4, Math.min(width - size - 4, spot ? left + w : left + w - size / 2))}px`;
+    placeTick.style.top = `${Math.max(4, spot ? top - size * 0.75 : top - size / 2)}px`;
     placeTick.hidden = false;
   };
 
@@ -901,20 +988,19 @@ export function attachHud(
       if (nowChoosing !== choosing) {
         choosing = nowChoosing;
         touch.setMapTapHandler(choosing ? tapWhileChoosing : null);
-        chiefPrompt.words.textContent = `${capitalise(originalText(runtime, "s", 41))}：点一位成年村民`;
-        chiefPrompt.panel.hidden = !choosing;
+        chiefPrompt.words.textContent = ui("chief.prompt");
         candidate = 0;
-        screen.candidatePanel = false;
+        candidateSheet = false;
       }
       const code = pickCode();
       if ((code >= 0) !== picking) {
         picking = code >= 0;
         pickTarget = 0;
         if (picking) {
-          const icon = code <= 8 ? originalItemIcon(runtime, code) : originalIcon(runtime, code);
-          oldArt.note("界面 瞄准标记", `道具 ${code}`);
-          if (icon) { marker.src = icon.url; marker.width = icon.width * 2; marker.height = icon.height * 2; }
-          prompt.words.textContent = `${itemName(code)}：点一位村民`;
+          // The aimed item over the villager: its HD icon (the original's small picture until 2026-10-29).
+          marker.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
+          marker.width = marker.height = 28;
+          prompt.words.textContent = ui("hud.aim", { item: itemName(code) });
           prompt.icon.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
         }
         prompt.panel.hidden = !picking;
@@ -925,24 +1011,22 @@ export function attachHud(
       if (layout) {
         hud.style.setProperty("--hud-bar-top", `${layout.barTop}px`);
         hud.style.setProperty("--hud-safe-bottom", `${layout.safeBottom}px`);
-        hud.style.setProperty("--hud-bottom", `${layout.bottomPanels}px`);
-        app.style.setProperty("--hud-panels-bottom", `${layout.panelsBottom}px`);
+        hud.style.setProperty("--hud-bottom", "0px");
+        app.style.setProperty("--hud-panels-bottom", `${layout.barBottom}px`);
       }
       // The pause menu's screens leave the map (v:B 0); the menu shows over them.
       // Resumed another way (keys) -- not while openPause() is still backing out of a selection
       // on the map (BUG-011: that cleared the still screen and showed the original's menu).
       if (paused && game.loopMode === 1 && !touch.busy) paused = false;
       // The still screen covers the pause menu, its prompts (Q 16) and messages (Q 21); it goes once
-      // the game is back on the map or elsewhere (Quit), and while the help pages are open.
-      if (help === "asked" && !inPauseMenu()) help = "shown";
-      if (help === "shown" && inPauseMenu()) { help = "no"; screen.frozen = true; }
+      // the game is back on the map or elsewhere (Quit).
       if (stillIsMine && !paused && (game.loopMode === 1 || ![10, 11, 16, 21].includes(game.screen))) {
         screen.frozen = false;
         stillIsMine = false;
       }
       // The bar stays over the game menu's still screen (the original's own bar was part of it).
       show(menuButton, (layout !== null || paused) && !choosing);
-      menuList.hidden = !(paused && inPauseMenu() && help === "no");
+      menuList.hidden = !(paused && inPauseMenu());
       menuShade.hidden = menuList.hidden;
       menuButton.classList.toggle("open", paused);
       show(bar, layout !== null || paused);
@@ -950,61 +1034,62 @@ export function attachHud(
       for (const { entry, item } of menuEntries) entry.disabled = item.enabled ? !item.enabled() : false;
       const w = game.barMode;
       const building = onMap && screen.buildCardsOpen;
-      const menu = onMap && screen.buildingMenuOpen;
+      // The command bar a touch script passes through (opening an order, backing out) is not shown.
+      const menu = onMap && (screen.buildingMenuOpen || (screen.commandBarOpen && !touch.busy));
       // The plain map (nothing open, at most villagers selected): build, commands, squads.
       const plain = onMap && (w === 0 || w === 1) && !picking && !menu;
       const group = plain && w === 1 ? groupIds() : [];
       if (!group.includes(viewing)) viewing = 0;
-      const single = plain && w === 1 && game.selectedId > 0 && !!game.selectionFlags[4] && group.length < 2;
+      // One villager: picked, or a squad of one (storing or picking a squad leaves f.d[4] off, the
+      // original's panel hidden; BUG-038, user 2026-11-02: the panel stays).
+      soloId = !plain || w !== 1 ? 0
+        : group.length === 1 ? group[0]!
+        : game.selectedId > 0 && !!game.selectionFlags[4] && group.length < 2 ? game.selectedId : 0;
+      const single = soloId > 0;
       // The panel the original draws for them (all rows, drawn privately): on a new villager and every
       // few seconds -- its own redraws are only the rows that changed.
-      const shownId = viewing || (single ? game.selectedId : 0);
+      if (!menu) insideId = 0;
+      const chiefSheet = choosing && candidateSheet && candidate > 0;
+      const shownId = viewing || insideId || (chiefSheet ? candidate : 0) || soloId;
       if (shownId && (shownId !== viewedId || performance.now() - viewedAt > VIEW_REFRESH_MS)) {
         viewedId = shownId;
         viewedCells = villagerPanelOf(runtime, shownId);
         viewedAt = performance.now();
       }
       if (!shownId) viewedId = 0;
-      const villager = single || viewing > 0;
+      const villager = shownId > 0;
       screen.villagerSheet = single;
       show(villagerBox, villager);
       show(groupRow, group.length > 1 && !viewing);
       show(pageDots, building || (group.length > 1 && !viewing));
       if (villager) drawVillager(shownId, viewedCells); else shownVillager = "";
       if (group.length > 1 && !viewing) { drawGroup(group); drawDots(groupRow, group.length, 66); } else shownGroup = "";
-      const closeIcon = viewing ? "back" : "btn-close";
-      if (sheetClose.dataset.icon !== closeIcon) { sheetClose.dataset.icon = closeIcon; sheetClose.innerHTML = img(closeIcon); sheetClose.setAttribute("aria-label", viewing ? "返回" : "关闭"); }
+      const back = viewing > 0 || insideId > 0;
+      const closeIcon = back ? "back" : "btn-close";
+      if (sheetClose.dataset.icon !== closeIcon) { sheetClose.dataset.icon = closeIcon; sheetClose.innerHTML = img(closeIcon); setLabel(sheetClose, back ? "a11y.back" : "a11y.close"); }
       // A villager panel up: no build or command button (user, 2026-10-23, as with the building
       // panel); the squads stay, above the sheet (their "+" needs the selection).
-      const sheetUp = villager || group.length > 1;
+      const sheetUp = (villager && !insideId) || group.length > 1;
       show(buildButton, plain && !sheetUp);
       show(cmdButton, plain && !sheetUp);
       show(squadBox, plain);
       if (!plain || sheetUp) closeCommands();
       if (!plain) closePop();
       if (plain) { drawCommands(); drawSquads(); }
-      if (sheetUp) hud.style.setProperty("--hud-bottom", `${Math.max(layout?.bottomPanels ?? 0, SHEET_HEIGHT)}px`);
+      if (sheetUp) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT}px`);
       // The prompt panel: the function button's ✓ on its top edge.
-      if (choosing || picking) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT - 26}px`);
+      if (picking) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT - 26}px`);
+      chiefPrompt.panel.hidden = !choosing || chiefSheet;
       show(sheet, building || menu || villager || group.length > 1);
       show(buildList, building);
       if (building) drawBuildList();
       if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
       // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
-      // Choosing an order's spot: the icon in the middle, its ✓; map taps do nothing (drag instead).
       if (!touch.busy && w !== 3) ordering = "";
-      const aiming = onMap && w === 3 && game.cSInt === 100 && ordering !== "";
-      if (aiming !== !orderMark.hidden) {
-        orderMark.hidden = !aiming;
-        orderTick.hidden = !aiming;
-        if (aiming) orderMark.innerHTML = img("cmd-plate") + img(ordering, "glyph");
-        if (!picking && !choosing) touch.setMapTapHandler(aiming ? () => {} : null);
-      }
-      const tick = choosing || picking;
-      show(fab, tick || (onMap && w === 3));
-      fab.classList.toggle("is-tick", tick);
-      fab.setAttribute("aria-label", choosing ? "定为族长" : tick ? "确定" : "返回");
-      fab.disabled = choosing ? candidate === 0 : picking ? pickTarget === 0 : false;
+      show(fab, picking || (onMap && w === 3));
+      fab.classList.toggle("is-tick", picking);
+      setLabel(fab, picking ? "a11y.ok" : "a11y.back");
+      fab.disabled = picking && pickTarget === 0;
       if (choosing) {
         show(actions, false);
         return;
@@ -1015,8 +1100,8 @@ export function attachHud(
       show(left, w === 2 && !building && !menu);
       show(right, w === 2 && !building && !menu);
       show(cancelBox, touch.boxing);
-      show(cancel, !touch.boxing && ((w !== 0 && w !== 3) || picking));
-      cancel.setAttribute("aria-label", w === 1 ? "取消选择" : "取消");
+      // No ✕ for a selection (BUG-038, user 2026-11-02): its panel or queue has its own.
+      show(cancel, !touch.boxing && ((w !== 0 && w !== 1 && w !== 3) || picking));
     },
   };
 }

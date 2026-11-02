@@ -65,7 +65,7 @@ export type LegacyCameraFrameLetterboxOutput = {
 /** Exact f.w() offsets 0..296. Draws directly into `graphics` when triggered. */
 export function stepLegacyCameraLetterbox(
   state: LegacyCameraFrameLetterboxState,
-  graphics: Graphics,
+  graphics?: Graphics,
 ): LegacyCameraFrameLetterboxOutput | undefined {
   if (!state.letterboxFlag) return undefined;
 
@@ -92,10 +92,10 @@ export function stepLegacyCameraLetterbox(
   const width = (widthSpan + 1) * 22;
   const height = (heightSpan + 1) * 16;
 
-  graphics.setColor(0);
-  graphics.drawRect(11 + qPixels + 1, 8 + rPixels + 1, width, height);
-  graphics.setColor(0x10dd64); // ldc 1105252; was 0x10dee4 until 2026-10-16 (screenshot diff)
-  graphics.drawRect(11 + qPixels, 8 + rPixels, width, height);
+  graphics?.setColor(0);
+  graphics?.drawRect(11 + qPixels + 1, 8 + rPixels + 1, width, height);
+  graphics?.setColor(0x10dd64); // ldc 1105252; was 0x10dee4 until 2026-10-16 (screenshot diff)
+  graphics?.drawRect(11 + qPixels, 8 + rPixels, width, height);
 
   return { b, c, d, e };
 }

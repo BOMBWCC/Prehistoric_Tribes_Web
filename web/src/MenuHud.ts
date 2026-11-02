@@ -25,14 +25,14 @@ export function attachMenuHud(
     const element = document.createElement("button");
     element.type = "button";
     element.className = className;
-    element.setAttribute("aria-label", label);
+    element.dataset.uiLabel = label;
     element.hidden = true; // until the first update()
     layer.append(element);
     return element;
   };
 
-  const yes = button("menu-corner yes", "确定");
-  const back = button("menu-corner back", "返回");
+  const yes = button("menu-corner yes", "a11y.ok");
+  const back = button("menu-corner back", "a11y.back");
   yes.textContent = "✓";
   back.textContent = "✕";
   touch.bindKey(yes, OriginalKey.SOFT_LEFT);

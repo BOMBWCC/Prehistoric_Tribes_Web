@@ -1,24 +1,19 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
-import { Graphics } from "./platform/Graphics";
 import { oldArt } from "./platform/OldArt";
 import type { LogicalCanvas } from "./platform/Canvas";
-import { renderSceneSprites, renderWideView, TOP_BAR_SLOT, type WideWindow } from "./render/WideView";
-import { stepGameplayPaintHud } from "./render/RenderRuntime";
-import { drawMapMargin, MARGIN_TILES } from "./render/MapMargin";
-import type { LegacyOffscreenImage } from "./render/LegacyOffscreenTargets";
+import { MARGIN_TILES } from "./render/MapMargin";
+import { BLD_HP, BLD_KIND, BLD_OWNER, BLD_X, BLD_Y } from "./core/DenseLayout";
 
 /**
  * The screen the player sees (phase 3, user 2026-10-17; not in the original): a canvas filling the
  * whole window, notch included (portrait only). Menus and story screens show the original
  * 240 x 320 frame scaled to fit. On the map:
  *
- * - the map fills the screen (render/WideView.ts);
+ * - the map fills the screen: render/PixiMap.ts draws it with WebGL on a canvas under this one;
  * - at the top, the notch strip in the bar's colour; the resource bar itself is Hud.ts's (round 3,
  *   user 2026-10-20), BAR_CSS high;
- * - the rest of the original's HUD (paint()'s own HUD code, drawn again on a clear layer without
- *   the resource bar and the bottom bar): its upper half -- the selected villager's panel, the
- *   build-cost box -- right under the bar, its lower half -- the build cards, command bars -- at
- *   the bottom, moved down by the height of the bottom bar it no longer shows.
+ * - the rest of the HUD is Hud.ts's too: the original's own HUD (its bars, panels and boxes) is no
+ *   longer drawn on the map (2026-10-28, docs/modernization-plan.md §4.0).
  *
  * The view (which part of the map is on screen) is separate from the game's own 11 x 18 camera:
  * dragging moves the view smoothly, in pixels, and the camera then follows into the view
@@ -27,40 +22,21 @@ import type { LegacyOffscreenImage } from "./render/LegacyOffscreenTargets";
 
 const TILE_W = 22;
 const TILE_H = 16;
-const MARGIN = 2; // tiles drawn past each edge, so a drag between two ticks shows no black
-const HALF = 160; // HUD rows above this stay at the top of the screen, the rest at the bottom
 /** The resource bar's height in CSS pixels (Hud.ts draws it; round-3 design, 2026-10-20). */
 const BAR_CSS = 44;
-const SPEECH_BOX_ROWS = 84; // the original's dialogue box (Q 17): face, name and words, frame rows 0..83
-/** A dialogue scene's middle (frame point 120, 176) sits this far down the screen, above StoryHud's box. */
-const SCENE_CENTRE = 0.38;
-/** The original's bottom bars (record 4, 22 high, and record 10, 38 high with its message line):
- *  replaced by the HUD buttons and the notice feed. */
-const BOTTOM_BAR_SLOTS = [1, 9];
-/** Slot 2 (record 5) is the bar strip at the bottom: a building's items (the HUD's building menu
- *  replaces it), and while placing (w == 3) its "place the building." line with a red cross, which
- *  the user does not want (2026-10-17; the tick and the back button replace it). */
+/** Slot 2 (record 5) is the bar strip at the bottom: a building's items (the HUD's building menu). */
 const BAR_STRIP_SLOT = 2;
-/** The original's build cards: slot 6 (record 7, the card at the bottom) and slot 8 (record 9, the
- *  cost box at the top). The build list (Hud.ts) replaces them. */
+/** Slot 5: the command bar, a row of villagers (the original's VILLAGERS), a new chief's candidates. */
+const COMMAND_BAR_SLOT = 5;
+/** Slot 6 (record 7): the original's build cards (the build list in Hud.ts). */
 const BUILD_CARD_SLOT = 6;
-const BUILD_COST_SLOT = 8;
-/** Choosing a new chief: the candidate's panel at the top (slot 4, shown once a villager has been
- *  tapped -- `candidatePanel`) and the row of portraits at the bottom (slot 5, never: the map is
- *  where the player picks). */
-const CANDIDATE_PANEL_SLOT = 4;
-const CANDIDATE_ROW_SLOT = 5;
 const BAR_COLOUR = "#bfb04d";
 
-export type ScreenPoint = { x: number; y: number; on: "screen" | "top" | "map" | "bottom" };
+export type ScreenPoint = { x: number; y: number; on: "screen" | "top" | "map" };
 
 export class WideScreen {
   readonly element = document.createElement("canvas");
   private readonly context: CanvasRenderingContext2D;
-  /** The frame's HUD alone: paint()'s bars and panels (f.paint() offsets 89..454) and its text
-   *  (c.a(Graphics)) on a clear 240 x 320 layer. */
-  private readonly overlay = document.createElement("canvas");
-  private readonly overlayGraphics: Graphics;
   private cssSize = { width: 240, height: 320 };
   /** Safe-area insets (notch, home indicator) in CSS pixels. */
   private safe = { top: 0, bottom: 0 };
@@ -71,24 +47,17 @@ export class WideScreen {
   private viewX = 0;
   private viewY = 0;
   private camera = { column: -1, row: -1 };
-  private wide: { image: LegacyOffscreenImage; window: WideWindow } | null = null;
-  /** A dialogue scene in HD (renderScene): the image, where its point (0, 0) goes on screen, how
-   *  many screen game pixels one of its pixels takes, and whether it is the sub-records on black. */
-  private scene: { image: LegacyOffscreenImage; x: number; y: number; zoom: number; sprites: boolean } | null = null;
+  private map: unknown = null; // the map the view was last put on
   /** Zoom setting: how many device pixels per game pixel below the largest that fits (0 = largest). */
   zoomOut = 0;
+  /** A pinch's zoom (device pixels per game pixel, between the slider's levels); 0: the slider's. */
+  pinchScale = 0;
   /** While set, the screen shows what it showed when freeze() was called (the game menu,
    *  Hud.ts: the original's pause menu, its prompts and messages stay out of sight). */
   frozen = false;
   /** The game's splash is on screen (main.ts): shown as it is, without the menu edits. */
   splash = false;
-  /** Choosing a chief: a candidate has been tapped, so the original's panel shows them. */
-  candidatePanel = false;
-  /** Whether a touch key script is running (main.ts: TouchControls.busy): the original's bars it
-   *  passes through, e.g. the command bar on the way to the build list, are not drawn (BUG-016).
-   *  Asked while drawing -- a flag the HUD set after each frame let the first frame show them (BUG-021). */
-  scriptRunning: () => boolean = () => false;
-  /** The HD villager panel is up (Hud.ts sets it): the original's (slot 4) is not drawn (BUG-017). */
+  /** The HD villager panel is up for one selected villager (Hud.ts sets it). */
   villagerSheet = false;
   /** Touch or mouse play (the last input was a pointer): the map's cursor has no hand. */
   touchPlay = true;
@@ -96,14 +65,8 @@ export class WideScreen {
 
   constructor(private readonly runtime: LegacyRuntimeState, private readonly frame: LogicalCanvas) {
     const context = this.element.getContext("2d");
-    const overlay = this.overlay.getContext("2d");
-    if (!context || !overlay) throw new Error("Canvas 2D context is unavailable");
+    if (!context) throw new Error("Canvas 2D context is unavailable");
     this.context = context;
-    this.overlay.width = 240;
-    this.overlay.height = 320;
-    overlay.imageSmoothingEnabled = false;
-    this.overlayGraphics = new Graphics(overlay);
-    this.overlayGraphics.shown = true;
     this.element.setAttribute("role", "img");
     // The CSS size comes from a ResizeObserver: reading it every frame would force a layout of the
     // page each time (the debug overlay changes every tick), which made a frame ~10x slower.
@@ -155,19 +118,30 @@ export class WideScreen {
       this.element.height = h;
     }
     const levels = this.zoomLevels();
-    this.scale = levels[Math.min(this.zoomOut, levels.length - 1)]!;
+    const low = levels[levels.length - 1]!;
+    const high = levels[0]!;
+    this.scale = this.pinchScale > 0 ? Math.max(low, Math.min(high, this.pinchScale)) : levels[Math.min(this.zoomOut, levels.length - 1)]!;
     this.width = Math.floor(w / this.scale);
     this.height = Math.floor(h / this.scale);
   }
 
-  /** A dialogue scene (Q 17) or a villager speaking (Q 20), shown as the original's frame. */
-  private get dialogue(): boolean {
-    return this.runtime.game.loopMode !== 1 && (this.runtime.game.screen === 17 || this.runtime.game.screen === 20);
+  /**
+   * A story (Q 17, 18) or a villager speaking (Q 20): StoryHud shows the words; behind them the map
+   * as it is, the camera not followed (docs/modernization-plan.md §4.4), without the HUD.
+   */
+  private get story(): boolean {
+    const g = this.runtime.game;
+    return g.loopMode !== 1 && (g.screen === 17 || g.screen === 18 || g.screen === 20);
   }
 
   /** The map tiles the screen shows (fractions; may reach past the map's edges): the minimap's frame. */
   viewRect(): { column: number; row: number; columns: number; rows: number } {
     return { column: this.viewX / TILE_W, row: this.viewY / TILE_H, columns: this.width / TILE_W, rows: this.height / TILE_H };
+  }
+
+  /** The view for the WebGL map: the map pixel at the screen's top-left corner, CSS pixels per game pixel. */
+  viewTransform(): { x: number; y: number; cssPerGame: number } {
+    return { x: this.viewX, y: this.viewY, cssPerGame: this.scale / (window.devicePixelRatio || 1) };
   }
 
   /** The map tile in the middle of the screen. */
@@ -180,8 +154,9 @@ export class WideScreen {
     return !this.onMap;
   }
 
-  private get onMap(): boolean {
-    return this.runtime.game.loopMode === 1 && !!this.runtime.activeMap;
+  /** The map is on screen (play, or a story over it): the WebGL map draws it. */
+  get onMap(): boolean {
+    return (this.runtime.game.loopMode === 1 || this.story) && !!this.runtime.activeMap;
   }
 
   /** The frame's rows above the map (top bar, top panels) and from the bottom panel down. */
@@ -193,43 +168,16 @@ export class WideScreen {
   }
 
   /**
-   * Where things sit on screen, in game pixels: the bar (`barTop`, under the notch), the frame's
-   * upper HUD rows from `upper` on, its lower rows from `lower` on (frame row HALF there), and the
-   * map area the camera's window must stay in (`areaTop` .. `areaBottom`).
+   * Where things sit on screen, in game pixels: the bar (`barTop`, under the notch), the map from
+   * `upper` (the bar's bottom) on, and the map area the camera's window must stay in (`areaTop` ..
+   * `areaBottom`).
    */
   private layout() {
-    const g = this.runtime.game;
     const k = (window.devicePixelRatio || 1) / this.scale;
     const barTop = Math.round(this.safe.top * k);
     const safeBottom = Math.round(this.safe.bottom * k);
-    const { top, panel } = this.strips();
-    const base195 = this.runtime.packedOffsets[195] ?? 0;
-    // The bottom bar on now: its frame rows (from its record's screen y down) are not drawn.
-    let barRows = 0;
-    for (const slot of this.bottomSlotsNotDrawn()) {
-      if (!g.selectionFlags[slot]) continue;
-      const record = this.runtime.packedBytes[base195 + slot] ?? 0;
-      barRows = Math.max(barRows, 320 - (g.oElementRecordInts[record] ?? 320));
-    }
-    const upperRows = this.villagerSheet || this.buildCardsOpen || (this.choosingChief && !this.candidatePanel) ? 0 : g.selectionFlags[TOP_BAR_SLOT] ? Math.max(0, top - this.barRows()) : top;
-    const lowerRows = Math.max(0, 320 - panel - barRows);
     const upper = barTop + this.barRows();
-    const lower = this.height - safeBottom + barRows - (320 - HALF);
-    return { barTop, upper, lower, areaTop: upper + upperRows, areaBottom: this.height - safeBottom - lowerRows, top, upperRows, lowerRows };
-  }
-
-  private bottomSlotsNotDrawn(): number[] {
-    const g = this.runtime.game;
-    if (g.barMode === 3 || this.buildingMenuOpen) return [...BOTTOM_BAR_SLOTS, BAR_STRIP_SLOT];
-    if (this.buildCardsOpen) return [...BOTTOM_BAR_SLOTS, BUILD_CARD_SLOT];
-    if (this.choosingChief) return [...BOTTOM_BAR_SLOTS, CANDIDATE_ROW_SLOT];
-    return BOTTOM_BAR_SLOTS;
-  }
-
-  /** The original's chief succession is waiting for a pick (K:Z with its row open). */
-  get choosingChief(): boolean {
-    const g = this.runtime.game;
-    return g.loopMode === 1 && g.choosingChief && g.barMode === 2;
+    return { barTop, upper, areaTop: upper, areaBottom: this.height - safeBottom, top: this.strips().top };
   }
 
   /** A building's bar is open (slot 2 on, f.Z() filling it from aa / ab / ac; w 2, or 4 while an
@@ -238,6 +186,12 @@ export class WideScreen {
     const g = this.runtime.game;
     // w 4: one of its items confirming (its line shows in the sheet, BUG-019).
     return g.loopMode === 1 && (g.barMode === 2 || g.barMode === 4) && !!g.selectionFlags[BAR_STRIP_SLOT] && !g.choosingChief && !this.buildCardsOpen;
+  }
+
+  /** The command bar (or the VILLAGERS row it opens) is up (w 2, slot 5): the HUD's sheet shows it. */
+  get commandBarOpen(): boolean {
+    const g = this.runtime.game;
+    return g.loopMode === 1 && g.barMode === 2 && !!g.selectionFlags[COMMAND_BAR_SLOT] && !g.choosingChief && !this.buildCardsOpen && !this.buildingMenuOpen;
   }
 
   /** The original's build cards are up (the build list shows instead). */
@@ -277,7 +231,7 @@ export class WideScreen {
   }
 
   /** Moves the view so the camera's window is fully on screen. */
-  private followCamera(): void {
+  private moveToCamera(): void {
     const g = this.runtime.game;
     const { areaTop, areaBottom, top } = this.layout();
     const { panel } = this.strips();
@@ -287,10 +241,44 @@ export class WideScreen {
     this.viewY = Math.max(camY - (areaBottom - (panel - top)), Math.min(camY - areaTop, this.viewY));
   }
 
+  /** Centres the view on our chief's hut (kind 3, 4 x 4) and puts the camera there; false: none. */
+  private showChiefsHut(): boolean {
+    const rt = this.runtime;
+    const e = rt.denseState;
+    for (let b = 0; b <= 60; b += 1) {
+      if (e[BLD_KIND + b] !== 3 || e[BLD_OWNER + b] !== 0 || (e[BLD_HP + b] ?? 0) <= 0) continue;
+      this.viewX = ((e[BLD_X + b] ?? 0) + 2) * TILE_W - this.width / 2;
+      this.viewY = ((e[BLD_Y + b] ?? 0) + 2) * TILE_H - this.height / 2;
+      this.clampView();
+      this.camera = this.cameraInView();
+      rt.game.cameraColumn = this.camera.column;
+      rt.game.cameraRow = this.camera.row;
+      rt.storyCamera = { ...this.camera, mission: rt.game.mission };
+      return true;
+    }
+    return false;
+  }
+
   /** Puts map tile (column, row) in the middle of the screen. */
   centerOn(column: number, row: number): void {
     this.viewX = column * TILE_W + TILE_W / 2 - this.width / 2;
     this.viewY = row * TILE_H + TILE_H / 2 - this.height / 2;
+    this.clampView();
+  }
+
+  /**
+   * Pinch (user 2026-10-29): scales the view by `factor` about CSS point (x, y) of the canvas, which
+   * stays over the same map pixel; the zoom stays within the slider's levels.
+   */
+  zoomAt(factor: number, x: number, y: number): void {
+    const ratio = window.devicePixelRatio || 1;
+    const before = this.scale;
+    const mapX = this.viewX + (x * ratio) / before;
+    const mapY = this.viewY + (y * ratio) / before;
+    this.pinchScale = before * factor;
+    this.resize();
+    this.viewX = mapX - (x * ratio) / this.scale;
+    this.viewY = mapY - (y * ratio) / this.scale;
     this.clampView();
   }
 
@@ -318,121 +306,24 @@ export class WideScreen {
     };
   }
 
-  /** After each paint: draws the larger map window for the current view. */
-  renderWide(): void {
+  /** After each paint: the view follows the game's camera when it moved (keys, a jump to an alert)
+   *  and stays on the map. The map itself is drawn by render/PixiMap.ts under this canvas. */
+  updateView(): void {
     this.resize();
-    if (!this.onMap) { this.wide = null; this.renderScene(); return; }
-    this.scene = null;
+    if (!this.onMap) return;
     const g = this.runtime.game;
-    if (g.cameraColumn !== this.camera.column || g.cameraRow !== this.camera.row) {
+    // A new map under its opening story (BUG-039, user 2026-11-02): there is no view before the
+    // story to go back to, so the view -- and the camera the story puts back -- is our chief's hut.
+    if (this.runtime.activeMap !== this.map) {
+      this.map = this.runtime.activeMap;
+      if (this.story && this.showChiefsHut()) return;
+    }
+    // A story leaves the view where it is (the map's first view still goes to the camera).
+    if ((!this.story || this.camera.column < 0) && (g.cameraColumn !== this.camera.column || g.cameraRow !== this.camera.row)) {
       this.camera = { column: g.cameraColumn, row: g.cameraRow };
-      this.followCamera();
+      this.moveToCamera();
     }
     this.clampView();
-    const window: WideWindow = {
-      column: Math.floor(this.viewX / TILE_W) - MARGIN,
-      row: Math.floor(this.viewY / TILE_H) - MARGIN,
-      columns: Math.ceil(this.width / TILE_W) + MARGIN * 2 + 1,
-      rows: Math.ceil(this.height / TILE_H) + MARGIN * 2 + 1,
-    };
-    const before = oldArt.where;
-    oldArt.where = "地图";
-    const image = renderWideView(this.runtime, window, this.touchPlay);
-    if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale, this.fog);
-    // Placing a building (w 3, a site's f.s, as WideView): where it may stand.
-    if (image && g.barMode === 3 && g.cSInt > 3 && g.cSInt !== 100) this.drawPlaceable(image, window);
-    oldArt.where = "HUD";
-    this.wide = image ? { image, window } : null;
-    // The HUD again, onto a clear layer, without the bars: both draws only read the game state.
-    const overlay = this.overlay.getContext("2d")!;
-    overlay.clearRect(0, 0, 240, 320);
-    const hidden = new Set([TOP_BAR_SLOT, ...this.bottomSlotsNotDrawn()]);
-    if (this.buildCardsOpen) hidden.add(BUILD_COST_SLOT);
-    if (this.choosingChief && !this.candidatePanel) hidden.add(CANDIDATE_PANEL_SLOT);
-    if (this.scripting) g.selectionFlags.forEach((_, slot) => hidden.add(slot));
-    if (this.villagerSheet) hidden.add(CANDIDATE_PANEL_SLOT);
-    stepGameplayPaintHud(this.runtime, this.overlayGraphics, hidden);
-    const group0 = this.runtime.imageGroups[0];
-    if (group0 && !this.scripting) this.runtime.geometryRenderer.renderTo(this.overlayGraphics, group0);
-    oldArt.where = before;
-  }
-
-  /**
-   * A dialogue scene (Q 17) in HD, filling the screen (round-4 design, 2026-10-22: the scene plays on
-   * in HD art, StoryHud's box over its bottom). What f.P() draws in the original's 128-row band
-   * depends on t155[aS]: 1, two sub-records on black (the opening cave: eyes, the fire); 2, the
-   * map at the camera (f.R(), also when t155[ao] is 2); otherwise the band stays as it was, and so
-   * does this. The band's middle (frame point 120, 176) goes to SCENE_CENTRE. The cave is drawn as
-   * wide as the screen (its eyes are a few pixels); the map at the map view's size.
-   */
-  private renderScene(): void {
-    const rt = this.runtime;
-    const g = rt.game;
-    if (g.screen !== 17) { this.scene = null; return; }
-    const kind = (n: number) => rt.packedBytes[(rt.packedOffsets[155] ?? 0) + n] ?? 0;
-    const dx = Math.round(this.width / 2) - 120;
-    const dy = Math.round(this.height * SCENE_CENTRE) - 176;
-    const before = oldArt.where;
-    oldArt.where = "对话场景";
-    if (kind(g.aS) === 1) {
-      const calls = rt.frameHelperCalls.filter((c) => c.kind === "p-sprite")
-        .map((c) => ({ record: Number(c.record), x: Number(c.x), y: Number(c.y), phase: Number(c.mode) }));
-      if (calls.length > 0 || !this.scene?.sprites) {
-        const zoom = this.width / 240;
-        const height = Math.ceil(this.height / zoom);
-        // The calls draw on the offscreen: frame point + (11, 8).
-        const image = renderSceneSprites(rt, calls, 240, height, -11, Math.round(height * SCENE_CENTRE) - 176 - 8);
-        this.scene = image && { image, x: 0, y: 0, zoom, sprites: true };
-      }
-    } else if (kind(g.aS) >= 2 || kind(g.ao) >= 2) {
-      // Screen point (x, y) shows map pixel (x + left, y + top).
-      const left = g.cameraColumn * TILE_W - dx;
-      const top = g.cameraRow * TILE_H - dy;
-      const window: WideWindow = {
-        column: Math.floor(left / TILE_W) - MARGIN,
-        row: Math.floor(top / TILE_H) - MARGIN,
-        columns: Math.ceil(this.width / TILE_W) + MARGIN * 2 + 1,
-        rows: Math.ceil(this.height / TILE_H) + MARGIN * 2 + 1,
-      };
-      const image = renderWideView(rt, window, false, true);
-      if (image) drawMapMargin(image, window, g.mapWidth, g.mapHeight, image.scale, this.fog);
-      // Scene 24 shakes: f.R() copies the band aQ (0..7) rows lower.
-      const shake = g.aS === 24 ? g.aQ : 0;
-      this.scene = image && { image, x: window.column * TILE_W - left - 11, y: window.row * TILE_H - top - 8 + shake, zoom: 1, sprites: false };
-    }
-    oldArt.where = before;
-  }
-
-  /**
-   * While placing a building, a light green wash on every tile a building may cover (UI design
-   * "放置建筑", 2026-10-27): free (map grid 0) and in sight (fog class 0) -- f.a(int,int,int,boolean)'s
-   * test for each tile of the footprint. It fits where its whole footprint is green.
-   */
-  private drawPlaceable(image: LegacyOffscreenImage, window: WideWindow): void {
-    const context = image.element.getContext("2d");
-    if (!context) return;
-    const g = this.runtime.game;
-    context.save();
-    context.fillStyle = "rgba(150, 255, 110, 0.28)";
-    context.strokeStyle = "rgba(220, 255, 200, 0.35)";
-    context.lineWidth = 0.5;
-    for (let row = Math.max(0, window.row); row < Math.min(g.mapHeight, window.row + window.rows); row += 1) {
-      for (let column = Math.max(0, window.column); column < Math.min(g.mapWidth, window.column + window.columns); column += 1) {
-        if (this.runtime.gridC[row]?.[column] !== 0 || this.runtime.occupancyClass(column, row) !== 0) continue;
-        const x = 11 + (column - window.column) * TILE_W;
-        const y = 8 + (row - window.row) * TILE_H;
-        context.fillRect(x + 0.5, y + 0.5, TILE_W - 1, TILE_H - 1);
-        context.strokeRect(x + 0.75, y + 0.75, TILE_W - 1.5, TILE_H - 1.5);
-      }
-    }
-    context.restore();
-  }
-
-  /** A map tile's fog class (f.a(int,int)): 0 in sight, 1 explored, 2 unexplored. */
-  private readonly fog = (x: number, y: number) => this.runtime.occupancyClass(x, y);
-
-  private get scripting(): boolean {
-    return this.scriptRunning() && this.runtime.game.loopMode === 1;
   }
 
   /** Every display frame: puts the pieces on screen (cheap; renderWide did the drawing). */
@@ -454,30 +345,16 @@ export class WideScreen {
     const c = this.context;
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.imageSmoothingEnabled = false;
-    c.fillStyle = "#000";
-    c.fillRect(0, 0, this.element.width, this.element.height);
-    if (this.scene && !this.onMap) {
-      const { image, x, y, zoom } = this.scene;
-      c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-      c.imageSmoothingEnabled = image.scale > this.scale * zoom;
-      c.imageSmoothingQuality = "high";
-      c.drawImage(image.element, x, y, image.width * zoom, image.height * zoom);
-      return;
-    }
-    if (!this.onMap || !this.wide) {
+    if (!this.onMap) {
+      c.fillStyle = "#000";
+      c.fillRect(0, 0, this.element.width, this.element.height);
       this.drawFrameFilled();
       return;
     }
+    // The map is the WebGL canvas under this one (render/PixiMap.ts): clear, but for the notch strip.
+    c.clearRect(0, 0, this.element.width, this.element.height);
     c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
-    const { image, window } = this.wide;
-    // The HD wide view (image.scale > 1) is larger than the screen shows it: smooth when shrinking.
-    c.imageSmoothingEnabled = image.scale > this.scale;
-    c.imageSmoothingQuality = "high";
-    c.drawImage(image.element, Math.round(window.column * TILE_W - this.viewX - 11), Math.round(window.row * TILE_H - this.viewY - 8), image.width, image.height);
-    c.imageSmoothingEnabled = false;
-    const { barTop, upper, lower } = this.layout();
-    c.drawImage(this.overlay, 0, 0, 240, HALF, 0, upper, 240, HALF);
-    c.drawImage(this.overlay, 0, HALF, 240, 320 - HALF, 0, lower, 240, 320 - HALF);
+    const { barTop } = this.layout();
     c.fillStyle = BAR_COLOUR; // the notch strip; the bar under it is Hud.ts's
     c.fillRect(0, 0, this.width, barTop);
   }
@@ -492,34 +369,29 @@ export class WideScreen {
     const rect = this.element.getBoundingClientRect();
     const dx = ((clientX - rect.left) * this.element.width) / rect.width;
     const dy = ((clientY - rect.top) * this.element.height) / rect.height;
-    if (!this.onMap || !this.wide) {
+    if (!this.onMap) {
       const { x, y, s } = this.frameRect();
       return { x: Math.floor((dx - x) / s), y: Math.floor((dy - y) / s), on: "screen" };
     }
     const gx = dx / this.scale;
     const gy = dy / this.scale;
-    const { upper, upperRows, lower, lowerRows, areaBottom, top } = this.layout();
-    // The bar, and the panels (beside them, the map shows through).
-    if (gy < upper || (gx < 240 && gy < upper + upperRows)) return { x: Math.floor(gx), y: Math.floor(gy - upper), on: "top" };
-    if (gx < 240 && lowerRows > 0 && gy >= areaBottom) return { x: Math.floor(gx), y: Math.floor(gy - lower + HALF), on: "bottom" };
+    const { upper, top } = this.layout();
+    if (gy < upper) return { x: Math.floor(gx), y: Math.floor(gy - upper), on: "top" };
     const cam = this.cameraOnScreen();
     return { x: Math.floor(gx - cam.x), y: Math.floor(gy - cam.y + top), on: "map" };
   }
 
   /**
-   * For the HUD buttons, in CSS pixels: the bottom of the bar and of the panels under it, the
-   * height of the panels at the bottom (above the home indicator), and the menu icon's area at the
-   * bar's right end. Null off the map.
+   * For the HUD buttons, in CSS pixels: the top and the bottom of the bar, and the home indicator's
+   * height. Null off the map.
    */
-  hudLayout(): { barTop: number; barBottom: number; panelsBottom: number; bottomPanels: number; safeBottom: number } | null {
-    if ((!this.onMap && !this.frozen) || !this.wide) return null;
-    const { barTop, upper, areaTop, lowerRows } = this.layout();
+  hudLayout(): { barTop: number; barBottom: number; safeBottom: number } | null {
+    if ((!this.onMap && !this.frozen) || this.story) return null;
+    const { barTop, upper } = this.layout();
     const k = this.scale / (window.devicePixelRatio || 1);
     return {
       barTop: barTop * k,
       barBottom: upper * k,
-      panelsBottom: areaTop * k,
-      bottomPanels: lowerRows * k,
       safeBottom: this.safe.bottom,
     };
   }
@@ -536,9 +408,6 @@ export class WideScreen {
     const bottom = Math.round(this.safe.bottom * (window.devicePixelRatio || 1));
     let s = w / 240;
     if (320 * s > h - bottom) s = (h - bottom) / 320;
-    // A dialogue (Q 17; round 4): the frame at the top, StoryHud's box at the bottom under it.
-    const top = Math.round(this.safe.top * (window.devicePixelRatio || 1));
-    if (this.dialogue) return { x: Math.round((w - 240 * s) / 2), y: Math.min(top, Math.round(h - bottom - 320 * s)), s };
     return { x: Math.round((w - 240 * s) / 2), y: Math.round(h - bottom - 320 * s), s };
   }
 
@@ -555,7 +424,7 @@ export class WideScreen {
     };
     c.fillStyle = pixel(0);
     c.fillRect(0, 0, this.element.width, y);
-    c.fillStyle = this.dialogue ? "#000" : pixel(319);
+    c.fillStyle = pixel(319);
     c.fillRect(0, y + 320 * s, this.element.width, this.element.height - y - 320 * s);
     c.drawImage(frame, 0, 0, 240, 320, x, y, 240 * s, 320 * s);
   }
@@ -575,12 +444,6 @@ export class WideScreen {
     c.imageSmoothingEnabled = false;
     c.drawImage(this.frame.element, 0, 0);
     if (this.splash) return copy;
-    // While a dialogue shows its words (StoryHud), the original's speech box (rows 0..83) is not.
-    const g = this.runtime.game;
-    if (this.dialogue && g.resourceSectionW === g.vInt) {
-      c.fillStyle = "#000";
-      c.fillRect(0, 0, 240, SPEECH_BOX_ROWS);
-    }
     c.drawImage(copy, 24, 296, 24, 24, 0, 296, 24, 24);
     c.drawImage(copy, 192, 296, 24, 24, 216, 296, 24, 24);
     if (this.runtime.game.screen === 0) {

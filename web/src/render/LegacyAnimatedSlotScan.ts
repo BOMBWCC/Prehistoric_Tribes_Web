@@ -14,14 +14,14 @@ import { ANIMAL_X, ANIMAL_Y, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_HP, UNIT_OFFSET_
  * purpose turns out to be finding a frame-specific `(dx,dy)` position
  * correction (`j[12][frame]`/`j[13][frame]`) for the entity's current
  * animation state. The sprite actually drawn is always `slotTable[0][slot]`
- * itself (a fixed per-slot record id, NOT anything computed by that chain);
- * the phase counter `slotTable[1][slot]` increments every call and frees
- * the slot once it reaches `j[9][slotTable[0][slot]]`.
+ * itself (a fixed per-slot record id, NOT anything computed by that chain).
  *
- * A genuinely surprising control-flow detail, preserved exactly: failing
- * the viewport/occupancy/exception gate frees the CURRENT slot and returns
- * from the WHOLE method immediately (bytecode offset 269 `return`), not
- * just a `continue` to the next slot.
+ * Since 2026-10-27 (modernization step 2) this only draws: the phase counter
+ * `slotTable[1][slot]`, which the original advanced here and freed at
+ * `j[9][slotTable[0][slot]]`, is `stepLegacyAnimatedSlotTimers`'s, run by the game's
+ * step. The original also freed the slot and returned from the whole method
+ * (bytecode offset 269) when a slot failed the viewport/occupancy gate; that
+ * slot is now only skipped.
  */
 
 export type LegacyAnimatedSlotScanState = {
@@ -81,7 +81,6 @@ export function stepLegacyAnimatedSlotScan(
       x = state.dense[ANIMAL_X + aq] ?? 0;
       y = state.dense[ANIMAL_Y + aq] ?? 0;
       kind = 108;
-      if (state.slotTable[2]) state.slotTable[2][slot] = 0;
     } else {
       const packedNibble = state.slotTable[2]?.[slot] ?? 0;
       x = (state.dense[BLD_X + aq] ?? 0) + (packedNibble & 15);
@@ -92,10 +91,7 @@ export function stepLegacyAnimatedSlotScan(
     const occupancyClass = callbacks.classifyOccupancy?.(x, y) ?? 0;
     const goodPosition = withinViewport && occupancyClass === 0;
     const shouldDraw = goodPosition && ((state.dense[UNIT_HP + aq] ?? 0) > 0 || slotKind !== 1);
-    if (!shouldDraw) {
-      if (state.slotTable[0]) state.slotTable[0][slot] = 0;
-      return;
-    }
+    if (!shouldDraw) continue;
 
     let pixelX = (x - state.originColumn) * 22;
     let pixelY = (y - state.originRow) * 16;
@@ -118,7 +114,8 @@ export function stepLegacyAnimatedSlotScan(
       const frameCount = state.byteRows[15]?.[frameGroupStart] ?? 0;
       for (let step = 0; step < frameCount; step += 1) {
         frameIndex = frameBase + step;
-        if (((state.byteRows[14]?.[frameIndex] ?? 0) & 15) === (state.slotTable[2]?.[slot] ?? 0)) break;
+        // An animal's slot byte 2 reads as 0 (f.r() offset ~118 cleared it before this search).
+        if (((state.byteRows[14]?.[frameIndex] ?? 0) & 15) === (slotKind === 2 ? 0 : state.slotTable[2]?.[slot] ?? 0)) break;
       }
 
       if (slotKind === 1) {
@@ -133,11 +130,25 @@ export function stepLegacyAnimatedSlotScan(
     const record = state.slotTable[0]?.[slot] ?? 0;
     const phase = state.slotTable[1]?.[slot] ?? 0;
     callbacks.onSpriteDraw?.(record, pixelX, pixelY, phase);
+  }
+}
 
-    const nextPhase = toJavaByte(phase + 1);
-    if (state.slotTable[1]) state.slotTable[1][slot] = nextPhase;
-    if (nextPhase >= (state.byteRows[9]?.[record] ?? 0)) {
-      if (state.slotTable[0]) state.slotTable[0][slot] = 0;
+/**
+ * f.r()'s rule part: a hit effect's frame goes up each tick, and the slot is freed after its last
+ * frame (`j[9][record]`) or when the unit it is on has died. Run by the game's step before the world's
+ * since 2026-10-27, so the drawing shows frames 0 .. last as before. The original also freed a slot
+ * (and stopped the scan) when the effect was off the camera or in the fog: that is now only not drawn.
+ */
+export function stepLegacyAnimatedSlotTimers(slotTable: Int8Array[], dense: Int8Array, byteRows: readonly Int8Array[]): void {
+  for (let slot = 0; slot < 40; slot += 1) {
+    const record = slotTable[0]?.[slot] ?? 0;
+    if (record <= 0) continue;
+    const aq = slotTable[5]?.[slot] ?? 0;
+    const phase = toJavaByte((slotTable[1]?.[slot] ?? 0) + 1);
+    if (slotTable[1]) slotTable[1][slot] = phase;
+    const dead = (slotTable[6]?.[slot] ?? 0) === 1 && (dense[UNIT_HP + aq] ?? 0) <= 0;
+    if (dead || phase >= (byteRows[9]?.[record] ?? 0)) {
+      if (slotTable[0]) slotTable[0][slot] = 0;
     }
   }
 }

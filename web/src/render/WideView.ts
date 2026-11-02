@@ -1,19 +1,17 @@
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { Graphics } from "../platform/Graphics";
-import { hdArt } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
-import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
-import { drawFrameCommandPrimitive, drawImageHelper, renderMap, stepCameraFrame, stepGameplayOuterLoop, stepLegacyC2 } from "./RenderRuntime";
+import { drawFrameCommandPrimitive, drawImageHelper } from "./RenderRuntime";
 
 /**
- * The larger view (phase 3, user 2026-10-17; not in the original). The game itself keeps its 11 x 18
- * tile camera; after each paint this draws a bigger window of the map -- terrain, units, fog, the
- * cursor -- with the original's own drawing code (f.o(), f.u(), c(int,int), f.w()'s box frame and cursor corners) into an
- * image of its own, by moving the camera and view size for the length of the draw.
+ * The original's drawing code run privately (phase 3; not in the original): the HUD uses it to learn
+ * what the original would draw -- a villager's panel, a portrait, a building for the build list --
+ * without drawing it on screen. (Until 2026-10-28 it drew the whole larger view of the map each
+ * step; until 2026-10-29 the WebGL map's effects and people, now render/MapScene.ts.)
  *
  * Those draws also write game state (marker decay, the footprint bitmap, scratch fields, the
  * cursor's helper fields), so everything mutable on the runtime is copied before the draw and put
- * back after it; `npm run oracle` checks that the game state stays frame-identical to the original.
+ * back after it.
  */
 
 /** Runtime fields that are never written while drawing the map: resources, images, audio. */
@@ -94,111 +92,6 @@ export type WideWindow = {
   readonly rows: number;
 };
 
-let image: LegacyOffscreenImage | null = null;
-
-/** The HUD slot of the top resource bar (record 2, f.paint() draws it at the top). */
-export const TOP_BAR_SLOT = 0;
-
-/**
- * Draws `window` of the map and returns the image: tile (column, row) of the window is at
- * (11 + 22 * c, 8 + 16 * r), the same 11 / 8 margin as the original's offscreen. `scene`: a
- * dialogue scene's map (f.R() draws only f.u() on the map), without the cursor.
- */
-export function renderWideView(rt: LegacyRuntimeState, window: WideWindow, touchCursor = false, scene = false): LegacyOffscreenImage | null {
-  const targets = rt.offscreenTargets;
-  if (!targets || !rt.activeMap || !rt.packedData) return null;
-  const width = window.columns * 22 + 22;
-  const height = window.rows * 16 + 16;
-  const scale = hdArt.scale(rt);
-  if (!image || image.width !== width || image.height !== height || image.scale !== scale) {
-    image = new LegacyOffscreenImage(width, height, scale);
-    image.graphics.shown = true;
-  }
-  image.graphics.setColor(0);
-  image.graphics.fillRect(0, 0, width, height);
-
-  const g = rt.game;
-  // The map's offscreen is Graphics[c[1]] (f.m()'s N:B, and the fog fill's target).
-  const slot = Math.max(0, Math.min(3, g.frameImageSlots[1] ?? 0)) as 0 | 1 | 2 | 3;
-  const saved = snapshot(rt);
-  const original = targets.graphics[slot];
-  try {
-    // The cursor is kept relative to the camera; keep its tile on the map.
-    g.cursorColumn += g.cameraColumn - window.column;
-    g.cursorRow += g.cameraRow - window.row;
-    g.cameraColumn = window.column;
-    g.cameraRow = window.row;
-    g.viewColumns = window.columns;
-    g.viewRows = window.rows;
-    g.targetSlot = slot;
-    targets.graphics[slot] = image.graphics;
-    if (scale > 1) hdArt.begin(rt, image.graphics);
-    // f.m()'s order: w() -- the box-select frame and the cursor corners --, the units and fog
-    // (u()), then c(int,int).
-    renderMap(rt, { fromColumn: 0, toColumn: window.columns, fromRow: 0, toRow: window.rows }, slot, null);
-    if (!scene) stepCameraFrame(rt, image.graphics);
-    stepGameplayOuterLoop(rt, image.graphics);
-    // Placing a building (w 3, a site's f.s): the HUD's ghost replaces the original's preview.
-    if (!scene && !(g.barMode === 3 && g.cSInt > 3 && g.cSInt !== 100)) stepLegacyC2(rt, g.cursorColumn * 22, g.cursorRow * 16, touchCursor);
-  } finally {
-    hdArt.end();
-    targets.graphics[slot] = original;
-    restore(saved);
-  }
-  return image;
-}
-
-let sceneImage: LegacyOffscreenImage | null = null;
-
-/** The cave's speech bubbles, pieced together in the original (a body, a tail, bits of edge), are one
- *  picture each in HD (user 2026-10-26): big when the body 1662 is there, the tail 1660 left / 1661
- *  right; their size in the original's pixels. */
-const BUBBLE_PIECES = new Set([1660, 1661, 1662, 1665, 1666, 1667, 1668]);
-const BUBBLES: Record<string, [number, number]> = { "small-left": [10, 8], "small-right": [10, 7], "big-left": [18, 14], "big-right": [18, 14] };
-
-/**
- * A dialogue scene's sub-records (f.P()'s two f.d() calls on black: the cave's eyes, the fire ...),
- * in HD, on a `width` x `height` image with the original's offscreen point (0, 0) at (`x`, `y`).
- */
-export function renderSceneSprites(rt: LegacyRuntimeState, calls: readonly { record: number; x: number; y: number; phase: number }[], width: number, height: number, x: number, y: number): LegacyOffscreenImage | null {
-  if (!rt.packedData) return null;
-  const scale = hdArt.scale(rt);
-  if (!sceneImage || sceneImage.width !== width || sceneImage.height !== height || sceneImage.scale !== scale) {
-    sceneImage = new LegacyOffscreenImage(width, height, scale);
-    sceneImage.graphics.shown = true;
-  }
-  const graphics = sceneImage.graphics;
-  graphics.setColor(0);
-  graphics.fillRect(0, 0, width, height);
-  graphics.translate(x, y);
-  const packed = new LegacyPackedSpriteRenderer({ shortTables: rt.packedData.shortTables, byteTables: rt.packedData.byteTables, imageGroups: rt.imageGroups, graphics });
-  const drawSprite = packed.drawSprite.bind(packed);
-  const drawComposite = (record: number, drawX: number, drawY: number) => {
-    const bubble: [number, number, number][] = [];
-    packed.drawSprite = (index, x, y) => (BUBBLE_PIECES.has(index) ? void bubble.push([index, x, y]) : drawSprite(index, x, y));
-    packed.drawComposite(record, drawX, drawY);
-    packed.drawSprite = drawSprite;
-    if (bubble.length === 0) return;
-    const ids = new Set(bubble.map(([index]) => index));
-    const name = `${ids.has(1662) ? "big" : "small"}-${ids.has(1660) ? "left" : "right"}`;
-    const [width, height] = BUBBLES[name]!;
-    // drawSprite's +11 / +8.
-    const x = Math.min(...bubble.map(([, x]) => x)) + 11;
-    const y = Math.min(...bubble.map(([, , y]) => y)) + 8;
-    if (!hdArt.drawPicture(`cave/bubble-${name}.png`, x, y, width, height)) bubble.forEach(([index, x, y]) => drawSprite(index, x, y));
-  };
-  const saved = snapshot(rt);
-  try {
-    hdArt.begin(rt, graphics);
-    for (const call of calls) rt.stepZSubrecordDraw(call.record, call.x, call.y, call.phase, { onSpriteRecord: drawComposite });
-  } finally {
-    hdArt.end();
-    graphics.translate(-x, -y);
-    restore(saved);
-  }
-  return sceneImage;
-}
-
 /**
  * A building of `kind` as the placement preview draws it (c(int,int)'s a(1000 + kind + 1, 2)),
  * trimmed to its pixels, for the build list (Hud.ts). State copied before and restored after.
@@ -207,27 +100,57 @@ export function renderBuildingPicture(rt: LegacyRuntimeState, kind: number): HTM
   return renderPicture(rt, 160, () => drawImageHelper(rt, 1000 + kind + 1, 2, 40, 70));
 }
 
-/** A villager's portrait as the original's bars draw it (f.a(IIIII), as in drawLegacy1010). */
-export function renderPortrait(rt: LegacyRuntimeState, id: number): HTMLCanvasElement | null {
-  return renderPicture(rt, 64, () => rt.stepEntityAction(id, 32, 40, -8, 29));
-}
-
 /** What the selected-unit panel (frame command 4) draws for villager `id` -- its composites and
- *  numbers (runtime.villagerPanelDraft's form) --, drawn privately as if `id` alone were selected, the
- *  game state put back after it: one of several selected villagers in the HD panel (Hud.ts). */
+ *  numbers (runtime.villagerPanelDraft's form) --, as if `id` alone were selected: one of several
+ *  selected villagers in the HD panel (Hud.ts). Not drawn anywhere: the original's panel code runs
+ *  onto a scratch canvas, and the few fields it writes (its scratch fields, the panel's change
+ *  tables, the trace) are put back after it -- not the whole game state (2026-10-29). */
 export function villagerPanelOf(rt: LegacyRuntimeState, id: number): LegacyRuntimeState["villagerPanelDraft"] {
+  const targets = rt.offscreenTargets;
+  if (!targets || !rt.packedData) return [];
+  const g = rt.game;
+  const primitives = (o: object) => Object.fromEntries(Object.entries(o).filter(([, v]) => v === null || typeof v !== "object"));
+  const saved = { game: primitives(g), runtime: primitives(rt), dispatch: primitives(rt.frameDispatchState) };
+  const arrays = [g.zlDShorts, g.zlKBytes, g.frameFlags, g.selectionFlags].map((a) => [a, a.slice()] as const);
+  const calls = rt.frameHelperCalls.length;
+  const originals = [...targets.graphics];
+  scratch ??= new LegacyOffscreenImage(1, 1);
   let cells: LegacyRuntimeState["villagerPanelDraft"] = [];
-  renderPicture(rt, 1, () => {
-    rt.game.selectedId = id;
-    rt.game.am = id;
+  try {
+    for (let i = 0; i < 4; i += 1) targets.graphics[i as 0 | 1 | 2 | 3] = scratch.graphics;
+    g.selectedId = id;
+    g.am = id;
     // The panel on, every row marked as changed: they all draw, not only the changed ones.
-    rt.game.frameFlags[4] = true;
-    rt.game.selectionFlags[4] = true;
-    rt.game.zlKBytes.fill(1);
+    g.frameFlags[4] = true;
+    g.selectionFlags[4] = true;
+    g.zlKBytes.fill(1);
     drawFrameCommandPrimitive(rt, 4, 0, 264);
     cells = [...rt.villagerPanelDraft];
-  });
+  } finally {
+    originals.forEach((graphics, i) => { targets.graphics[i as 0 | 1 | 2 | 3] = graphics; });
+    for (const [array, copy] of arrays) for (let i = 0; i < copy.length; i += 1) (array as unknown[])[i] = (copy as unknown[])[i];
+    rt.frameHelperCalls.length = calls;
+    rt.geometry.reset();
+    Object.assign(g, saved.game);
+    Object.assign(rt, saved.runtime);
+    Object.assign(rt.frameDispatchState, saved.dispatch);
+  }
   return cells;
+}
+let scratch: LegacyOffscreenImage | null = null;
+
+/** Runs `draw` with the whole game state put back after it (scripts/make-catalog.mjs). */
+export function drawPrivately(rt: LegacyRuntimeState, draw: () => void): void {
+  const targets = rt.offscreenTargets;
+  if (!targets) return;
+  const saved = snapshot(rt);
+  const originals = [...targets.graphics];
+  try {
+    draw();
+  } finally {
+    originals.forEach((graphics, i) => { targets.graphics[i as 0 | 1 | 2 | 3] = graphics; });
+    restore(saved);
+  }
 }
 
 /** Runs one of the original's draws into a private image of `size` x `size` (the game state put

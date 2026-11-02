@@ -1,5 +1,5 @@
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
-import { capitalise, originalText } from "./OriginalText";
+import { ui } from "./text/UiText";
 import { ZH_LANGUAGE } from "./text/LegacyZhText";
 import type { TouchControls } from "./TouchControls";
 import { stepAs } from "./ui/UiRuntime";
@@ -34,14 +34,12 @@ const LANGUAGES = [
   { code: "zh", art: "cn", row: ZH_LANGUAGE },
 ] as const;
 const LOADING_MS = 1500;
+/** Where each cloud is on its way across at the start, in seconds of its drift (styles.css). */
+const CLOUD_START_S = [100, 75, 30, 60];
 const MAPS = 5; // the custom maps, q 7..11 (the original's Q 9 list)
 /** Each map card's picture and, until it has loaded, its main colour (the picture's average). */
 const MAP_PICTURE = (index: number) => `${ART}maps/map-${index + 1}.webp`;
 const MAP_COLOURS = ["#257479", "#938412", "#449415", "#449515", "#469514"];
-// The original's /t records shown on the pages: the questions after NEW GAME, the locked custom game.
-const LOSE_CAMPAIGN = 62;
-const LOSE_SAVE = 64;
-const PASS_TUTORIAL = 70;
 
 const read = (key: string) => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* not kept */ } };
@@ -128,10 +126,10 @@ export function attachStartMenu(
     show(page!);
   };
 
-  const message = (record: number) => {
+  const message = (key: string) => {
     const text = document.createElement("p");
     text.className = "start-text";
-    text.textContent = capitalise(originalText(runtime, "t", record));
+    text.textContent = ui(key);
     return text;
   };
   const column = (...items: HTMLElement[]) => {
@@ -142,7 +140,7 @@ export function attachStartMenu(
   };
   const mapCard = (index: number) => {
     const badge = Array.from(String(index + 1), (c) => `<img src="hd/ui/digit-${c}.png" alt="">`).join("");
-    const card = button("start-map", `地图 ${index + 1}`,
+    const card = button("start-map", ui("start.map", { n: index + 1 }),
       `<img class="start-map-picture" src="${MAP_PICTURE(index)}" alt="" draggable="false"><span class="start-map-number">${badge}</span>`,
       () => start(false, index));
     card.style.background = MAP_COLOURS[index] ?? "";
@@ -156,13 +154,31 @@ export function attachStartMenu(
   // map page does not open on empty cards.
   for (let i = 0; i < MAPS; i += 1) new Image().src = MAP_PICTURE(i);
 
+  /** The clouds over the cloudless sky (user 2026-10-28, UI design 2026-10-29): a CSS drift, each
+   *  cloud started where it would be by now, so a new page does not put them back. */
+  function clouds(): HTMLElement {
+    const sky = document.createElement("div");
+    sky.className = "start-clouds";
+    for (let i = 1; i <= 4; i += 1) {
+      const cloud = document.createElement("img");
+      cloud.className = `start-cloud c${i}`;
+      cloud.src = `${ART}cloud-${i}.png`;
+      cloud.alt = "";
+      cloud.draggable = false;
+      cloud.style.animationDelay = `${-(performance.now() / 1000 + CLOUD_START_S[i - 1]!)}s`;
+      sky.append(cloud);
+    }
+    return sky;
+  }
+
   function show(next: Page | null): void {
     page = next;
     layer.hidden = next === null;
     layer.dataset.page = next ?? "";
     if (next === null) return;
     layer.replaceChildren();
-    layer.insertAdjacentHTML("beforeend", picture(next === "splash" ? "bg-splash.jpg" : "bg-menu.jpg", "start-bg"));
+    layer.insertAdjacentHTML("beforeend", picture(next === "splash" ? "bg-splash.jpg" : "bg-menu-sky.jpg", "start-bg"));
+    if (next !== "splash") layer.append(clouds());
     layer.insertAdjacentHTML("beforeend", picture("logo.png", "start-logo"));
     if (next === "splash") {
       layer.insertAdjacentHTML("beforeend", picture("chars.png", "start-chars"));
@@ -177,8 +193,8 @@ export function attachStartMenu(
     if (next === "main") layer.append(column(word("campaign", () => choose(false)), word("custom", () => choose(true)), word("about", () => go("about"))));
     else if (next === "mode") layer.append(column(word("continue", () => start(true)), word("newgame", () => go("question"))));
     else if (next === "question") {
-      layer.append(column(message(custom ? LOSE_SAVE : LOSE_CAMPAIGN), word("yes", () => go("difficulty")), word("no", back)));
-    } else if (next === "locked") layer.append(column(message(PASS_TUTORIAL)));
+      layer.append(column(message(custom ? "confirm.save" : "confirm.newCampaign"), word("yes", () => go("difficulty")), word("no", back)));
+    } else if (next === "locked") layer.append(column(message("confirm.passTutorial")));
     else if (next === "difficulty") {
       const pick = (level: 1 | 2) => () => { difficulty = level; if (custom) go("maps"); else start(false); };
       layer.append(column(word("easy", pick(1)), word("hard", pick(2))));
@@ -194,11 +210,11 @@ export function attachStartMenu(
     const corner = document.createElement("div");
     corner.className = "start-corner";
     corner.append(
-      button("start-round", "语言", picture(`flag-${language().art}.png`, ""), nextLanguage),
-      button("start-round", game.eByte !== 0 ? "声音：开" : "声音：关", picture(game.eByte !== 0 ? "sound-on.png" : "sound-off.png", ""), toggleMusic),
+      button("start-round", ui("a11y.language"), picture(`flag-${language().art}.png`, ""), nextLanguage),
+      button("start-round", ui(game.eByte !== 0 ? "a11y.soundOn" : "a11y.soundOff"), picture(game.eByte !== 0 ? "sound-on.png" : "sound-off.png", ""), toggleMusic),
     );
     layer.append(corner);
-    if (next !== "main") layer.append(button("start-back", "返回", picture("back.png", ""), back));
+    if (next !== "main") layer.append(button("start-back", ui("a11y.back"), picture("back.png", ""), back));
   }
 
   /** The loading bar: fills over LOADING_MS, waits short of the end until the game is on. */

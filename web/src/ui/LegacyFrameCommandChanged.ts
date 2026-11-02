@@ -185,8 +185,7 @@ export function stepLegacyFrameCommandChanged(
       return stepLegacyAd12(state);
     case 13: {
       // Offsets 745..833.
-      const add = state.qByte === 7 ? 21 : (state.packedBytes[(state.packedOffsets[248] ?? 0) + state.qByte] ?? 0);
-      state.dShort[62] = toShort(82 + add);
+      state.dShort[62] = legacyStoryTitle(state.qByte, state.packedBytes, state.packedOffsets);
       state.dShort[63] = state.akByte;
       return markIfNewFrame(state, 61);
     }
@@ -577,19 +576,31 @@ export function stepLegacyAd7Or8(command: number, state: LegacyZAdChangeState): 
  * true on write, `return G` at the shared epilogue); mirrors how every
  * other branch in this file returns its own `changed` boolean.
  */
+/**
+ * Who speaks in a dialogue (c()'s aD 12): the name's text row (d[57]: 104 when it is the chief,
+ * aShort[0][17], 105 for the narrator of scene 17's lines 35 / 50 / 54, else the villager's name)
+ * and the portrait (d[58]). `am` is f.am:B, the speaker, read as 51 from 51 on in missions 0..2.
+ * Pure, so the HUD reads it from the game state (StoryHud) and not from the drawing's d[].
+ */
+export function legacyDialogueSpeaker(
+  am: number, qByte: number, Q: number, al: number, ai: number, chief: number, dense: Int8Array,
+): { am: number; name: number; portrait: number } {
+  if (am >= 51 && qByte <= 2) am = 51;
+  let name = chief === am ? 104 : 108 + (dense[UNIT_NAME + am] ?? 0);
+  if (Q === 17 && al === 3 && (ai === 35 || ai === 50 || ai === 54)) name = 105;
+  return { am, name, portrait: dense[UNIT_PORTRAIT + am] ?? 0 };
+}
+
+/** A story picture's title row (c()'s aD 13, d[62]): 82 + table 248's entry for the mission, 21 for mission 7. */
+export function legacyStoryTitle(qByte: number, packedBytes: Int8Array, packedOffsets: Int16Array): number {
+  return toShort(82 + (qByte === 7 ? 21 : (packedBytes[(packedOffsets[248] ?? 0) + qByte] ?? 0)));
+}
+
 export function stepLegacyAd12(state: LegacyZAdChangeState): boolean {
-  if (state.am >= 51 && state.qByte <= 2) {
-    state.am = 51;
-  }
-
-  const stat17 = state.aShortStats[0]?.[17] ?? 0;
-  state.dShort[57] = stat17 === state.am ? 104 : 108 + (state.dense[UNIT_NAME + state.am] ?? 0);
-
-  if (state.Q === 17 && state.al === 3 && (state.ai === 35 || state.ai === 50 || state.ai === 54)) {
-    state.dShort[57] = 105;
-  }
-
-  state.dShort[58] = state.dense[UNIT_PORTRAIT + state.am] ?? 0;
+  const speaker = legacyDialogueSpeaker(state.am, state.qByte, state.Q, state.al, state.ai, state.aShortStats[0]?.[17] ?? 0, state.dense);
+  state.am = speaker.am;
+  state.dShort[57] = speaker.name;
+  state.dShort[58] = speaker.portrait;
 
   if (state.frameGenCounterZ !== state.frameGenCounterY) {
     state.kBytes[56] = 1;

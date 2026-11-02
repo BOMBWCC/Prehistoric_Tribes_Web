@@ -110,11 +110,11 @@ export class LegacyPackedSpriteRenderer {
     const width = unsigned(this.j[23]?.[index] ?? 0);
     const height = unsigned(this.j[24]?.[index] ?? 0);
     if (type < 27) {
+      // The HD art (render/HdArt.ts): this piece's picture from the catalog -- no original image needed.
+      if (hdArt.active && hdArt.drawPiece(this.input.graphics, index, type, remapped, sx, sy, width, height, x + 11, y + 8)) return;
       const group = remapped ? 1 : 0;
       const image = this.input.imageGroups[group]?.get(type)?.image;
       if (!image) return;
-      // The HD wide view (render/HdArt.ts): this piece's HD picture, if there is one.
-      if (hdArt.active && hdArt.drawPiece(this.input.graphics, index, type, remapped, image, sx, sy, width, height, x + 11, y + 8)) return;
       this.input.graphics.drawRegion(image, sx, sy, width, height, 0, x + 11, y + 8, Anchor.LEFT | Anchor.TOP);
       return;
     }

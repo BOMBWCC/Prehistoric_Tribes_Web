@@ -309,14 +309,19 @@ export function stepSubsystemFrame(rt: LegacyRuntimeState): void {
       // b.e()'s offset-752 `T()`, WIRED 2026-09-22 -- it rebuilds the
       // on-screen entity index (gridG plus the dense[6060] chain) that
       // LegacySecondaryCellChain.ts walks. Nothing had ever produced it.
-      onFinalScriptedPass: () => stepLegacyEntityScreenIndex({
-        state: rt.denseState,
-        gridG: rt.gridG,
-        viewportI: rt.game.cameraColumn,
-        viewportK: rt.game.cameraRow,
-        viewportO: rt.game.viewColumns,
-        viewportP: rt.game.viewRows,
-      }),
+      // The index starts empty each time: the original's drawing (f.u()) emptied it as it drew;
+      // since 2026-10-27 the drawing does not run every tick (modernization step 2, B4).
+      onFinalScriptedPass: () => {
+        for (const row of rt.gridG) row.fill(0);
+        stepLegacyEntityScreenIndex({
+          state: rt.denseState,
+          gridG: rt.gridG,
+          viewportI: rt.game.cameraColumn,
+          viewportK: rt.game.cameraRow,
+          viewportO: rt.game.viewColumns,
+          viewportP: rt.game.viewRows,
+        });
+      },
       onTeamEnd: (team) => { subsystemUnitTraining(rt, team); },
       onPrepass: () => {
         runSubsystemPrepass(rt, 
@@ -2718,6 +2723,10 @@ export function runSubsystemJ(rt: LegacyRuntimeState, q = rt.game.mission, c = r
 export function stepSubsystemStateCommand(rt: LegacyRuntimeState, value: number): void {
   // stateCommandState is live (see its docblock): no copy in or out.
   const state = rt.stateCommandState;
+  if (value >= 0) {
+    rt.storyStarts += 1;
+    rt.storyCamera = { column: rt.game.cameraColumn, row: rt.game.cameraRow, mission: rt.game.mission };
+  }
 
   rt.stepStateTransitionCommand({
     state,

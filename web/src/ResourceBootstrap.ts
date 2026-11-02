@@ -5,9 +5,6 @@ import { loadMidiResource, type MidiResource } from "./platform/Audio";
 import { loadPackedData, type PackedData } from "./platform/PackedData";
 
 export type OriginalResources = {
-  readonly pi0: ImagePack;
-  readonly pi9: ImagePack;
-  readonly pi8: ImagePack;
   readonly languageS: DelimitedTable;
   readonly languageT: DelimitedTable;
   readonly languageD0: DelimitedTable;
@@ -33,19 +30,13 @@ export async function loadOriginalResources(language = 0, version = "0.1.28"): P
   }
   const languageTables = await Promise.all(Array.from({ length: 5 }, (_, index) => loadLanguageTables(index, version)));
   const selected = languageTables[language];
-  const [pi0, pi9, pi8, ma, tableA, sa, pd0] = await Promise.all([
-    ImagePack.load("assets/packs/pi0", 31),
-    ImagePack.load("assets/packs/pi9", 6),
-    ImagePack.load("assets/packs/pi8", 12),
+  const [ma, tableA, sa, pd0] = await Promise.all([
     loadMaResource(),
     diagnoseTableA(),
     loadMidiResource(),
     loadPackedData(),
   ]);
   return {
-    pi0,
-    pi9,
-    pi8,
     languageS: selected.s,
     languageT: selected.t,
     languageD0: selected.d0,
@@ -55,6 +46,20 @@ export async function loadOriginalResources(language = 0, version = "0.1.28"): P
     sa,
     pd0,
   };
+}
+
+/**
+ * The original's image packs (pi0 the sprite sheets, pi9 the colour variants, pi8 the large
+ * pictures) -- not part of the game since 2026-10-29: they live in the repository's original/packs/,
+ * which only the dev server serves (vite.config.ts), for the tools that measure or export the
+ * original's art (scripts/make-catalog.mjs, export-art.mjs) and the oracle.
+ */
+export async function loadOriginalArt(): Promise<[ImagePack, ImagePack, ImagePack]> {
+  return Promise.all([
+    ImagePack.load("original/packs/pi0", 31),
+    ImagePack.load("original/packs/pi9", 6),
+    ImagePack.load("original/packs/pi8", 12),
+  ]);
 }
 
 async function loadLanguageTables(language: number, version: string): Promise<OriginalLanguageResources> {

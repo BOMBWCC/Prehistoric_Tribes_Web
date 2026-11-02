@@ -2,11 +2,11 @@
 // (docs/gameplay.md §1).
 
 /** Taps whatever the story / dialogue page shows until the map is on (or `max` taps). */
-async function playThroughStory(t, max = 80) {
+async function playThroughStory(t, max = 160) { // the cave scenes play for about 20 s
   const records = [];
   for (let i = 0; i < max; i += 1) {
-    const state = await t.page.evaluate(() => ({ onMap: window.__prehistoricRuntime.game.loopMode === 1, screen: window.__prehistoricRuntime.game.screen, hud: !document.querySelector(".story-hud").hidden, text: window.__prehistoricRuntime.shownTextRecord }));
-    if (state.hud && records.at(-1) !== state.text) records.push(state.text);
+    const state = await t.page.evaluate(() => ({ onMap: window.__prehistoricRuntime.game.loopMode === 1, screen: window.__prehistoricRuntime.game.screen, hud: !document.querySelector(".story-hud").hidden, segment: document.querySelector(".story-hud").dataset.segment }));
+    if (state.hud && records.at(-1) !== state.segment) records.push(state.segment);
     if (state.onMap && !state.hud && state.screen !== 17) { await t.page.waitForTimeout(300); if (await t.page.evaluate(() => window.__prehistoricRuntime.game.loopMode === 1 && document.querySelector(".story-hud").hidden)) return records; }
     if (state.hud) await t.page.click(".story-hud", { position: { x: 200, y: 300 } });
     await t.page.waitForTimeout(500);
@@ -20,7 +20,8 @@ async function outcome(t, record, last) {
   const kind = () => t.page.evaluate(() => { const h = document.querySelector(".story-hud"); return h.hidden ? "" : h.dataset.kind; });
   const tapUntil = async (want) => {
     for (let i = 0; i < 40 && (await kind()) !== want; i += 1) {
-      if (await kind()) await t.page.evaluate(() => document.querySelector(".story-hud").click());
+      // The pages ignore a second tap within 300 ms (StoryHud's TAP_GAP_MS): wait like a player.
+      if (await kind()) { await t.page.evaluate(() => document.querySelector(".story-hud").click()); await t.page.waitForTimeout(350); }
       await t.step(10);
     }
     t.expect.equal(await kind(), want, `the ${want} page`);
@@ -33,14 +34,15 @@ async function outcome(t, record, last) {
   t.expect.equal(await t.eval(() => document.querySelectorAll(".end-row:not(.head)").length), 6, "six score rows");
   if (last === "menu") {
     for (let i = 0; i < 40 && (await t.eval(() => window.__prehistoricRuntime.game.screen)) !== 0; i += 1) {
-      if (await kind()) await t.page.evaluate(() => document.querySelector(".story-hud").click());
+      // The pages ignore a second tap within 300 ms (StoryHud's TAP_GAP_MS): wait like a player.
+      if (await kind()) { await t.page.evaluate(() => document.querySelector(".story-hud").click()); await t.page.waitForTimeout(350); }
       await t.step(10);
     }
     t.expect.equal(await t.eval(() => window.__prehistoricRuntime.game.screen), 0, "back to the main menu");
     return;
   }
   await tapUntil("again");
-  await t.page.evaluate(() => document.querySelector('.end-again button[aria-label="yes"]').click());
+  await t.page.evaluate(() => document.querySelector('.end-again button[data-ui-label="a11y.yes"]').click());
   await t.until(() => window.__prehistoricRuntime.game.loopMode === 1, { max: 600, chunk: 10, what: "the map again" });
 }
 
@@ -63,10 +65,120 @@ export default [
       await t.page.waitForTimeout(100);
       await t.page.tap('.start-menu button[aria-label="easy"]');
       await t.page.waitForFunction(() => window.__prehistoricRuntime.game.screen === 18, null, { timeout: 30_000 });
+      // BUG-045: every display frame until the map, a story screen covers it (no map flashing
+      // between a picture and the dialogue after it).
+      await t.page.evaluate(() => {
+        window.__storyGaps = 0;
+        let started = false;
+        const frame = () => {
+          const layer = document.querySelector(".story-hud");
+          const covered = !layer.hidden || !document.querySelector(".story-leaving").hidden;
+          started ||= !layer.hidden;
+          if (started && !covered && window.__prehistoricRuntime.game.loopMode !== 1) window.__storyGaps += 1;
+          requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      });
       const records = await playThroughStory(t);
-      // The three story pictures (/d0 71..73), then MUMBO's first words (75).
-      t.expect.deepEqual(records.slice(0, 4), [71, 72, 73, 75], `the opening texts (${records.join(",")})`);
+      // The story pictures, the cave, then MUMBO's first words on the map (public/i18n/*/story.json).
+      t.expect.deepEqual(records.slice(0, 3), ["intro", "cave-awakening", "arrival"], `the opening segments (${records.join(",")})`);
       t.expect.equal(await t.page.evaluate(() => window.__prehistoricRuntime.game.mission), 0, "mission 0, the tutorial");
+      t.expect.equal(await t.page.evaluate(() => window.__storyGaps), 0, "no frame without a story screen");
+      // BUG-039: back on the map, the view is on our chief's hut (dense building 1, kind 3, 4 x 4).
+      const view = await t.eval(() => {
+        const e = __prehistoricRuntime.denseState;
+        return { hut: [e[8383 + 1] + 2, e[8444 + 1] + 2, e[8749 + 1]], centre: window.__prehistoricScreen.centreTile() };
+      });
+      t.expect.equal(view.hut[2], 3, "building 1 is the chief's hut");
+      t.expect.ok(Math.abs(view.centre[0] - view.hut[0]) <= 1, `the view's middle column ${view.centre} at the hut ${view.hut}`);
+    },
+  },
+  {
+    name: "story: a dialogue on the map pauses the world, keeps the camera and goes back to the map",
+    async run(t) {
+      await t.eval(() => { S.enter(0); S.step(3); });
+      const before = await t.eval(() => { const g = __prehistoricRuntime.game; return { frame: g.missionFrame, camera: [g.cameraColumn, g.cameraRow] }; });
+      // The original's dialogue 13, "the kitchen is finished" (story/StoryData.ts), as its tutorial starts it.
+      await t.eval(() => { __prehistoricRuntime.stepSubsystemStateCommand(13); S.step(30); });
+      await t.until(() => !!document.querySelector(".story-hud").dataset.segment, { max: 100, chunk: 5, what: "the story's words" });
+      const during = await t.eval(() => ({ frame: __prehistoricRuntime.game.missionFrame, segment: document.querySelector(".story-hud").dataset.segment, words: document.querySelector(".story-hud .story-text")?.textContent ?? "" }));
+      t.expect.equal(during.segment, "kitchen-built", "the kitchen's words");
+      t.expect.ok(during.words.length > 0, "a page shows");
+      t.expect.equal(during.frame, before.frame, "the world waits");
+      for (let i = 0; i < 20 && (await t.visible(".story-hud")); i += 1) {
+        await t.page.evaluate(() => document.querySelector(".story-hud").click());
+        await t.page.waitForTimeout(350);
+        await t.step(5);
+      }
+      await t.step(10);
+      const after = await t.eval(() => { const g = __prehistoricRuntime.game; return { onMap: g.loopMode === 1, frame: g.missionFrame, camera: [g.cameraColumn, g.cameraRow] }; });
+      t.expect.ok(after.onMap, "back on the map");
+      t.expect.ok(after.frame > before.frame, "the world goes on");
+      t.expect.deepEqual(after.camera, before.camera, "the camera where it was");
+    },
+  },
+  {
+    name: "story: the chief and the shaman speak with the face of the villager they are now",
+    async run(t) {
+      await t.eval(() => { S.enter(0); S.step(3); });
+      // Dialogue 33 (enemy-among-us): the chief, Mumbo, then the shaman, the story's cast p[3].
+      const play = async (shamanAlive) => {
+        const expected = await t.eval((alive) => {
+          const rt = __prehistoricRuntime;
+          const face = (id) => `face-0${720 + rt.denseState[2727 + id]}.png`;
+          rt.stepSubsystemStateCommand(33);
+          const shaman = rt.stateCommandState.p[3];
+          if (!alive) rt.denseState[1919 + shaman] = 0;
+          S.step(5);
+          return { chief: face(rt.mainArrays.aShort[0][17]), shaman: alive ? face(shaman) : "face-0727.png" };
+        }, shamanAlive);
+        await t.until(() => !document.querySelector(".story-hud").hidden, { max: 100, chunk: 5, what: "the story's words" });
+        const seen = [];
+        for (let i = 0; i < 30 && (await t.visible(".story-hud")); i += 1) {
+          seen.push(await t.eval(() => document.querySelector(".story-hud .story-face")?.getAttribute("src")?.split("/").pop() ?? ""));
+          await t.page.evaluate(() => document.querySelector(".story-hud").click());
+          await t.page.waitForTimeout(350);
+          await t.step(5);
+        }
+        t.expect.ok(seen.includes(expected.chief), `the chief's own face (${expected.chief} in ${seen})`);
+        t.expect.ok(seen.includes(expected.shaman), `the shaman's face (${expected.shaman} in ${seen})`);
+      };
+      await play(true);
+      await t.step(10);
+      await play(false);
+    },
+  },
+  {
+    name: "story: scene 8 plays only its words, then a › notice jumps to what it showed",
+    async run(t) {
+      await t.eval(() => { S.enter(0); S.step(3); });
+      // The raiders coming (dialogue 15, scene 8, camera on its actor 5): one raider far away as it.
+      const enemy = await t.eval(() => {
+        const rt = __prehistoricRuntime;
+        S.enemy(30, 25); S.step(2);
+        let id = 0;
+        for (let u = 51; u <= 100 && !id; u += 1) if (rt.denseState[1919 + u] > 0) id = u;
+        rt.stateCommandState.p[5] = id;
+        rt.stepSubsystemStateCommand(15);
+        S.step(8);
+        return { x: rt.denseState[id], y: rt.denseState[101 + id] };
+      });
+      await t.until(() => !document.querySelector(".story-hud").hidden, { max: 100, chunk: 5, what: "the story's words" });
+      t.expect.ok(await t.eval(() => document.querySelector(".story-hud").classList.contains("fade-in")), "the story fades in");
+      for (let i = 0; i < 20 && (await t.visible(".story-hud")); i += 1) {
+        await t.page.evaluate(() => document.querySelector(".story-hud").click());
+        await t.page.waitForTimeout(350);
+        await t.step(3);
+      }
+      await t.step(3);
+      const notice = await t.eval(() => [...document.querySelectorAll("button.notice")].map((n) => n.textContent));
+      t.expect.ok(notice.length === 1 && notice[0].endsWith("›"), `a › notice (${notice})`);
+      await t.page.click("button.notice");
+      await t.step(3);
+      // Centred on it as far as the map's edge lets the view go.
+      const view = await t.eval(() => window.__prehistoricScreen.viewRect());
+      const inside = enemy.x >= view.column + 1 && enemy.x < view.column + view.columns - 1 && enemy.y >= view.row + 1 && enemy.y < view.row + view.rows - 1;
+      t.expect.ok(inside && Math.abs(view.column + view.columns / 2 - enemy.x) <= 3, `the view on the raider (${JSON.stringify(view)} / ${JSON.stringify(enemy)})`);
     },
   },
   {
@@ -78,7 +190,7 @@ export default [
       await t.page.waitForTimeout(100);
       await t.page.tap('.start-menu button[aria-label="hard"]');
       await t.page.waitForTimeout(100);
-      await t.page.tap('.start-menu button[aria-label="地图 3"]');
+      await t.page.tap('.start-menu .start-map >> nth=2');
       await t.page.waitForFunction(() => window.__prehistoricRuntime.game.loopMode === 1, null, { timeout: 30_000 });
       t.expect.equal(await t.page.evaluate(() => window.__prehistoricRuntime.game.mission), 9, "FOREST BELT (q 9)");
     },

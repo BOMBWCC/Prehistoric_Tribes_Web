@@ -14,7 +14,6 @@ import { stepLegacyZKind2, type LegacyZKind2State } from "./LegacyZKind2";
 import { stepLegacyZSubrecordDraw, type LegacyZSubrecordDrawCallbacks } from "./LegacyZSubrecordDraw";
 import { drawLegacyPackedSpritePrimitive, type LegacyPackedSpritePrimitiveCallbacks } from "./LegacyPackedSpritePrimitive";
 import { stepLegacyMapOverviewScroll } from "./LegacyMapOverview";
-import { stepLegacyD as stepLegacyFD } from "../ui/LegacyFrameProgressionScan";
 import { LegacyOffscreenTargets } from "./LegacyOffscreenTargets";
 import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
 import { drawLegacy1137Composition } from "./Legacy1137Composition";
@@ -34,7 +33,6 @@ import { stepLegacyAnimatedSlotScan } from "./LegacyAnimatedSlotScan";
 import { stepLegacyEffectSlotScan, isLegacyWithinViewport } from "./LegacyEffectSlotScan";
 import { stepLegacyCRect } from "./LegacyEffectRectMark";
 import { dispatchLegacyGameplayCellBody, type LegacyGameplayCellBodyState } from "./LegacyGameplayCellBodyDispatch";
-import { markLegacyEntityFootprint, LEGACY_ENTITY_FOOTPRINT_WIDTH_MASKS, type LegacyEntityFootprintMarkState } from "../sim/units/LegacyEntityFootprintMark";
 import { drawLegacyMapMarkerPieces, prepareLegacyMapMarkerDispatch } from "./LegacyMapMarkerDispatch";
 import { stepLegacyMapMarkerDetail } from "./LegacyMapMarkerDetail";
 import { stepLegacyGameplayFramePrep, type LegacyGameplayFramePrepState } from "./LegacyGameplayFramePrep";
@@ -44,6 +42,7 @@ import { canPlaceLegacyFootprint } from "../sim/world/LegacyFootprintCheck";
 import { stepLegacySelectionFlags } from "../ui/LegacySelectionFlags";
 import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_FLAGS, UNIT_Y } from "../core/DenseLayout";
 import { stepEntityAction, stepEntityRemoval } from "../sim/units/UnitRuntime";
+import type { Op } from "./MapScene";
 import { T_BUILDING } from "../core/DataTables";
 
 /**
@@ -158,18 +157,18 @@ export function drawPackedSpritePrimitive(rt: LegacyRuntimeState, id: number, x:
  *  the hand. A module object, not runtime state: the wide view's state snapshot does not undo it. */
 export const touchAction = { icon: 0 };
 
-export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number, touchCursor = false): void {
+export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number, touchCursor = false, record?: (op: Extract<Op, { op: "effect" | "composite" }>) => void): void {
   const g = rt.game;
   const dense = rt.denseState;
+  // `record` (the WebGL map, render/MapScene.ts): the sub-records and composites reported there
+  // instead of drawn; the numbers beside the hand are left out (touch play shows none).
+  const subrecord = (index: number, x: number, y: number, phase: number) => {
+    if (record) record({ op: "effect", index, x, y, phase });
+    else rt.stepZSubrecordDraw(index, x, y, phase, { onSpriteRecord: (r, sx, sy) => drawPackedComposite(rt, r, sx, sy) });
+  };
 
   if (g.cAaByte !== 0) {
-    rt.stepZSubrecordDraw(
-      34 + g.cAaByte,
-      (g.cAbByte - g.cameraColumn) * 22,
-      (g.cAcByte - g.cameraRow) * 16,
-      g.animStep,
-      { onSpriteRecord: (record, x, y) => drawPackedComposite(rt, record, x, y) },
-    );
+    subrecord(34 + g.cAaByte, (g.cAbByte - g.cameraColumn) * 22, (g.cAcByte - g.cameraRow) * 16, g.animStep);
     if (g.animStep === 5) g.cAaByte = 0;
   }
 
@@ -238,7 +237,7 @@ export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number,
         // building ghost a(1000 + s + 1, 2), which was deferred until then.
         g.projectionS = arg1 - Math.trunc(local6 / 2) * 22;
         g.projectionT = arg2 - Math.trunc(local7 / 2) * 16 - 5 + g.animStep;
-        drawImageHelper(rt, 1000 + g.cSInt + 1, 2, g.projectionS, g.projectionT);
+        if (!record) drawImageHelper(rt, 1000 + g.cSInt + 1, 2, g.projectionS, g.projectionT);
         // a(int,int,int,boolean):boolean (#450) is canPlaceLegacyFootprint.
         const accepted = rt.canPlaceFootprint(rt.gridC, g.cameraColumn + g.cTInt, g.cameraRow + g.cUInt, g.cSInt, true);
         g.cRFlag = accepted;
@@ -250,19 +249,17 @@ export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number,
     // `touchCursor` is not in the original (phase 3, the larger view for touch play): no hand
     // outside building placement -- only the action icon and the count stay.
     if (!touchCursor || g.barMode === 3) {
-      rt.stepZSubrecordDraw(local3, arg1, arg2, g.animStep, {
-        onSpriteRecord: (record, x, y) => drawPackedComposite(rt, record, x, y),
-      });
+      subrecord(local3, arg1, arg2, g.animStep);
     }
     // local5-gated numeric overlay: c.a(x+22,y+8,0,String(local5),1) then
     // c.a(Graphics[N:B]) -- see docblock above, CORRECTED 2026-08-24.
     // local5 is already computed above (armed/occupied-slot count for the
     // selected formation), so rt needs no new dependency.
-    if (local5 > 0) {
+    if (local5 > 0 && !record) {
       const graphics = rt.offscreenTargets?.graphics[rt.game.targetSlot];
       if (graphics) {
         rt.geometry.queueTextWithWidth(arg1 + 22, arg2 + 8, 0, String(local5), 1);
-        rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]!);
+        rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
         // c.a(Graphics)'s tail (offset 624) sets a:B = 0. Missing here and in
         // the 1010 slot counts until 2026-10-10 (oracle run 8, frame 11645):
         // rows piled up until row 13 spilled into the floating-text ring.
@@ -271,22 +268,21 @@ export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number,
     }
     // Offsets 662..721: the same overlay with aC:I, the unit count f.a()Z leaves for the box
     // being dragged (the "2" next to the cursor). Unwired until 2026-10-16 (screenshot diff).
-    if (g.boxUnitCount > 0) {
+    if (g.boxUnitCount > 0 && !record) {
       const graphics = rt.offscreenTargets?.graphics[rt.game.targetSlot];
       if (graphics) {
         rt.geometry.queueTextWithWidth(arg1 + 22, arg2 + 8, 0, String(g.boxUnitCount), 1);
-        rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]!);
+        rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
         rt.geometry.reset();
       }
     }
 
     if (g.barMode === 3) {
       if (g.cSInt < 0) {
-        drawPackedComposite(rt, 659 - g.cSInt - 1, arg1 + 11 + 5, arg2 + 8 + 5);
+        if (record) record({ op: "composite", index: 659 - g.cSInt - 1, x: arg1 + 11 + 5, y: arg2 + 8 + 5 });
+        else drawPackedComposite(rt, 659 - g.cSInt - 1, arg1 + 11 + 5, arg2 + 8 + 5);
       } else if (g.cSInt <= 3) {
-        rt.stepZSubrecordDraw(g.cSInt + 48, arg1, arg2, g.animStep, {
-          onSpriteRecord: (record, x, y) => drawPackedComposite(rt, record, x, y),
-        });
+        subrecord(g.cSInt + 48, arg1, arg2, g.animStep);
       }
     }
   }
@@ -318,9 +314,7 @@ export function stepLegacyC2(rt: LegacyRuntimeState, arg1: number, arg2: number,
     return;
   }
   if (local3 !== 0 && g.outerLoopZByte !== 2) {
-    rt.stepZSubrecordDraw(local3, arg1, arg2, g.animStep, {
-      onSpriteRecord: (record, x, y) => drawPackedComposite(rt, record, x, y),
-    });
+    subrecord(local3, arg1, arg2, g.animStep);
   }
 }
 
@@ -525,7 +519,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onRecord1010: (record, mode, recordX, recordY, row) => {
       rt.frameHelperCalls.push({ kind: "frame-record-1010", record, mode, x: recordX, y: recordY, row });
-      if (!rt.offscreenTargets || !rt.packedData || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets || !rt.packedData) return;
       const graphics = rt.offscreenTargets.graphics[rt.frameDispatchState.N as 0 | 1 | 2 | 3];
       const packed = new LegacyPackedSpriteRenderer({
         shortTables: rt.packedData.shortTables,
@@ -559,10 +553,9 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
         onEntity: (id, entityX, entityY, arg4, arg5) => rt.stepEntityAction(id, entityX, entityY, arg4, arg5),
         onText: (textX, textY, width, text, value) => {
           rt.frameHelperCalls.push({ kind: "frame-1010-number", x: textX, y: textY, value: Number(text), style: width });
-          rt.touchBarNumberX = textX;
           try {
             rt.geometry.queueTextWithWidth(textX, textY, width, text, value);
-            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]!);
+            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
             rt.geometry.reset(); // c.a(Graphics)'s tail: a:B = 0
           } catch {
             // Preserve the original c.a(String) exception boundary.
@@ -579,7 +572,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onRecord1137: (record, recordX, recordY, row) => {
       rt.frameHelperCalls.push({ kind: "frame-record-1137", record, x: recordX, y: recordY, row });
-      if (!rt.offscreenTargets || !rt.packedData || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets || !rt.packedData) return;
       const graphics = rt.offscreenTargets.graphics[rt.frameDispatchState.N as 0 | 1 | 2 | 3];
       const packed = new LegacyPackedSpriteRenderer({
         shortTables: rt.packedData.shortTables,
@@ -639,7 +632,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
                 sourceY: draw.sourceY,
               });
             }
-            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]!);
+            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
             rt.geometry.reset();
           },
           onSelectionMarker: (kind, markerX, markerY, phase) => {
@@ -656,7 +649,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onKind2: (row, aI, aJ, aK) => {
       rt.frameHelperCalls.push({ kind: "frame-kind2", row, mode: aI, x: aJ, y: aK });
-      if (!rt.offscreenTargets || !rt.packedData || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets || !rt.packedData) return;
       const graphics = rt.offscreenTargets.graphics[rt.frameDispatchState.N as 0 | 1 | 2 | 3];
       const packed = new LegacyPackedSpriteRenderer({
         shortTables: rt.packedData.shortTables,
@@ -745,7 +738,6 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
         onPalette: (value) => {
           const image = rt.imageGroups[2]?.get(value)?.image;
           if (image) rt.pi8Slot0 = image;
-          rt.shownPicture = value;
         },
         onImage: (_group, _index, imageX, imageY, anchor) => {
           const image = rt.pi8Slot0 ?? rt.imageGroups[2]?.get(0)?.image;
@@ -776,7 +768,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onKText: (textX, textY, command, mode, row, value) => {
       rt.frameHelperCalls.push({ kind: "frame-k-text", x: textX, y: textY, command, mode, row, value });
-      if (!rt.offscreenTargets || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets) return;
       const graphics = rt.offscreenTargets.graphics[rt.frameDispatchState.N as 0 | 1 | 2 | 3];
       const textState = {
         aF: value,
@@ -814,7 +806,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
         g.frameGenCounterY = 0;
       }
       g.frameGenCounterZ = g.frameGenCounterY;
-      if (!rt.offscreenTargets || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets) return;
       try {
         if (compose) composeLegacyC(
           rt.cComposition,
@@ -846,12 +838,12 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
           rt.setDialogueEdges,
           {
             ...extras,
-            onZhLine: (tokens, m, n, zhFont, stat) => paintZhLine(graphics,
-              { ...rt.zhPaintBase(imageGroup0), onIcon: extras.onIcon, onStat: stat }, zhFont, tokens, m, n),
+            onZhLine: (tokens, m, n, zhFont, stat) => { if (imageGroup0) paintZhLine(graphics,
+              { ...rt.zhPaintBase(imageGroup0), onIcon: extras.onIcon, onStat: stat }, zhFont, tokens, m, n); },
           },
         );
         for (const draw of commands) {
-          const image = rt.imageGroups[0].get(draw.imageIndex)?.image;
+          const image = rt.imageGroups[0]?.get(draw.imageIndex)?.image;
           if (image) graphics.drawRegion(image, draw.sourceX, draw.sourceY, draw.width, draw.height, 0, draw.x, draw.y, draw.anchor);
         }
       } catch {
@@ -900,7 +892,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
           // cost number landed at y 0 with the alignment as its spacing.
           try {
             rt.geometry.queueTextWithWidth(textX, textY, style, value, mode);
-            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]!);
+            rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
           } catch {
             // Preserve the original c/f rendering exception boundary.
           }
@@ -909,7 +901,7 @@ export function drawFrameCommandPrimitive(rt: LegacyRuntimeState, command: numbe
     },
     onFlush: () => {
       rt.frameHelperCalls.push({ kind: "frame-flush" });
-      if (!rt.offscreenTargets || !rt.imageGroups[0]) return;
+      if (!rt.offscreenTargets) return;
       try {
         const graphics = rt.offscreenTargets.graphics[rt.frameDispatchState.N as 0 | 1 | 2 | 3];
         rt.geometryRenderer.renderTo(graphics, rt.imageGroups[0]);
@@ -1104,22 +1096,10 @@ export function drawMapMarker(rt: LegacyRuntimeState, value: number, arg2: numbe
   for (const write of result.scratchGWrites) {
     rt.entityMarkerG[write.index] = write.value;
   }
-  // The HD wide view (render/HdArt.ts): a building or map object with an HD picture draws that
-  // instead; the original's pieces still go through, onto a measuring or discarded canvas.
-  const building = value < 0 && value >= -60 ? result.local3 : 0;
-  const plan = hdArt.active && packed
-    ? hdArt.planMarker(building, result.local4, result.local7, result.resource, result.local7, result.local10, result.local11, result.arg2 !== 0)
-    : null;
-  if (plan) packed = plan.packed;
-  plan?.before();
   if (result.arg2 === 0) {
     if (packed) {
       const pieces = packed;
       drawLegacyMapMarkerPieces(result, ah, ai, data.shortTables, data.byteTables, (record, x, y) => pieces.drawComposite(record, x, y));
-      const ground = plan?.original ? hdArt.ground : null;
-      if (ground) {
-        drawLegacyMapMarkerPieces(result, ah, ai, data.shortTables, data.byteTables, (record, x, y) => ground.drawComposite(record, x, y));
-      }
     }
   } else {
     stepLegacyMapMarkerDetail(
@@ -1176,7 +1156,6 @@ export function drawMapMarker(rt: LegacyRuntimeState, value: number, arg2: numbe
       },
     );
   }
-  plan?.after();
   for (let index = 0; index < 8; index += 1) {
     rt.entityMarkerG[index] = 0;
     rt.entityMarkerH[index] = 0;
@@ -1269,11 +1248,8 @@ export function renderGameplayTo(rt: LegacyRuntimeState, graphics: Graphics, vie
  * `a(Graphics,int,int,int)` (#436, the packed composite on `g`):
  *   slot 7 or 8: record 556 at (a:[I][rec] - 68, b:[I][rec] - 55 + bb + d:[I][rec] + 5)
  *   t195[20 + slot] == 1: record 524 at (0, bb); == 2: record 528 at (0, 320 - ba)
- *
- * `skipSlots` is not in the original: the larger view (WideScreen.ts) draws the HUD again without
- * the bars it replaces.
  */
-export function stepGameplayPaintHud(rt: LegacyRuntimeState, graphics: Graphics, skipSlots?: ReadonlySet<number>): void {
+export function stepGameplayPaintHud(rt: LegacyRuntimeState, graphics: Graphics): void {
   const images = rt.offscreenTargets?.images;
   if (!images) return;
   const base195 = rt.packedOffsets[195] ?? 0;
@@ -1287,7 +1263,7 @@ export function stepGameplayPaintHud(rt: LegacyRuntimeState, graphics: Graphics,
     })
     : undefined;
   for (let slot = 0; slot < 20; slot += 1) {
-    if (!g.selectionFlags[slot] || skipSlots?.has(slot)) continue;
+    if (!g.selectionFlags[slot]) continue;
     const record = rt.packedBytes[base195 + slot] ?? 0;
     const image = images[g.frameImageSlots[record] as 0 | 1 | 2 | 3];
     if (image) {
@@ -1372,6 +1348,16 @@ export function stepGameplayPaintComposite(rt: LegacyRuntimeState, graphics: Gra
   } catch {
     // a(Graphics, Image, …) (#435) catches the underlying J2ME draw exception.
   }
+}
+
+/** f.w()'s rule part alone: the box select's tiles (B, C, D, E), nothing drawn. */
+export function stepCameraBox(rt: LegacyRuntimeState): void {
+  const box = stepLegacyCameraLetterbox(rt.letterboxState());
+  if (!box) return;
+  rt.game.BCounter = box.b;
+  rt.game.CCounter = box.c;
+  rt.game.DCounter = box.d;
+  rt.game.ECounter = box.e;
 }
 
 /** f.w(): both halves (letterbox + camera-center cursor), factored out so `renderGameplayTo` and `stepGameplayFramePrep` (f.m()'s `onW`) can share it. */
@@ -1467,38 +1453,42 @@ export function stepGameplayFramePrep(rt: LegacyRuntimeState): void {
   };
   stepLegacyGameplayFramePrep(state, {
     onN: () => rt.stepCameraScroll(),
-    onW: () => {
-      const graphics = rt.offscreenTargets?.graphics[rt.game.targetSlot];
-      if (graphics) stepCameraFrame(rt, graphics);
-    },
+    // w(): only its rule part -- the box select's tiles (B, C, D, E: who a box takes in, the count
+    // beside it). Its drawing (the box, the corners under the cursor) and f.m()'s other drawing are
+    // gone since 2026-10-29: the screen shows render/PixiMap.ts's map, the original's frame is not drawn.
+    onW: () => stepCameraBox(rt),
+    // u(), the map drawing, no longer runs here (2026-10-27, modernization step 2): the screen's
+    // map is WideView's, its rules run in the game's step (sim/world/MapUpkeep.ts). Of what it
+    // wrote, c(int,int) below reads z:B, the fog class at the cursor (offsets ~2030..2050).
     onU: () => {
-      const graphics = rt.offscreenTargets?.graphics[rt.game.targetSlot];
-      rt.stepGameplayOuterLoop(graphics);
+      const g = rt.game;
+      const column = g.cameraColumn + g.cursorColumn;
+      const row = g.cameraRow + g.cursorRow;
+      if (column < 0 || column >= g.mapWidth || row < 0 || row >= g.mapHeight) return;
+      g.outerLoopZByte = g.cameraSFlag && !g.jSceneFlag ? 0 : rt.occupancyClass(column, row);
     },
-    // Offset 30..48 of f.m(): Graphics[3].drawImage(Image[c[1]], 0, 0, 0),
-    // the exact same static Image[]/Graphics[] pair LegacyOffscreenTargets
-    // already models (targetSlot/onW/onU above all index the same array).
-    // Wired 2026-08-20 -- imageSlot is currently always 0 (no producer
-    // traced yet for indices other than 0), guarded to the array's real
-    // 0..3 bounds rather than assumed safe.
-    onOffscreenDraw: (imageSlot) => {
-      if (imageSlot >= 0 && imageSlot <= 3) {
-        rt.offscreenTargets?.copy(3, imageSlot as 0 | 1 | 2 | 3, 0, 0, 0);
-      }
-    },
+
     onTargetSlot: (slot) => { rt.game.targetSlot = slot; },
-    onSReset: () => { rt.game.gameplaySFlag = false; },
-    onElementScan: (aD, x, y) => {
-      rt.framePrimitives.push([aD, x, y]);
-      rt.drawFrameCommandPrimitive(aD, x, y);
+    // S:Z (#97) is cleared here and set again by the scan's command bar row (a(int,byte,int) offsets
+    // 202..371): the selected slot holds a weapon or trap (0..8), the bar is not the store's
+    // (e[8749 + q] != 6) and the slot is one whose count can change (as < av). f.ae()'s UP / DOWN only
+    // change the count while it is set (the armoury's swipe). The scan no longer runs on the map, so
+    // the same test is made here for the slots whose command has that row (0, 2, 5: commands 2, 5)
+    // (BUG-037, 2026-11-02).
+    onSReset: () => {
+      const g = rt.game;
+      const code = rt.mainArrays.r[g.menuCursor] ?? 0;
+      g.gameplaySFlag = (g.selectionFlags[0] || g.selectionFlags[2] || g.selectionFlags[5])
+        && code >= 0 && code <= 8 && (rt.denseState[BLD_KIND + g.qCounter] ?? 0) !== 6 && g.menuCursor < g.frameLayoutAv;
     },
-    // m() offsets 206/257: a(III) (#439), the composite edge strips.
-    onFixedSprite: (record, x, y) => {
-      drawPackedComposite(rt, record, x, y);
-    },
+    // The command bar scan (onElementScan: f.a(byte,int,int) for each HUD slot that is on) and its
+    // edge strips (onFixedSprite) no longer run on the map (2026-10-28, docs/modernization-plan.md
+    // §4.0): the HUD is Hud.ts's, which reads the game state, not what the scan wrote.
     // private void c(int,int) (#552), ported 2026-08-18 as
     // stepLegacyC2 -- see its own docblock for the full derivation.
-    onC: (x, y) => rt.stepLegacyC2(x, y),
+    // c(int,int)'s rule part (the aimed unit, r:Z, an order's spot, the arrows' countdown, touch
+    // play's icon); what it would draw goes nowhere (MapScene draws the cursor's effects).
+    onC: (x, y) => rt.stepLegacyC2(x, y, false, () => {}),
     onF: () => rt.stepFrameDispatch(),
   });
 }
@@ -1564,6 +1554,21 @@ export function stepGameplayFramePrep(rt: LegacyRuntimeState): void {
  * stopped being modelled as null -- see that method's docblock).
  */
 export function stepGameplayOuterLoop(rt: LegacyRuntimeState, graphics?: Graphics): void {
+  // The drawing's own marks on the building records -- drawn this pass (8871 bit 0), in sight now or
+  // remembered (9176 = 6 / 5) -- are put back after it (2026-10-27): the game keeps only whether a
+  // building was ever seen (9176 = 4, sim/world/MapUpkeep.ts's stepSeenBuildings).
+  const dense = rt.denseState;
+  const drawn = dense.slice(8871, 8871 + 61);
+  const seen = dense.slice(9176, 9176 + 61);
+  try {
+    drawGameplayOuterLoop(rt, graphics);
+  } finally {
+    dense.set(drawn, 8871);
+    dense.set(seen, 9176);
+  }
+}
+
+function drawGameplayOuterLoop(rt: LegacyRuntimeState, graphics?: Graphics): void {
   const viewport: LegacyGameplayOuterLoopViewport = {
     columns: rt.game.viewColumns, // f.O:B (#83)
     rows: rt.game.viewRows, // f.P:B (#87)
@@ -1709,15 +1714,8 @@ export function stepGameplayOuterLoop(rt: LegacyRuntimeState, graphics?: Graphic
       const result = dispatchLegacyGameplayCellBody(
         gridCValue, columnPixelX, rowTile, columnTile, ai, ah, occupancyClass, rowPixelBase,
         bodyState, graphics, {
-          onFootprintMark: (layer, x, y, width, height) => {
-            const footprintState: LegacyEntityFootprintMarkState = {
-              layer,
-              widthMasks: LEGACY_ENTITY_FOOTPRINT_WIDTH_MASKS,
-              layers: rt.mainArrays.aInt,
-              mapHeight: rt.game.mapHeight,
-            };
-            markLegacyEntityFootprint(footprintState, x, y, width, height);
-          },
+          // onFootprintMark (b.a(IIII), a building first seen lights up its footprint in the fog) is
+          // the game step's since 2026-10-27: sim/world/MapUpkeep.ts's stepSeenBuildings.
           // a(III) (#439) in both the negative branch (offset 1234) and its
           // tail (1788): composites, not b(III). Corrected 2026-10-01.
           onPackedPrimitive: packed ? (type, x, y) => packed.drawComposite(type, x, y) : undefined,
@@ -1801,23 +1799,8 @@ export function stepGameplayOuterLoop(rt: LegacyRuntimeState, graphics?: Graphic
               });
             }
           : undefined,
-        // final void c(int,boolean) (#555, stepEntityRemoval) -- wired
-        // 2026-08-24, arg2 always false at rt call site.
-        onModeThreeExpire: (id) => rt.stepEntityRemoval(id, false),
-        // final void d(int) (#... see LegacyFrameProgressionScan.ts) --
-        // fires once per expiring slot, sets pendingP when w:B===2 and
-        // the slot's own id matches game.qCounter.
-        onSlotAction: (id) => {
-          const dState = { w: rt.game.barMode, q: rt.game.qCounter, P: rt.game.pendingP };
-          stepLegacyFD(id, dState);
-          rt.game.pendingP = dState.P;
-        },
-        // final void c(int,int,int,int) / stepLegacyCRect -- its own
-        // `isBlocked` predicate (private boolean a(int,int) #446) turned
-        // out, on direct bytecode read, to be the EXACT SAME I/O/K/P
-        // bounds check as isLegacyWithinViewport (not a distinct
-        // "blocked" concept as its placeholder name suggested).
-        onRect: (x, y, width, height) => rt.repaintRect(x, y, width, height),
+        // The timers and their expiry (the building going) are the game step's since 2026-10-27:
+        // sim/world/MapUpkeep.ts's stepDemolitionDust.
       },
     );
     // f.u()'s own once-per-tick row-end-marker tail (bytecode offset

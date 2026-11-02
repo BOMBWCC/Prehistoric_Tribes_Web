@@ -99,7 +99,12 @@ export function enqueueLegacyEffectSlot(slotGrid: Int8Array[], arg1: number, arg
   }
 }
 
-/** Exact f.s(), bytecode offsets 0..309. */
+/**
+ * f.s()'s drawing, bytecode offsets 189..286 (f.s() is f.u()'s post-loop tail): the dust of a slot
+ * still animating (timer < 20) over the building's footprint, in 2-tile strides wherever it is within
+ * the viewport. Reads only: the timers and their expiry are `stepLegacyEffectSlotTimers`, run by the
+ * game's step since 2026-10-27 (modernization step 2; the original advanced them while drawing).
+ */
 export function stepLegacyEffectSlotScan(
   state: LegacyEffectSlotScanState,
   callbacks: LegacyEffectSlotScanCallbacks = {},
@@ -109,47 +114,63 @@ export function stepLegacyEffectSlotScan(
   for (let slot = 0; slot < 30; slot += 1) {
     const id = state.slotGrid[0]?.[slot] ?? 0;
     if (id === 0) continue;
+    const timer = state.slotGrid[1]?.[slot] ?? 0;
+    if (timer >= 20) continue;
 
     const x = state.dense[BLD_X + id] ?? 0;
     const y = (state.dense[BLD_Y + id] ?? 0) - 1;
     const width = state.packedBytes[state.packedOffsets[T_BUILDING] + 104 + (state.dense[BLD_KIND + id] ?? 0)] ?? 0;
     const height = state.packedBytes[state.packedOffsets[T_BUILDING] + 130 + (state.dense[BLD_KIND + id] ?? 0)] ?? 0;
-
-    const timer = state.slotGrid[1]?.[slot] ?? 0;
-    if (timer < 20) {
-      // Bytecode offsets 189..286: still animating -- step through the
-      // sprite's footprint in 2-tile strides and draw record 74 wherever
-      // it's currently within the viewport. Rows run to height inclusive (offset 198), columns
-      // stop before width (offset 208). CORRECTED 2026-10-16 (pixel comparison, a demolished hut):
-      // the column loop was inclusive too, drawing an extra column of dust on the right.
-      for (let row = 0; row <= height; row += 2) {
-        for (let col = 0; col < width; col += 2) {
-          if (withinViewport(x + col, y + row)) {
-            const phase = 4 * col + 2 * row + timer - 1;
-            callbacks.onSpriteDraw?.(
-              74,
-              (x + col - state.originColumn) * 22,
-              (y + row - state.originRow) * 16,
-              phase,
-            );
-          }
+    // Rows run to height inclusive (offset 198), columns stop before width (offset 208). CORRECTED
+    // 2026-10-16 (pixel comparison, a demolished hut): the column loop was inclusive too, drawing an
+    // extra column of dust on the right.
+    for (let row = 0; row <= height; row += 2) {
+      for (let col = 0; col < width; col += 2) {
+        if (withinViewport(x + col, y + row)) {
+          const phase = 4 * col + 2 * row + timer - 1;
+          callbacks.onSpriteDraw?.(
+            74,
+            (x + col - state.originColumn) * 22,
+            (y + row - state.originRow) * 16,
+            phase,
+          );
         }
       }
-    } else {
-      // Bytecode offsets 129..186: timer expired -- free the slot (clear
-      // its entity id) and run the one-shot expiry callbacks.
-      if (state.slotGrid[0]) state.slotGrid[0][slot] = 0;
-      if ((state.slotGrid[2]?.[slot] ?? 0) === 3) {
-        callbacks.onModeThreeExpire?.(id, false);
-        state.dense[BLD_WORK + id] = 3;
-      }
-      callbacks.onRect?.(x, y + 1, width, height);
-      callbacks.onSlotAction?.(id);
     }
+  }
+}
 
-    if (state.slotGrid[1]) {
-      state.slotGrid[1][slot] = toJavaByte(timer + 1);
+/**
+ * f.s()'s rule part, bytecode offsets 129..186 and the timer write: each tick a slot's timer goes up;
+ * at 20 the slot is freed and its one-shot expiry runs (mode 3: the building goes, `BLD_WORK` = 3).
+ * The original advanced the timer after drawing and expired the slot on the draw after it reached 20;
+ * run before the world's step, this expires it one tick earlier, with the same 20 frames of dust.
+ */
+export function stepLegacyEffectSlotTimers(
+  slotGrid: Int8Array[],
+  dense: Int8Array,
+  packedBytes: Int8Array,
+  packedOffsets: Int16Array,
+  callbacks: Pick<LegacyEffectSlotScanCallbacks, "onModeThreeExpire" | "onRect" | "onSlotAction"> = {},
+): void {
+  for (let slot = 0; slot < 30; slot += 1) {
+    const id = slotGrid[0]?.[slot] ?? 0;
+    if (id === 0) continue;
+    const timer = toJavaByte((slotGrid[1]?.[slot] ?? 0) + 1);
+    if (slotGrid[1]) slotGrid[1][slot] = timer;
+    if (timer < 20) continue;
+
+    const x = dense[BLD_X + id] ?? 0;
+    const y = dense[BLD_Y + id] ?? 0;
+    const width = packedBytes[packedOffsets[T_BUILDING] + 104 + (dense[BLD_KIND + id] ?? 0)] ?? 0;
+    const height = packedBytes[packedOffsets[T_BUILDING] + 130 + (dense[BLD_KIND + id] ?? 0)] ?? 0;
+    if (slotGrid[0]) slotGrid[0][slot] = 0;
+    if ((slotGrid[2]?.[slot] ?? 0) === 3) {
+      callbacks.onModeThreeExpire?.(id, false);
+      dense[BLD_WORK + id] = 3;
     }
+    callbacks.onRect?.(x, y, width, height);
+    callbacks.onSlotAction?.(id);
   }
 }
 

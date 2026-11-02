@@ -36,14 +36,14 @@ const SHEET_NAMES = [
 ];
 const BUILDING_NAMES = ["armoury", "gym", "hut", "chiefs-hut", "kitchen", "range", "store", "disco", "sanctuary", "pia-center", "nursery", "tower"];
 
-const server = await createServer({ root: webDir, logLevel: "error", server: { port: 0, hmr: false, watch: null } });
+const server = await createServer({ root: webDir, logLevel: "error", server: { port: 0, strictPort: false, host: "localhost", hmr: false, watch: null } }); // any free port, not the dev server's fixed 5173
 await server.listen();
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   const page = await (await browser.newContext({ viewport: { width: 240, height: 372 } })).newPage();
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => typeof window.__prehistoricDebugBootWithoutSplash === "function");
-  await page.evaluate(async () => { localStorage.clear(); await window.__prehistoricDebugBootWithoutSplash(); });
+  await page.evaluate(async () => { localStorage.clear(); await window.__prehistoricDebugBootWithoutSplash({ originals: true }); });
 
   const art = await page.evaluate(async ({ SUBRECORD_NAMES }) => {
     const { Graphics } = await import("/src/platform/Graphics.ts");

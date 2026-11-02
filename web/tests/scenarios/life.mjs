@@ -11,6 +11,28 @@ async function start(t, map = 11) {
 
 export default [
   {
+    name: "names: villagers are named from the name library and keep their names through a save",
+    async run(t) {
+      await start(t);
+      const before = await t.eval(async () => {
+        const library = await (await fetch("i18n/en/names.json")).json();
+        const all = [...library.male, ...library.female];
+        const rt = window.__prehistoricRuntime;
+        const names = T.villagers().map((v) => rt.unitNames[v.id]);
+        rt.saveGameplayToStore(1);
+        return { names, known: names.every((name) => all.includes(name)) };
+      });
+      t.expect.ok(before.names.length > 0 && before.known, `names from names.json (${before.names.join(", ")})`);
+      const after = await t.eval(() => {
+        const rt = window.__prehistoricRuntime;
+        rt.unitNames.fill("");
+        rt.loadGameplayFromStore(1);
+        return T.villagers().map((v) => rt.unitNames[v.id]);
+      });
+      t.expect.deepEqual(after, before.names, "the same names after loading");
+    },
+  },
+  {
     name: "ageing: an adult is a year older every 500 frames",
     async run(t) {
       const s = await start(t);
@@ -66,7 +88,7 @@ export default [
     },
   },
   {
-    name: "chief: when the chief dies a new one is chosen by a tap",
+    name: "chief: when the chief dies a new one is chosen by a tap and the tick over them, then a notice",
     async run(t) {
       const s = await start(t);
       await t.eval((id) => S.set(id, { AGE: 99 }), s.chief);
@@ -79,8 +101,20 @@ export default [
       t.expect.ok(await t.visible(".hud-prompt"), "the chief prompt");
       const pick = await t.eval(() => T.villagers().find((v) => v.age >= 12 && !v.inside));
       await t.tapTile(pick.x, pick.y);
-      await t.tap(".hud-fab");
+      t.expect.ok(await t.visible(".hud-villager"), "their villager panel");
+      t.expect.ok(await t.visible(".hud-chief-mark"), "the chief's head and tick over them");
+      // ✕ only closes the panel: the choice goes on.
+      await t.tap(".hud-sheet-close", 2);
+      t.expect.ok(!(await t.visible(".hud-villager")) && (await t.visible(".hud-prompt")), "the panel closed, the prompt back");
+      t.expect.ok(await t.eval(() => T.ui().choosingChief), "still choosing");
+      await t.tap(".hud-chief-mark");
       await t.until((id) => T.ui().chief === id && !T.ui().choosingChief, { arg: pick.id, max: 200, what: "the new chief" });
+      // "<name> is the chief now" (ui.json chief.chosen); the hat stays a moment, then goes.
+      t.expect.ok(await t.eval(() => [...document.querySelectorAll(".notice")].some((n) => /当上了族长|is the chief now/.test(n.textContent))), "the new chief's notice");
+      t.expect.ok(await t.visible(".hud-chief-mark.crowned"), "the hat stays over the new chief");
+      await t.page.waitForTimeout(2000);
+      await t.step(2);
+      t.expect.ok(!(await t.visible(".hud-chief-mark")), "the hat gone");
     },
   },
 ];

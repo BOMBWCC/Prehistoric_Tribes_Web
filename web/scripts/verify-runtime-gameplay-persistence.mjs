@@ -8,7 +8,7 @@ const storage = new Map();
 const context = {
   ArrayBuffer, DataView, Uint8Array, Uint16Array, Int8Array, Int16Array,
   Int32Array, Float32Array, Map, Set, Math, Number, String, Boolean, Object,
-  Array, JSON, console, document: undefined,
+  Array, JSON, console, document: undefined, TextEncoder, TextDecoder,
   localStorage: {
     getItem(key) { return storage.has(key) ? storage.get(key) : null; },
     setItem(key, value) { storage.set(key, value); },
@@ -85,6 +85,9 @@ runtime.denseState[102] = 0;
 runtime.denseState[4647] = -1;
 runtime.gridC[0][2] = 1;
 
+// The units' names are kept as text with the save (record 2), not looked up again on load.
+runtime.unitNames[1] = "kazza";
+
 const record = runtime.snapshotGameplayRecord();
 const roundTrip = decodeGameplayRecord(encodeGameplayRecord(record), 4, 3);
 runtime.saveGameplayToStore(1);
@@ -98,6 +101,7 @@ assert.equal(restored.loadGameplayFromStore(1, 4, 3), true);
 // Continue must not fall back to the title screen (fixed 2026-09-27).
 assert.equal(restored.game.screen, 28);
 assert.equal(restored.game.loopMode, 1);
+assert.equal(restored.unitNames[1], "kazza");
 // f.d(int) offset 1954 runs b.n(): the zone heads are rebuilt (-1 = empty),
 // not left at the cold-boot zeros that made p()'s list walk loop forever.
 assert.equal(restored.gridC[0][2], 1); // f.d(int) 988..1947 grid rebuild (2026-09-27)

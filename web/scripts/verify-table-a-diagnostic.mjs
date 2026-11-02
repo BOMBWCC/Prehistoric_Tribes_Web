@@ -23,7 +23,7 @@ assert.equal(prefix.loadedRecords, 1);
 assert.deepEqual(Array.from(prefix.bytes.slice(0, 2)), [0xaa, 0xbb]);
 assert.equal(prefix.offsets[1], 2);
 assert.equal(JSON.stringify(prefix.firstInvalidRead), JSON.stringify({ record: 1, length: 5, offset: 2, end: 7 }));
-const original = new Uint8Array(fs.readFileSync(new URL("../../extracted/a", import.meta.url)));
+const original = new Uint8Array(fs.readFileSync(new URL("../public/assets/a", import.meta.url)));
 const originalFailure = findTableAReadFailure(original);
 assert.equal(originalFailure, undefined);
 const originalPrefix = replayTableAPrefix(original);
