@@ -1025,6 +1025,7 @@ export class LegacyRuntimeState {
     originY: number,
     id: number,
     onOccupantCheck?: (cellValue: number) => boolean,
+    skipPockets?: boolean,
   ): boolean {
     const game = this.game;
     const queue = this.auxiliaryQueueState;
@@ -1045,6 +1046,7 @@ export class LegacyRuntimeState {
       id,
       entityB: this.subsystemArrays.bField8,
       ae: this.subsystemArrays.bField105,
+      skipPockets,
       onOccupantCheck,
       onO: () => stepLegacySubsystemBVoidO({
         state: this.denseState,

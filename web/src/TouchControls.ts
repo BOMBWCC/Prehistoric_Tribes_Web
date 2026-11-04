@@ -25,6 +25,8 @@ const DRAG_PX = 8; // CSS pixels a press may move and still count as a tap
 // an arc above the finger fills in ARC_MS; moving more than ARC_SLOP_PX before it is full is a drag.
 const LONG_MS = 700;
 const ARC_MS = 450;
+/** A second tap this soon after an order, within a tile of it, makes the villagers run (gameplay 7.1). */
+const DOUBLE_TAP_MS = 350;
 const ARC_SLOP_PX = 12;
 const EDGE_BAND = 0.1; // share of the screen at each edge where a box drag scrolls the view
 const EDGE_SPEED = 110; // CSS pixels per second at the very edge (slow, like Warcraft's)
@@ -174,6 +176,8 @@ export function attachTouchControls(
   };
 
   const run = (next: Script) => { script = next; touched(); };
+  // The last order a tap gave villagers (w 1): a second tap near it soon after makes it a run.
+  let lastOrder: { tx: number; ty: number; at: number } | null = null;
   // Capture keeps the moves and the lift coming to the element that saw the press. It throws for
   // a pointer the browser no longer tracks, which must not cost the key press.
   const capture = (element: Element, id: number) => { try { element.setPointerCapture(id); } catch { /* no capture */ } };
@@ -209,6 +213,29 @@ export function attachTouchControls(
       moveCursorTo(tx, ty);
       return;
     }
+    // Villagers selected (w 1), docs/gameplay.md 7.1 (user 2026-11-03, BUG-056): a tap on another
+    // villager selects them instead; any other tap is an order at once -- the ground, a resource, an
+    // enemy, a building (never selecting it: X first) -- and a second tap within 0.35 s and a tile of
+    // it turns that order into a run. Each FIRE waits for the last one's double-press window
+    // (f.n:I), which would select everyone on screen and drop the selection.
+    if (game.barMode === 1) {
+      const villager = villagerAt(x, y);
+      // A tap on the selected villager does nothing (BUG-022, user 2026-10-26: only X deselects).
+      // The tile under the finger can be the next one -- a figure stands up into the tile above, a
+      // walker is between two -- and a tap there was an order or another villager.
+      if (villager && villager.id === game.selectedId) return;
+      if (villager) { lastOrder = null; run(selectAt(villager.tx, villager.ty, 0)); return; }
+      const now = performance.now();
+      // A third quick tap keeps them running.
+      if (lastOrder && now - lastOrder.at <= DOUBLE_TAP_MS && Math.max(Math.abs(tx - lastOrder.tx), Math.abs(ty - lastOrder.ty)) <= 1) {
+        lastOrder.at = now;
+        run(runAt(lastOrder.tx, lastOrder.ty, script));
+        return;
+      }
+      lastOrder = { tx, ty, at: now };
+      run(orderAt(tx, ty, script));
+      return;
+    }
     const cx = game.cameraColumn + game.cursorColumn;
     const cy = game.cameraRow + game.cursorRow;
     const hovered = game.hoverUnit > 0 ? tileOf(game.hoverUnit) : null;
@@ -217,14 +244,6 @@ export function attachTouchControls(
     // So no "tap again to confirm" then: the taps below close the bar first.
     const barOpen = game.barMode === 2 || game.barMode === 4;
     if (!barOpen && !script && ((tx === cx && ty === cy) || (hovered && hovered[0] === tx && hovered[1] === ty))) {
-      const cell = unitAt(cx, cy);
-      const target = cell >= 1 && cell <= 50 ? cell : game.hoverUnit;
-      if (game.barMode === 1 && target > 0 && target === game.selectedId) {
-        // FIRE on the unit that is already selected is the original's "select everyone on
-        // screen". Left out of touch input for now (user, 2026-10-15); kept for a later scheme:
-        // run(tapKey(OriginalKey.FIRE));
-        return;
-      }
       run(tapKey(OriginalKey.FIRE));
       return;
     }
@@ -232,27 +251,20 @@ export function attachTouchControls(
     // the cursor jumps to them and FIRE follows. With nothing selected, anything else takes two
     // taps: the first moves the cursor there, the second confirms.
     const villager = villagerAt(x, y);
-    // A tap on the selected villager does nothing (BUG-022, user 2026-10-26: only X deselects). The
-    // tile under the finger can be the next one -- a figure stands up into the tile above, a walker
-    // is between two -- and a tap there was an order or another villager.
-    if (villager && game.barMode === 1 && villager.id === game.selectedId) return;
+    // A building's panel open, villagers are not selected from the map: X first (user 2026-11-03,
+    // docs/gameplay.md 7.1 -- villagers and buildings are two kinds).
+    if (villager && screen.buildingMenuOpen) return;
     if (villager) {
-      // From a building's bar, the villager's panel straight away (BUG-018).
       run(selectAt(villager.tx, villager.ty, 0));
       return;
     }
     // A building is selected with one tap too (user, 2026-10-21); from another building's bar, that
     // bar is closed first.
     const cell = unitAt(tx, ty);
-    // With villagers selected (w 1) the same tap is the original's order: they go to the building
-    // (work, build, repair) -- one tap too (user, 2026-10-23: keep the original, BUG-018).
-    if (cell < 0 && cell >= -60 && (game.barMode === 0 || game.barMode === 1 || barOpen)) {
+    if (cell < 0 && cell >= -60 && (game.barMode === 0 || barOpen)) {
       run(selectAt(tx, ty, -cell));
       return;
     }
-    // With villagers selected one tap is the order too (user, 2026-10-26: move, gather, hunt,
-    // attack ... at once; the HUD flashes the action icon there).
-    if (game.barMode === 1) { run(selectAt(tx, ty, 0)); return; }
     // First tap: the cursor jumps to the tile.
     moveCursorTo(tx, ty);
   };
@@ -267,6 +279,26 @@ export function attachTouchControls(
     if (open) yield* backOut();
     moveCursorTo(tx, ty);
     yield* tapKey(OriginalKey.FIRE);
+  }
+
+  /** The double tap's run: once the order before it (`previous`, still running) is through, the
+   *  same order again at (tx, ty) -- a(byte,byte) takes it as the same cell's, the original's run
+   *  (game.runOrder: a building's or a resource's order has moved its target off the tapped tile). */
+  function* runAt(tx: number, ty: number, previous: Script | null): Script {
+    if (previous) yield* previous;
+    for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
+    if (game.barMode !== 1) return;
+    moveCursorTo(tx, ty);
+    game.runOrder = true;
+    yield* tapKey(OriginalKey.FIRE);
+    game.runOrder = false;
+  }
+
+  /** Villagers' order at (tx, ty), after the one before it (`previous`) is through: a press cut off
+   *  half way would leave FIRE down. */
+  function* orderAt(tx: number, ty: number, previous: Script | null): Script {
+    if (previous) yield* previous;
+    if (game.barMode === 1) yield* selectAt(tx, ty, 0);
   }
 
   /** Our villager (1..50) whose figure is nearest frame point (x, y), within about a tile: the

@@ -132,7 +132,7 @@ export default [
     },
   },
   {
-    name: "building panel: the upgrade's price, the armoury's weapons with price and skill",
+    name: "building panel: the upgrade's price, the armoury's weapons with their price only (BUG-058)",
     async run(t) {
       const s = await start(t, { stock: 300 });
       const armoury = await t.eval(([x, y]) => T.building(S.buildingNear(0, x - 3, y + 3)), [s.hut.x, s.hut.y]);
@@ -141,11 +141,11 @@ export default [
         const rt = window.__prehistoricRuntime;
         const t138 = (row, column) => rt.packedBytes[rt.packedOffsets[138] + row * 26 + column];
         const shown = (code) => [...document.querySelectorAll(`.hud-item[data-code="${code}"] .cost .line`)].map((line) => [...line.querySelectorAll("img")].map((i) => i.src.split("/").pop().replace(".png", "").replace("digit-", "")).join(" "));
-        return { upgrade: shown(16), club: shown(0), want: { upgrade: [t138(10, 0), t138(11, 0)], club: [t138(10, 12), t138(11, 12), t138(14, 12)] } };
+        return { upgrade: shown(16), club: shown(0), want: { upgrade: [t138(10, 0), t138(11, 0)] } };
       });
       const n = (v) => String(v).split("").join(" ");
       t.expect.deepEqual(costs.upgrade, [`icon-wood ${n(costs.want.upgrade[0])} icon-stone ${n(costs.want.upgrade[1])}`], "the upgrade's price (the armoury's)");
-      t.expect.ok(costs.club.length === 2 && costs.club[0].includes("icon-wood") && /^sk-\S+ /.test(costs.club[1]) && costs.club[1].endsWith(n(costs.want.club[2])), `the club's price and skill (${costs.club.join(" | ")})`);
+      t.expect.ok(costs.club.length === 1 && costs.club[0].includes("icon-wood"), `the club's price, no skill (${costs.club.join(" | ")})`);
     },
   },
   {
@@ -162,6 +162,74 @@ export default [
       await t.tap(`.hud-item[data-code="-${s.id}"]`, 4);
       await t.tap(".hud-sheet-tick");
       await t.until((id) => T.ui().selected === id, { arg: s.id, max: 400, what: "selected" });
+    },
+  },
+  {
+    name: "click rules: a double tap runs, taps on a building stay orders, a building's panel ignores villagers (BUG-056)",
+    async run(t) {
+      const s = await start(t, { stock: 300 });
+      const kitchen = await t.eval(([x, y]) => T.building(S.buildingNear(4, x + 6, y + 1)), [s.hut.x, s.hut.y]);
+      await select(t, s.id);
+      const v = await t.eval((id) => T.villager(id), s.id);
+      const spot = await t.eval(([x, y]) => { for (let d = 3; d < 12; d += 1) if (T.cell(x + d, y + 2) === 0) return [x + d, y + 2]; return null; }, [v.x, v.y]);
+      // Taps at once, as a finger does them: no frames for the view to move between them.
+      const quick = (x, y) => t.eval(([x, y]) => {
+        const screen = window.__prehistoricScreen;
+        const box = screen.element.getBoundingClientRect();
+        const p = screen.tileToCss(x, y);
+        const k = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
+        const fire = (type) => screen.element.dispatchEvent(new PointerEvent(type, { clientX: box.left + p.x + k / 2, clientY: box.top + p.y + k / 3, pointerId: 7, button: 0, bubbles: true, isPrimary: true }));
+        fire("pointerdown");
+        fire("pointerup");
+      }, [x, y]);
+      const now = () => t.eval((id) => ({ bar: __prehistoricRuntime.game.barMode, selected: T.ui().selected, run: __prehistoricRuntime.denseState[7777 + id], type: __prehistoricRuntime.denseState[2828 + id] }), s.id);
+      // Two taps a tile apart on the ground: walk, then run -- still selected.
+      await quick(spot[0], spot[1]);
+      await t.step(1);
+      await quick(spot[0] + 1, spot[1]);
+      await t.step(10);
+      let n = await now();
+      t.expect.ok(n.bar === 1 && n.selected === s.id && n.run === 3, `a double tap on the ground runs (${JSON.stringify(n)})`);
+      await t.step(60);
+      await t.page.waitForTimeout(400);
+      // Three quick taps on a kitchen with no cook: the order to cook, running, the kitchen not selected.
+      for (let i = 0; i < 3; i += 1) { await quick(kitchen.x + 1, kitchen.y + 1); await t.step(1); }
+      await t.step(10);
+      n = await now();
+      t.expect.ok(n.bar === 1 && n.selected === s.id && n.run === 3, `three taps on the kitchen: running to it, still selected (${JSON.stringify(n)})`);
+      // A building's panel open, a tap on a villager does nothing: X first.
+      await t.tap(".hud-sheet-close", 5);
+      const store = await t.eval((id) => T.building(id), s.store);
+      await t.tapTile(store.x + 1, store.y + 1);
+      t.expect.ok(await t.visible(".hud-sheet .hud-sheet-row"), "the store's panel");
+      const other = await t.eval((id) => T.villagers().find((v) => v.id !== id && v.age >= 12 && !v.inside), s.id);
+      await t.tapTile(other.x, other.y);
+      t.expect.ok(await t.visible(".hud-sheet .hud-sheet-row") && !(await t.visible(".hud-villager")) && (await t.eval(() => T.ui().selected)) !== other.id, "still the store's panel");
+    },
+  },
+  {
+    name: "villager panel: the pouch shows what they carry -- wood (BUG-051)",
+    async run(t) {
+      const s = await start(t);
+      await select(t, s.id);
+      await t.eval((id) => { const v = T.villager(id); const tree = T.nearest(v.x, v.y, [-124]); S.order(id, tree[0], tree[1]); }, s.id);
+      await t.until((id) => (T.villager(id)?.carry ?? 0) > 0, { arg: s.id, max: 2000, what: "carrying wood" });
+      // The panel's picture of them is made again every couple of seconds.
+      await t.page.waitForTimeout(2200);
+      await t.step(5);
+      const shown = await t.eval(() => [...document.querySelectorAll(".hud-villager img")].map((i) => i.src.split("/").pop()).join(" "));
+      t.expect.ok(shown.includes("sk-basket-wood"), `the basket of wood (${shown})`);
+    },
+  },
+  {
+    name: "villager panel: the name on its first line (BUG-054)",
+    async run(t) {
+      const s = await start(t);
+      await select(t, s.id);
+      await t.step(10);
+      const [shown, name] = await t.eval((id) => [document.querySelector(".hud-villager .hud-name")?.textContent ?? "", __prehistoricRuntime.unitNames[id]], s.id);
+      t.expect.ok(name && shown.toLowerCase() === name.toLowerCase(), `the name (${shown} / ${name})`);
+      if (process.env.SHOT) await t.page.screenshot({ path: process.env.SHOT });
     },
   },
   {
@@ -439,7 +507,7 @@ export default [
     },
   },
   {
-    name: "armoury: a swipe on a weapon sets how many to make; the armourer makes that many (BUG-037)",
+    name: "armoury: a tap on a weapon makes one more, its − one fewer; the armourer makes that many (BUG-037, BUG-058)",
     async run(t) {
       const s = await start(t);
       const a = await t.eval(([x, y, id]) => {
@@ -451,15 +519,9 @@ export default [
       await t.until((id) => T.villager(id).inside, { arg: s.id, max: 2000, what: "the armourer inside" });
       const b = await t.eval((id) => T.building(id), a);
       await t.tapTile(b.x + 1, b.y + 1);
-      const club = await t.eval(() => { const r = document.querySelector('.hud-item[data-code="0"]').getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
-      // A finger (touch events: the item keeps the pointer as it moves off it) two steps to the
-      // right (24 pixels each), the game ticking as it moves.
-      const cdp = await t.page.context().newCDPSession(t.page);
-      const touch = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1 }] });
-      await touch("touchStart", club[0], club[1]);
-      for (let i = 1; i <= 6; i += 1) { await touch("touchMove", club[0] + i * 9, club[1]); await t.step(6); }
-      await touch("touchEnd");
-      await t.step(20);
+      t.expect.ok(!(await t.visible('.hud-item[data-code="0"] .fewer')), "no − at 0");
+      for (let i = 0; i < 3; i += 1) await t.tap('.hud-item[data-code="0"]', 20);
+      await t.tap('.hud-item[data-code="0"] .fewer', 20);
       const index = await t.eval(() => Number(document.querySelector('.hud-item[data-code="0"]').dataset.index));
       t.expect.equal(await t.eval((i) => __prehistoricRuntime.mainArrays.s[i], index), 2, "two clubs ordered");
       await t.tap(".hud-sheet-close", 5);
@@ -553,6 +615,33 @@ export default [
       await t.eval(() => history.back());
       await t.page.waitForTimeout(200);
       await backAtMenu("back");
+    },
+  },
+  {
+    name: "squads: a squad shows the people on its list, not old marks; disband clears the marks (BUG-053)",
+    async run(t) {
+      const s = await start(t);
+      const [b, ...three] = await t.eval((id) => [id, ...T.villagers().filter((v) => v.id !== id && v.age >= 12 && !v.inside).slice(0, 3).map((v) => v.id)], s.id);
+      // Squad 2 (the 9 key, row 3) lists only B, while three earlier members still carry its mark --
+      // as a disband followed by storing B there left it.
+      await t.eval(([b, three]) => {
+        const rt = __prehistoricRuntime;
+        rt.mainArrays.aByte[3].fill(0);
+        rt.mainArrays.aByte[3][0] = b;
+        for (const id of [b, ...three]) rt.denseState[909 + id] = 3;
+        S.step(2);
+      }, [b, three]);
+      const chips = () => t.eval(() => [...document.querySelectorAll(".hud-squad:not(.plus)")].filter((c) => !c.hidden).map((c) => c.textContent.trim()));
+      await t.page.evaluate(() => [...document.querySelectorAll(".hud-squad:not(.plus)")].find((c) => !c.hidden).click());
+      await t.step(20);
+      t.expect.ok(await t.visible(".hud-villager") && !(await t.visible(".hud-group")), `squad 2 of one: B's panel, no queue of four (${await chips()})`);
+      t.expect.equal(await t.eval(() => T.ui().group), 3, "squad 2 selected");
+      // Disband (long press, then the disband button): its members' marks go too.
+      await t.tap(".hud-sheet-close", 10);
+      await t.page.evaluate(() => { const chip = [...document.querySelectorAll(".hud-squad:not(.plus)")].find((c) => !c.hidden); chip.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); });
+      await t.page.waitForTimeout(900);
+      await t.tap('.hud-squad-action[data-ui-label="a11y.disbandSquad"]', 5);
+      t.expect.equal(await t.eval((b) => __prehistoricRuntime.denseState[909 + b], b), 0, "B's mark cleared");
     },
   },
   {

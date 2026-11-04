@@ -150,6 +150,9 @@ export type LegacySpiralPlacementGateInput = {
   readonly ae: number;
   /** Java local 7's starting value; always 1 at every known real call site. */
   readonly initialStep?: number;
+  /** mode===1: also skip a cell whose 8 neighbours are all off the map or fixed obstacles (cell < 0),
+   *  a one-cell pocket nobody can walk out of (BUG-062, not in the original). */
+  readonly skipPockets?: boolean;
   /** mode===0's acceptance test: the already-ported `c(byte):Z` occupant check. */
   readonly onOccupantCheck?: (cellValue: number) => boolean;
   /** `private void o()` (#405) -- already-ported `stepLegacySubsystemBVoidO`. */
@@ -271,6 +274,19 @@ function scanHighMode(input: LegacySpiralPlacementGateInput, x: number, y: numbe
   return false;
 }
 
+function isPocket(input: LegacySpiralPlacementGateInput, x: number, y: number): boolean {
+  for (let dy = -1; dy <= 1; dy += 1) {
+    for (let dx = -1; dx <= 1; dx += 1) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= input.mapWidth || ny < 0 || ny >= input.mapHeight) continue;
+      if ((input.gridC[ny]?.[nx] ?? 0) >= 0) return false;
+    }
+  }
+  return true;
+}
+
 export function checkLegacySpiralPlacementGate(input: LegacySpiralPlacementGateInput): boolean {
   const { dense, packedBytes, packedOffsets, saveOffsets, id } = input;
   input.bScalars.bField232 = 0;
@@ -328,6 +344,7 @@ export function checkLegacySpiralPlacementGate(input: LegacySpiralPlacementGateI
           // falls through unconditionally to the shared tail below.
         } else if (input.mode === 1 || input.mode === 2) {
           if (cell !== 0) continue;
+          if (input.skipPockets && isPocket(input, x, y)) continue;
         } else if (input.mode === 4) {
           const terrain = strictGrid(input.gridB, y, x);
           if (terrain < 95 || terrain > 114) continue;

@@ -2,6 +2,7 @@ import { stepLegacySubsystemEntityHpGate } from "./LegacySubsystemEntityHpGate";
 import { stepLegacySubsystemEntityRRoll } from "./LegacySubsystemEntityRRoll";
 import { UNIT_AGE, UNIT_FLAGS, UNIT_GENDER, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_JOB_TYPE, UNIT_MAX_HP, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_ORDER, UNIT_SPEED, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TIMER, UNIT_Y } from "../../core/DenseLayout";
 import { T_MAX_HP_BY_AGE } from "../../core/DataTables";
+import { Pacing } from "../../core/Pacing";
 
 /**
  * Direct translation of `private boolean q()` (constant pool #410),
@@ -108,7 +109,10 @@ export function stepLegacySubsystemEntityRegen(input: LegacySubsystemEntityRegen
   // (31..582) is skipped; the age-11 check, r() and the 7979&8 tail still run.
   // CORRECTED 2026-09-15: the port returned true here, so r() (hunger and
   // tiredness) only ran on birthdays.
-  if ((state[6666 + id] ?? 0) >= (team === 0 ? 125 : 50)) {
+  // Pacing.childGrowth: a child (under 12) needs fewer counter steps per year; adults as before.
+  const yearSteps = team === 0 ? 125 : 50;
+  const need = (state[UNIT_AGE + id] ?? 0) < 12 ? Math.round(yearSteps / Pacing.childGrowth) : yearSteps;
+  if ((state[6666 + id] ?? 0) >= need) {
     if (!stepBirthday(input)) return false;
   }
 

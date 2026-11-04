@@ -3,7 +3,7 @@ import { OriginalKey } from "./platform/Input";
 import { oldArt } from "./platform/OldArt";
 import { BUILDING_KEYS, capitalise, labelKey, messageKey, setLabel, ui } from "./text/UiText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
+import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_CARRY_KIND, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
 import { villagerPanelOf } from "./render/WideView";
@@ -313,10 +313,14 @@ export function attachHud(
   let popFor: Squad | null = null;
   const closePop = () => { squadPop.hidden = true; popFor = null; };
   replaceButton.addEventListener("click", () => { if (popFor) store(popFor); closePop(); });
-  // Not in the original (it only stores and recalls): the squad's member row is cleared.
+  // Not in the original (it only stores and recalls): the squad's member row is cleared, and its
+  // members' group marks (909 + id) with it -- left behind, storing someone else there later kept
+  // the old members marked (BUG-053).
   disbandButton.addEventListener("click", () => {
     if (popFor) {
-      runtime.mainArrays.aByte[popFor.row]?.fill(0);
+      const members = runtime.mainArrays.aByte[popFor.row];
+      for (const id of members ?? []) if (id > 0 && runtime.denseState[UNIT_SELECTION + id] === popFor.row) runtime.denseState[UNIT_SELECTION + id] = 0;
+      members?.fill(0);
       if (game.selectionGroup === popFor.row) touch.closeBars();
     }
     closePop();
@@ -514,10 +518,11 @@ export function attachHud(
   // (heads whose hat shows the job). A tap does what FIRE on that item does; a villager's portrait
   // opens their villager panel (✕ back to the building) and ✓ there selects them as a tap on the map
   // does. Upgrades, weapons and traps show their price under them (the original's cost box, user
-  // 2026-10-28), a weapon also the skill it needs. The command bar (w 2, slot 5: what the order
+  // 2026-10-28); no skill a weapon needs (BUG-058, it read as a price). The command bar (w 2, slot 5: what the order
   // spot's ✕ goes back to, or keys) and the VILLAGERS row it opens show in the same row;
-  // demolish turns the sheet into the question with ✓ / ✕; the armoury's weapons change their
-  // count by a sideways swipe (UP / DOWN). The chief's camp shows the faint "nothing to do here". ----
+  // demolish turns the sheet into the question with ✓ / ✕; a tap on one of the armoury's weapons
+  // makes one more, the small − beside a count above 0 one fewer (UP / DOWN; BUG-058, user
+  // 2026-11-03: no swipe). The chief's camp shows the faint "nothing to do here". ----
   const ARMOURY = 0;
   const CHIEFS_HUT = 3;
   const barCodes = () => Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
@@ -536,23 +541,12 @@ export function attachHud(
     10: "build-a", 11: "cmd-rally", 12: "cmd-arms", 13: "pt-man", 14: "cmd-rally-cancel", 15: "cmd-arms-cancel",
     23: "cmd-map", 24: "cmd-map", 25: "cmd-map",
   };
-  /** Weapon n's skill (t138 row 13, column 12 + n: the original box's composite 574 + it, the panel's
-   *  skill icon) and the level it needs (row 14). */
-  const weaponSkill = (code: number) => {
-    const table = (runtime.packedOffsets[T_BUILDING] ?? 0) + 12 + code;
-    return { icon: SKILLS[574 + (runtime.packedBytes[table + 13 * 26] ?? 0)] ?? "z", level: runtime.packedBytes[table + 14 * 26] ?? 0 };
-  };
   /** Under an item of building `kind`: the price of an upgrade (the kind's) and of the armoury's
-   *  weapons and traps, the skill a weapon needs. */
+   *  weapons and traps. */
   const costHtml = (code: number, kind: number) => {
     const column = code === 16 ? kind : kind === ARMOURY && code >= 0 && code <= 8 ? (code <= 5 ? 12 + code : 14 + code) : -1;
     if (column < 0) return "";
-    let html = `<span class="line">${priceHtml(price(column))}</span>`;
-    if (column >= 12 && column < 18) {
-      const skill = weaponSkill(code);
-      if (skill.level > 0) html += `<span class="line"><span>${img(`sk-${skill.icon}`)}<span class="n">${digits(String(skill.level))}</span></span></span>`;
-    }
-    return `<span class="cost">${html}</span>`;
+    return `<span class="cost"><span class="line">${priceHtml(price(column))}</span></span>`;
   };
   /** Left-to-right group of a bar code: demolish, repair, upgrade, own items, villagers. */
   const group = (code: number) => (code === 17 ? 0 : code === 26 || code === 28 ? 1 : code === 16 || code === 27 ? 2 : code < 0 ? 4 : 3);
@@ -594,7 +588,7 @@ export function attachHud(
   let insideId = 0; // a villager whose portrait was tapped: their panel shows
   const tapBarItem = (index: number, code: number) => {
     if (code < 0) { insideId = -code; return; }
-    if (buildingKind() === ARMOURY && code <= 5) { touch.pickInBar(index, 0); return; }
+    if (buildingKind() === ARMOURY && code <= 5) { touch.adjustInBar(index, 1); return; }
     if (code === 17) { confirming = true; return; }
     // The command bar's form up / call to arms: their spot is chosen as from the command button.
     if (code === 11 || code === 12) ordering = code === 11 ? "cmd-rally" : "cmd-arms";
@@ -635,26 +629,16 @@ export function attachHud(
         entry.setAttribute("aria-label", itemName(code));
         entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>${costHtml(code, kind)}`;
         const held = longPress(entry, () => itemName(code));
-        let swiped = false;
         if (kind === ARMOURY && code >= 0 && code <= 5) {
-          // A swipe to the right raises the count, to the left lowers it: one per 24 pixels.
-          let start = -1;
-          let applied = 0;
-          entry.style.touchAction = "pan-y";
-          entry.addEventListener("pointerdown", (event) => { start = event.clientX; applied = 0; swiped = false; });
-          entry.addEventListener("pointermove", (event) => {
-            if (start < 0) return;
-            const steps = Math.trunc((event.clientX - start) / 24);
-            if (steps === applied) return;
-            swiped = true;
-            touch.adjustInBar(index, steps - applied);
-            applied = steps;
-          });
-          const stop = () => { start = -1; };
-          entry.addEventListener("pointerup", stop);
-          entry.addEventListener("pointercancel", stop);
+          const fewer = document.createElement("span");
+          fewer.className = "fewer";
+          fewer.setAttribute("role", "button");
+          setLabel(fewer, "a11y.fewer");
+          fewer.textContent = "−";
+          fewer.addEventListener("click", (event) => { event.stopPropagation(); touch.adjustInBar(index, -1); });
+          entry.append(fewer);
         }
-        entry.addEventListener("click", () => { if (!held() && !swiped) tapBarItem(index, code); });
+        entry.addEventListener("click", () => { if (!held()) tapBarItem(index, code); });
         items.push(entry);
       });
       panelRow.replaceChildren(...items);
@@ -667,6 +651,7 @@ export function attachHud(
       const n = entry.querySelector<HTMLElement>(".n")!;
       const text = code >= 0 && code <= 8 ? String(counts[index] ?? 0) : "";
       if (n.dataset.text !== text) { n.dataset.text = text; n.innerHTML = text ? digits(text) : ""; }
+      entry.classList.toggle("some", text !== "" && text !== "0");
     }
     const notice = game.barMode === 4 && !confirming;
     // The line l(int) put up (d[4] = /t 33 + its number: "nothing to do here" ...).
@@ -699,6 +684,11 @@ export function attachHud(
     567: "basket-bone", 568: "hammer", 569: "chef", 570: "horseshoe", 571: "mask", 572: "hardhat", 573: "bush", 574: "spark",
     575: "spear", 576: "eyes",
   };
+  /** What a villager carries (dense 3535, table 40 by their type) as the gathering skill's basket
+   *  holding it: meat, wood, stone, bones, berries, mushrooms, fish (BUG-051); else the pouch. */
+  const CARGO_ICONS: Record<number, string> = {
+    1: "sk-basket-meat", 2: "sk-basket-wood", 3: "sk-basket-stone", 4: "sk-basket-bone", 5: "sk-basket", 6: "sk-basket-mushroom", 7: "sk-basket-ice",
+  };
   const WEAPON_BASE = 659; // + the held item (0..8; 9 none draws nothing)
   const MOOD_BASE = 674; // 675 (angriest) .. 679 (happiest): the HD mood-5 .. mood-1
   const villagerBox = document.createElement("div");
@@ -713,7 +703,7 @@ export function attachHud(
   let shownVillager = "";
   const drawVillager = (id: number, cells: typeof runtime.villagerPanelDraft) => {
     const e = runtime.denseState;
-    const key = `${id}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}`;
+    const key = `${id}:${runtime.unitNames[id]}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}`;
     if (key === shownVillager) return;
     shownVillager = key;
     const textAt = (x: number, y: number) => cells.find((c) => c.asset < 0 && Math.abs(c.x - x) <= 3 && Math.abs(c.y - y) <= 3)?.text ?? "";
@@ -738,19 +728,20 @@ export function attachHud(
     const carried = pouch ? textAt(pouch.x + 15, pouch.y) : "";
     const maxHp = Math.max(1, e[UNIT_MAX_HP + id] ?? 1);
     const row = (...items: string[]) => `<span class="hud-row">${items.join("")}</span>`;
-    villagerBox.innerHTML = `${cellImg(portrait(id, -1), "face")}<span class="hud-cols">
-      <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell("pouch", carried, pouch && pouch.asset !== 625 ? "" : "faint"))}</span>
+    // The name on the first line beside the head, as in the original's unit panel (BUG-054).
+    villagerBox.innerHTML = `${cellImg(portrait(id, -1), "face")}<span class="hud-vinfo"><span class="hud-name">${capitalise(runtime.unitNames[id] ?? "")}</span><span class="hud-cols">
+      <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell(pouch && pouch.asset !== 625 ? CARGO_ICONS[e[UNIT_CARRY_KIND + id] ?? 0] ?? "pouch" : "pouch", carried, pouch && pouch.asset !== 625 ? "" : "faint"))}</span>
       <span class="hud-col bars">${statBar("heart", (e[UNIT_HP + id] ?? 0) / maxHp, String(e[UNIT_HP + id] ?? 0))}${statBar("hunger", (e[UNIT_FOOD + id] ?? 0) / 99)}${statBar("sleep", (e[UNIT_ENERGY + id] ?? 0) / 99)}</span>
-      <span class="hud-col skills">${skills.join("")}</span></span>`;
+      <span class="hud-col skills">${skills.join("")}</span></span></span>`;
   };
-  /** Our villagers selected together: their group mark (f.e 909 + id) is the selection's group
-   *  (f.F, -1 for one villager; the marks stay after a selection ends, so only the current group). */
+  /** Our villagers selected together: the selection's group row (f.a[f.F], -1 for one villager) --
+   *  the list e(byte) gives the orders to and the squads' head count is taken from (BUG-053: the
+   *  group marks 909 + id could keep people the row no longer has). */
   const groupIds = () => {
     const e = runtime.denseState;
-    const ids: number[] = [];
-    if (game.selectionGroup < 0) return ids;
-    for (let id = 1; id <= 50; id += 1) if ((e[UNIT_SELECTION + id] ?? 0) === game.selectionGroup) ids.push(id);
-    return ids;
+    if (game.selectionGroup < 0) return [];
+    const ids = Array.from(runtime.mainArrays.aByte[game.selectionGroup] ?? []).filter((id) => id > 0 && (e[UNIT_HP + id] ?? 0) > 0);
+    return [...new Set(ids)];
   };
   let shownGroup = "";
   const drawGroup = (ids: number[]) => {
@@ -962,8 +953,9 @@ export function attachHud(
   const show = (element: HTMLElement, on: boolean) => { element.hidden = !on; };
   // A scripted scene (Q 17 / 20) from the map ends what was going on there: back on the map,
   // placing and selections are closed (BUG-010, user 2026-10-16; the original keeps them, and so
-  // does play that has not touched the screen -- keys, the oracle's replays). Not when the player's
-  // own tap just led to it (a villager's answer, Q 20). Counted in game ticks, not wall time: the
+  // does play that has not touched the screen -- keys, the oracle's replays). A selection stays when
+  // the player's own tap just led to it (a villager's answer, Q 20); placing never does (BUG-048,
+  // user 2026-11-03: the finger is on the ghost when a scene comes). Counted in game ticks, not wall time: the
   // same taps give the same game however fast it runs (a slow phone, the scenario tests).
   let lastTouch = -Infinity; // ms, for the action icon's flash only
   let ticks = 0;
@@ -980,7 +972,7 @@ export function attachHud(
     update() {
       ticks += 1;
       const nowOnMap = game.loopMode === 1;
-      if (wasOnMap && !nowOnMap && (game.screen === 17 || game.screen === 20) && lastTouchTick >= 0 && ticks - lastTouchTick > SCENE_AFTER_TAP_TICKS) sceneFromMap = true;
+      if (wasOnMap && !nowOnMap && (game.screen === 17 || game.screen === 20) && lastTouchTick >= 0 && (ticks - lastTouchTick > SCENE_AFTER_TAP_TICKS || game.barMode === 3)) sceneFromMap = true;
       if (nowOnMap && sceneFromMap) { sceneFromMap = false; if (game.barMode !== 0 && !game.choosingChief) touch.closeBars(); }
       wasOnMap = nowOnMap;
       // Choosing a chief: take the map taps, hide everything else.

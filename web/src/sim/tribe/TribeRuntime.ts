@@ -617,9 +617,10 @@ export function stepSubsystemFrame(rt: LegacyRuntimeState): void {
               mapHeight: rt.game.mapHeight,
               onRecordWorkerLevel: (record) => stepLegacySubsystemRecordWorkerLevel(rt.denseState, record, rt.game.bTeam),
               onGate: (mode, scanLimit, x, y) => {
+                // BUG-062: never put the leaving worker in a one-cell pocket.
                 rt.checkSpiralPlacementGate(mode, scanLimit, x, y, id, (occupant) => checkLegacyEntityOccupant({
                   state: rt.denseState, packedBytes: rt.packedBytes, packedOffsets: rt.packedOffsets, id,
-                }, occupant));
+                }, occupant), true);
               },
               onP: () => stepLegacySubsystemEntityRevertIdle(rt.denseState, id),
               onSelectionRelease: (entityId) => rt.releaseEntitySelection(entityId),

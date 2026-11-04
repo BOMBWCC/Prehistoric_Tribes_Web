@@ -1,4 +1,5 @@
 import { RES_AMOUNT, RES_KIND, RES_LOOK, RES_X, RES_Y } from "../../core/DenseLayout";
+import { Pacing } from "../../core/Pacing";
 /** Raw state passed through b.i(); field names remain bytecode-oriented. */
 export type LegacySubsystemTailState = {
   lByte: number;
@@ -49,7 +50,12 @@ export function stepLegacySubsystemI(input: LegacySubsystemTailInput): void {
     if (type === 0) continue;
 
     let amount = state[RES_AMOUNT + aM];
-    if ((input.frame & 127) === 1 && type === 6 && amount > 0) {
+    // Pacing.berriesEndless: a berry or mushroom bush (kinds 1..4) is topped up every tick, so it
+    // never runs out and always has the fullest look.
+    if (Pacing.berriesEndless && type >= 1 && type <= 4) {
+      amount = toByte(bByte(110, type));
+      state[RES_AMOUNT + aM] = amount;
+    } else if ((input.frame & 127) === 1 && type === 6 && amount > 0) {
       amount = toByte(amount - 1);
       state[RES_AMOUNT + aM] = amount;
     } else if (

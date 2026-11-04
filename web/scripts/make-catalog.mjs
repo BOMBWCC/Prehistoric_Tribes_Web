@@ -23,6 +23,7 @@
 //   ground   each composite the map's ground draws (ground tiles, markers' ground pieces) in HD, packed
 //            into hd/ground.png: its box there and its offset from the composite's (x, y)
 //   scale    how many times larger the HD pictures are than the original's
+import { writeHdFiles } from "./hd-files.mjs";
 import { createServer } from "vite";
 import { chromium } from "playwright";
 import fs from "node:fs";
@@ -404,3 +405,4 @@ try {
   await browser.close();
   await server.close();
 }
+console.log(`files.json: ${writeHdFiles()} pictures`);

@@ -1101,7 +1101,7 @@ export function stepLegacyA2(rt: LegacyRuntimeState, target: number, source: num
   // Offsets 104..156: a double tap (n:I > 1) or re-ordering the same cell.
   // FIXED 2026-10-08: was `n <= 1 || same`, and q:Z was set on every order
   // (offset 157 sets it on rt branch only).
-  const samePosition = g.nInt > 1
+  const samePosition = g.runOrder || g.nInt > 1
     || ((dense[UNIT_TARGET_X + target] ?? 0) === g.cursorColumn + g.cameraColumn && (dense[UNIT_TARGET_Y + target] ?? 0) === g.cursorRow + g.cameraRow);
 
   const packedOffsetsBase = (nibbleBase: number) => {

@@ -91,6 +91,8 @@ function loaded(path: string): HTMLImageElement | null {
 }
 
 let loading: Promise<void> | null = null;
+let preloading: Promise<void> | null = null;
+let preloadShare = 0;
 
 /** hd/manifest.json: which HD pictures exist, hd/catalog.json: where they go; the HUD's pictures
  *  start loading. */
@@ -153,6 +155,39 @@ export const hdArt = {
   load(): Promise<void> {
     loading ??= loadManifest();
     return loading;
+  },
+
+  /**
+   * Every picture of hd/files.json (scripts/hd-files.mjs) loaded, `onProgress` told the share done
+   * (BUG-057, user 2026-11-03: all pictures before the game, none fetched while playing). The map's
+   * are kept here as picture() keeps them; the story's and the menus' (shown by <img>) are only
+   * fetched into the browser's cache. Once; later calls wait for the same load.
+   */
+  preloadAll(onProgress?: (done: number) => void): Promise<void> {
+    preloading ??= (async () => {
+      await this.load();
+      let files: string[] = [];
+      try { files = await (await fetch(`${BASE}files.json`)).json() as string[]; } catch { /* none: pictures load as they are used */ }
+      let done = 0;
+      const one = (path: string) => new Promise<void>((resolve) => {
+        const kept = /^(story|menu|cave)\//.test(path) ? null : (picture(path), images.get(path)!);
+        const image = kept ?? new Image();
+        if (!kept) image.src = BASE + path;
+        const finish = () => { done += 1; preloadShare = done / files.length; onProgress?.(preloadShare); resolve(); };
+        if (image.complete) finish();
+        else { image.addEventListener("load", finish, { once: true }); image.addEventListener("error", finish, { once: true }); }
+      });
+      // A few at a time: the browser's own limit, and the first ones done early.
+      let next = 0;
+      await Promise.all(Array.from({ length: 6 }, async () => { while (next < files.length) await one(files[next++]!); }));
+      preloadShare = 1;
+    })();
+    return preloading;
+  },
+
+  /** How much of preloadAll() is done, 0..1. */
+  preloaded(): number {
+    return preloadShare;
   },
 
   /** hd/ground.png and hd/pieces.png loaded (the WebGL map draws each ground chunk once). */
@@ -241,8 +276,15 @@ export const hdArt = {
     const bounds = box(catalog.animals[left ? `${key}:left` : key]);
     const hd = this.target && has.animals.has(key) && bounds ? loaded(`animals/${key}.png`) : null;
     if (!hd || !bounds) return false;
-    if (left) this.target!.drawScaledMirrored(hd, x + bounds.x, y + bounds.y, bounds.width, bounds.height);
-    else this.target!.drawScaled(hd, x + bounds.x, y + bounds.y, bounds.width, bounds.height);
+    // A frame drawn in a picture of another shape than its box (the boar's walk and run, 0-2 /
+    // 0-37: a whole boar with room above it in a 29 x 17 box) is scaled evenly to the box's width
+    // and stands on its bottom edge, not squeezed flat (BUG-059).
+    let { width, height } = bounds;
+    const shape = (hd.width / hd.height) / (width / height);
+    if (Math.abs(shape - 1) > 0.15) height = (width * hd.height) / hd.width;
+    const top = y + bounds.y + bounds.height - height;
+    if (left) this.target!.drawScaledMirrored(hd, x + bounds.x, top, width, height);
+    else this.target!.drawScaled(hd, x + bounds.x, top, width, height);
     return true;
   },
 

@@ -682,9 +682,11 @@ export function stepLegacyAv(input: LegacyAvInput): void {
 export type LegacyAwState = { q: number; R: number; Q: number; W: boolean; Z: number; r: number; af: boolean; vInt: number; aaInt: number };
 export function stepLegacyAw(state: LegacyAwState): void {
   state.q = 7; state.R = state.Q;
+  // Not in the original: custom games are open from the start (user 2026-11-03,
+  // docs/modernization-plan.md §5); it said PASS THE TUTORIAL FIRST! (Q 21) unless the tutorial was
+  // passed (r > 0) or af.
   if (state.W) { state.Q = 3; state.Z = 0; }
-  else if (state.r > 0 || state.af) { state.Q = 13; state.Z = 1; }
-  else { state.vInt = 70; state.Q = 21; state.Z = 0; }
+  else { state.Q = 13; state.Z = 1; }
   state.aaInt = 1;
 }
 

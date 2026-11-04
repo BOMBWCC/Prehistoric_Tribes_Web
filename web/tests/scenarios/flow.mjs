@@ -48,13 +48,18 @@ async function outcome(t, record, last) {
 
 export default [
   {
-    name: "start menu: custom is locked before the tutorial",
+    name: "start menu: custom is open from the start, no tutorial needed (user 2026-11-03); the pictures load first (BUG-057)",
     boot: "real",
     async run(t) {
       await t.page.tap('.start-menu button[aria-label="custom"]');
-      await t.page.waitForTimeout(200);
-      t.expect.equal(await t.page.evaluate(() => document.querySelector(".start-menu").dataset.page), "locked");
-      t.expect.match(await t.page.evaluate(() => document.querySelector(".start-text").textContent), /tutorial/i);
+      await t.page.waitForTimeout(100);
+      await t.page.tap('.start-menu button[aria-label="easy"]');
+      await t.page.waitForTimeout(100);
+      await t.page.tap('.start-menu .start-map >> nth=0');
+      await t.page.waitForFunction(() => window.__prehistoricRuntime.game.loopMode === 1, null, { timeout: 30_000 });
+      t.expect.ok(await t.page.evaluate(() => window.__prehistoricRuntime.game.mission >= 7), "a custom map");
+      // Every HD picture was loaded before the map opened (BUG-057).
+      t.expect.equal(await t.page.evaluate(async () => (await import("/src/render/HdArt.ts")).hdArt.preloaded()), 1, "all pictures loaded");
     },
   },
   {
@@ -115,6 +120,25 @@ export default [
       t.expect.ok(after.onMap, "back on the map");
       t.expect.ok(after.frame > before.frame, "the world goes on");
       t.expect.deepEqual(after.camera, before.camera, "the camera where it was");
+    },
+  },
+  {
+    name: "story: a dialogue right after a tap while placing still ends the placing (BUG-048)",
+    async run(t) {
+      await t.eval(() => { S.enter(11); S.step(3); S.stock(100); });
+      await t.tap(".hud-build-button", 30);
+      // A finger on the build card (pointerdown counts as a touch), then the dialogue 5 ticks later.
+      await t.page.evaluate(() => { const c = document.querySelector('.hud-card[data-kind="2"]'); c.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); c.click(); });
+      await t.step(5);
+      t.expect.equal(await t.eval(() => T.ui().barMode), 3, "placing");
+      await t.eval(() => { __prehistoricRuntime.stepSubsystemStateCommand(13); S.step(30); });
+      for (let i = 0; i < 20 && (await t.visible(".story-hud")); i += 1) {
+        await t.page.evaluate(() => document.querySelector(".story-hud").click());
+        await t.page.waitForTimeout(350);
+        await t.step(5);
+      }
+      await t.step(10);
+      t.expect.deepEqual(await t.eval(() => [T.ui().onMap, T.ui().barMode]), [true, 0], "back on the map, not placing");
     },
   },
   {

@@ -49,5 +49,16 @@ export function canPlaceLegacyFootprint(
       }
     }
   }
+  // Not in the original (BUG-061): at least one of the cells its workers stand on (up to 3, tables
+  // 20/22/23, as `LegacyNearestCandidateSearch.ts` picks them) must be on the map and free of fixed
+  // obstacles and buildings (cell >= 0); otherwise its builders stand beside it for ever.
+  const workCells = input.packedBytes[input.packedOffsets[20] + type];
+  let reachable = workCells <= 0;
+  for (let i = 0; i < workCells && !reachable; i += 1) {
+    const workX = x + input.packedBytes[input.packedOffsets[22] + type * 3 + i];
+    const workY = y + input.packedBytes[input.packedOffsets[23] + type * 3 + i];
+    reachable = workX >= 0 && workY >= 0 && workX < input.mapWidth && workY < input.mapHeight && input.map[workY][workX] >= 0;
+  }
+  if (!reachable) available = false;
   return available;
 }

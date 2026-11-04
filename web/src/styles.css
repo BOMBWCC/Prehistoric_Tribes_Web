@@ -1428,7 +1428,26 @@ button.notice {
   transform: none;
 }
 
-/* A price (and a weapon's skill) under a building panel item: the original's cost box. */
+/* The armoury's "one fewer", beside a count above 0 (BUG-058). */
+.hud-item .fewer {
+  position: absolute;
+  left: -4px;
+  bottom: -4px;
+  display: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2b1a0a;
+  color: #fff2b0;
+  font: bold 18px/22px sans-serif;
+  text-align: center;
+}
+
+.hud-item.some .fewer {
+  display: block;
+}
+
+/* A price under a building panel item: the original's cost box. */
 .hud .hud-item .cost {
   position: absolute;
   left: 50%;
@@ -2034,8 +2053,24 @@ button.notice {
   height: 76px;
 }
 
-.hud-cols {
+/* The name above the columns (BUG-054). */
+.hud-vinfo {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-name {
+  font: 800 15px/16px system-ui, sans-serif;
+  color: #3c220c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-cols {
   min-width: 0;
   display: flex;
   justify-content: space-between;

@@ -120,6 +120,9 @@ export class LegacyGameState {
   // duplicated, matching this session's established fix pattern).
   /** f.q:Z (#355): set by a(byte,byte) on a double tap, cleared by h(). */
   cQFlag = false;
+  /** Not in the original: set by the touch layer's double tap (TouchControls.ts runAt) for one FIRE,
+   *  which a(byte,byte) then takes as a re-order of the same cell -- the run (gameplay 7.1). */
+  runOrder = false;
   cSInt = 0;
   cRFlag = false;
   cRInt = 0;

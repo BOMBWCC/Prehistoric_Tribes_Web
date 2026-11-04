@@ -1,5 +1,6 @@
-import { BLD_KIND, BLD_LEVEL, BLD_OWNER, BLD_WORK, RES_AMOUNT, UNIT_CARRY_AMOUNT, UNIT_CARRY_CAPACITY, UNIT_MODE, UNIT_RECORD, UNIT_SLOT, UNIT_TYPE, UNIT_WORK_PROGRESS } from "../../core/DenseLayout";
+import { BLD_HP, BLD_KIND, BLD_LEVEL, BLD_OWNER, BLD_WORK, RES_AMOUNT, UNIT_CARRY_AMOUNT, UNIT_CARRY_CAPACITY, UNIT_MODE, UNIT_RECORD, UNIT_SLOT, UNIT_TYPE, UNIT_WORK_PROGRESS } from "../../core/DenseLayout";
 import { T_SKILL_ATTR, T_SKILL_CAP, T_SKILL_CHANCE, T_SKILL_STEP } from "../../core/DataTables";
+import { Pacing } from "../../core/Pacing";
 /**
  * Direct translation of `private boolean j()` (constant pool #395, a
  * distinct overload from `private void j(int)`), bytecode/b-javap.txt
@@ -112,7 +113,12 @@ export function stepLegacySubsystemEntityAssociationScan(
   }
 
   if (table(packedBytes, packedOffsets, 33, type) !== 4) return false;
-  if ((state[UNIT_WORK_PROGRESS + id] ?? 0) < table(packedBytes, packedOffsets, 49, type)) return false;
+  // Pacing.build: work that adds to a building's hit points (offset 703's target is 8505) needs
+  // fewer work steps per point.
+  const target = table(packedBytes, packedOffsets, 31, type);
+  let need = table(packedBytes, packedOffsets, 49, type);
+  if (target !== 13 && input.saveOffsets[target] === BLD_HP) need = Math.round(need / Pacing.build);
+  if ((state[UNIT_WORK_PROGRESS + id] ?? 0) < need) return false;
 
   const assoc = state[UNIT_RECORD + id] ?? 0;
 

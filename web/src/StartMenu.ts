@@ -3,6 +3,7 @@ import { ui } from "./text/UiText";
 import { ZH_LANGUAGE } from "./text/LegacyZhText";
 import type { TouchControls } from "./TouchControls";
 import { stepAs } from "./ui/UiRuntime";
+import { hdArt } from "./render/HdArt";
 import type { WideScreen } from "./WideScreen";
 
 /**
@@ -14,11 +15,12 @@ import type { WideScreen } from "./WideScreen";
  * - main: CAMPAIGN, CUSTOM, ABOUT (no back button);
  * - CAMPAIGN / CUSTOM: CONTINUE / NEW GAME when that mode has a save, else straight on; NEW GAME asks
  *   the original's "... will be lost! continue?" (YES / NO); then EASY / HARD; custom then the map;
- *   custom stays locked until the original unlocks it ("pass the tutorial first!");
+ *   custom is open from the start (user 2026-11-03; the original wanted the tutorial passed first);
  * - ABOUT: empty for now;
  * - language flag and sound at the top right, back at the bottom right, on every page but the
- *   splash and the loading bar. The loading bar is not the real progress (user: entering the game
- *   is so quick it feels abrupt).
+ *   splash and the loading bar. The loading bar takes at least LOADING_MS (user: entering the game
+ *   is so quick it feels abrupt) and until every HD picture is loaded (BUG-057, user 2026-11-03:
+ *   none fetched while playing); they start loading with the splash, the game only after them.
  *
  * The start-up's language list and "play music?" are still answered from the last choice
  * (TouchControls.answerStartQuestions) while the splash is shown.
@@ -53,7 +55,7 @@ export function savedMusic(): boolean {
   return read(MUSIC_KEY) === "on";
 }
 
-type Page = "splash" | "main" | "mode" | "question" | "locked" | "difficulty" | "maps" | "about" | "loading";
+type Page = "splash" | "main" | "mode" | "question" | "difficulty" | "maps" | "about" | "loading";
 
 export function attachStartMenu(
   app: HTMLElement,
@@ -71,6 +73,8 @@ export function attachStartMenu(
   let custom = false;
   let difficulty: 1 | 2 = 1;
   let loadingStart = 0;
+  let started = false;
+  void hdArt.preloadAll();
 
   const language = () => LANGUAGES.find((l) => l.row === runtime.language) ?? LANGUAGES[0];
   const picture = (name: string, cls: string) => `<img class="${cls}" src="${ART}${name}" alt="" draggable="false">`;
@@ -91,17 +95,14 @@ export function attachStartMenu(
   const back = () => show(history.pop() ?? "main");
 
   const hasSave = () => (custom ? game.actionWFlag : game.sByte > -1);
-  /** f.aw()'s gate: a custom save, a passed tutorial (progress r) or f.af. */
-  const unlocked = () => game.actionWFlag || game.progressR > 0 || game.numericAf;
-
   const choose = (isCustom: boolean) => {
     custom = isCustom;
-    if (custom && !unlocked()) go("locked");
-    else go(hasSave() ? "mode" : "difficulty");
+    go(hasSave() ? "mode" : "difficulty");
   };
   const start = (resume: boolean, map = 0) => {
     history.length = 0;
-    touch.startGame({ custom, resume, difficulty, map });
+    started = false;
+    void hdArt.preloadAll().then(() => { started = true; touch.startGame({ custom, resume, difficulty, map }); });
     loadingStart = performance.now();
     show("loading");
     requestAnimationFrame(fill);
@@ -194,7 +195,7 @@ export function attachStartMenu(
     else if (next === "mode") layer.append(column(word("continue", () => start(true)), word("newgame", () => go("question"))));
     else if (next === "question") {
       layer.append(column(message(custom ? "confirm.save" : "confirm.newCampaign"), word("yes", () => go("difficulty")), word("no", back)));
-    } else if (next === "locked") layer.append(column(message("confirm.passTutorial")));
+    }
     else if (next === "difficulty") {
       const pick = (level: 1 | 2) => () => { difficulty = level; if (custom) go("maps"); else start(false); };
       layer.append(column(word("easy", pick(1)), word("hard", pick(2))));
@@ -217,11 +218,12 @@ export function attachStartMenu(
     if (next !== "main") layer.append(button("start-back", ui("a11y.back"), picture("back.png", ""), back));
   }
 
-  /** The loading bar: fills over LOADING_MS, waits short of the end until the game is on. */
+  /** The loading bar: fills over LOADING_MS at the least, as far as the pictures are loaded (most of
+   *  it), and waits short of the end until the game is on. */
   function fill(): void {
     if (page !== "loading") return;
-    const ready = !touch.busy;
-    const part = Math.min((performance.now() - loadingStart) / LOADING_MS, ready ? 1 : 0.9);
+    const ready = started && !touch.busy;
+    const part = Math.min((performance.now() - loadingStart) / LOADING_MS, ready ? 1 : 0.9 * hdArt.preloaded());
     const bar = layer.querySelector<HTMLElement>(".start-loading-fill");
     if (bar) bar.style.width = `${part * 100}%`;
     if (part >= 1) show(null);

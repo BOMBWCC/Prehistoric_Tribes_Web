@@ -27,6 +27,86 @@ async function tiles(t, list) {
 
 export default [
   {
+    name: "HD art: the boar's walk frame keeps the shape of its picture, not squeezed into its box (BUG-059)",
+    async run(t) {
+      await t.eval(() => { S.enter(11); S.step(3); });
+      const drawn = await t.page.evaluate(async () => {
+        const { hdArt } = await import("/src/render/HdArt.ts");
+        const rt = window.__prehistoricRuntime, e = rt.denseState;
+        // Animal slot 0 as a boar (kind 0) facing right in its walk, frame 0 (0-2-0: 140 x 152).
+        e[9535] = 0; e[9557] = 2; e[9579] = 0; e[9491] = 0;
+        const calls = [];
+        const target = { drawScaled: (image, x, y, w, h) => calls.push([image.width, image.height, w, h]), drawScaledMirrored: () => {} };
+        for (let i = 0; i < 100; i += 1) {
+          hdArt.begin(rt, target);
+          const done = hdArt.drawAnimal(rt, 0, 0, 0);
+          hdArt.end();
+          if (done) break;
+          await new Promise((r) => setTimeout(r, 30));
+        }
+        return calls.at(-1) ?? null;
+      });
+      t.expect.ok(drawn, "the HD frame drawn");
+      const [iw, ih, w, h] = drawn;
+      t.expect.ok(Math.abs((w / h) / (iw / ih) - 1) < 0.02, `drawn ${w} x ${h} for a ${iw} x ${ih} picture`);
+    },
+  },
+  {
+    name: "WebGL map: every berry bush on PLOT OF LAND is drawn, the map's berry tiles too (BUG-050)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const bushes = await t.eval(() => { const e = __prehistoricRuntime.denseState; const l = []; for (let s = 0; s < 50; s += 1) { const k = e[9833 + s]; if (k >= 1 && k <= 4) l.push([e[9733 + s], e[9783 + s]]); } return l; });
+      const missing = [];
+      for (const [x, y] of bushes) {
+        await t.eval(([x, y]) => { S.look(x, y); S.step(5); }, [x, y]);
+        const key = await t.eval(([x, y]) => `${__prehistoricRuntime.gridC[y][x]}@${x},${y}`, [x, y]);
+        try { await t.until((key) => { window.__prehistoricPixiMap.render(); return !!window.__prehistoricPixiMap.placed.get(key); }, { arg: key, max: 200, chunk: 10, what: key }); } catch { missing.push(key); }
+      }
+      t.expect.deepEqual(missing, [], "bushes not drawn");
+    },
+  },
+  {
+    name: "WebGL map: a bush whose look changes keeps its picture while the new one loads (BUG-050)",
+    async run(t) {
+      await t.eval(async () => { const { Pacing } = await import("/src/core/Pacing.ts"); Pacing.berriesEndless = false; S.reveal = true; S.enter(11); S.step(3); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      // The bush at (10, 43), resource slot found by its tile; its picture placed first.
+      const slot = await t.eval(() => { const e = __prehistoricRuntime.denseState; for (let s = 0; s < 50; s += 1) if (e[9733 + s] === 10 && e[9783 + s] === 43) return s; return -1; });
+      await t.eval(() => { S.look(10, 43); S.step(20); });
+      const key = await t.eval((slot) => `${__prehistoricRuntime.gridC[43][10]}@10,43`, slot);
+      await t.until((key) => !!window.__prehistoricPixiMap.placed.get(key), { arg: key, max: 400, chunk: 10, what: "the bush's picture" });
+      // Its look drops to one never shown yet: on the very next frame the bush is still drawn.
+      const after = await t.eval(([slot, key]) => {
+        const e = __prehistoricRuntime.denseState;
+        e[9883 + slot] = 1;
+        e[9933 + slot] = 0;
+        window.__prehistoricPixiMap.render();
+        return !!window.__prehistoricPixiMap.placed.get(key);
+      }, [slot, key]);
+      t.expect.ok(after, "the bush stays drawn");
+    },
+  },
+  {
+    name: "WebGL map: builders on a site are drawn over its picture (BUG-049, BUG-055)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const site = await t.eval(() => {
+        const hut = T.buildings().find((b) => b.kind === 3);
+        const id = S.siteNear(6, hut.x + 6, hut.y + 1);
+        const b = T.building(id);
+        for (const w of [2, 3]) S.order(w, b.x + 1, b.y + 1);
+        S.look(b.x + 1, b.y + 1);
+        S.step(300);
+        return id;
+      });
+      await t.until((id) => !!window.__prehistoricPixiMap.placed.get(`b${id}`), { arg: site, max: 400, chunk: 10, what: "the site's picture" });
+      const z = await t.eval((id) => { const map = window.__prehistoricPixiMap; return { site: map.placed.get(`b${id}`).sprite.zIndex, builders: ["u2", "u3"].map((k) => map.movers.get(k)?.sprite.zIndex ?? -1) }; }, site);
+      t.expect.ok(z.builders.every((b) => b > z.site), `builders over the site (${JSON.stringify(z)})`);
+    },
+  },
+  {
     name: "WebGL map: ground, objects and people drawn where the game has them, after a drag too",
     async run(t) {
       await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); });

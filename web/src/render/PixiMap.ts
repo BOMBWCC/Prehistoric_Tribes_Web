@@ -8,7 +8,7 @@ import { drawLegacyMapMarkerPieces, prepareLegacyMapMarkerDispatch, type LegacyM
 import { sceneIn, type Op, type Person, type Window } from "./MapScene";
 import { stepZSubrecordDraw } from "./RenderRuntime";
 import { drawMapMargin, loadMarginPictures, MARGIN_TILES } from "./MapMargin";
-import { BLD_KIND, BLD_X, BLD_Y } from "../core/DenseLayout";
+import { BLD_KIND, BLD_X, BLD_Y, RES_KIND } from "../core/DenseLayout";
 import { T_BUILDING } from "../core/DataTables";
 
 const TILE_W = 22;
@@ -210,9 +210,16 @@ export class PixiMap {
    *  building or site (gridC -1..-60) or resource point (-61..-110); 0 for none. The rally markers
    *  (-111..-123) hold units: not on this layer. */
   private marker(column: number, row: number): number {
+    const cell = this.runtime.gridC[row]?.[column] ?? 0;
+    // A berry or mushroom bush (resource kind 1..4) first: the map data's berry tiles (175..177)
+    // stay under the bush they became, and drawn as the tile it showed no stock (look 0) or, tile
+    // 177, nothing (BUG-050). Other points (fish) keep their tile's picture.
+    if (cell < -60 && cell >= -110) {
+      const kind = this.runtime.denseState[RES_KIND + (-cell - 61)] ?? 0;
+      if (kind >= 1 && kind <= 4) return cell;
+    }
     const tile = (this.runtime.gridB[row]?.[column] ?? 0) & 0xff;
     if (tile >= GROUND_LIMIT) return tile;
-    const cell = this.runtime.gridC[row]?.[column] ?? 0;
     return cell < 0 && cell >= -110 ? cell : 0;
   }
 
@@ -305,9 +312,12 @@ export class PixiMap {
         const r = this.dispatch(marker, column, row);
         const picture = this.picture(marker, r);
         const bounds = picture?.bounds;
+        let placed = this.placed.get(id);
+        // Its next picture still loading (a bush picked from changes its look): the one it has
+        // stays until then, rather than nothing (BUG-050).
+        if (picture && !picture.image && placed) { seen.add(id); continue; }
         if (!picture?.image || !bounds) continue; // none, still loading, or not in the catalog
         seen.add(id);
-        let placed = this.placed.get(id);
         if (!placed) {
           placed = { sprite: new Sprite(), path: "" };
           this.objects.addChild(placed.sprite);
@@ -365,8 +375,11 @@ export class PixiMap {
         mover.sprite.width = picture.width;
         mover.sprite.height = picture.height;
       }
-      mover.sprite.zIndex = person.at.y + TILE_H;
-      for (const op of person.overlay) this.placeOp(this.marks, this.objects, marks++, op, person.at.y + TILE_H + 0.5);
+      // A worker shown at a building goes over its picture (BUG-049).
+      const under = person.building ? this.placed.get(`b${person.building}`)?.sprite.zIndex ?? 0 : 0;
+      const z = Math.max(person.at.y + TILE_H, under + 0.25);
+      mover.sprite.zIndex = z;
+      for (const op of person.overlay) this.placeOp(this.marks, this.objects, marks++, op, z + 0.5);
     }
     this.hideFrom(this.marks, marks);
     this.stepAt = performance.now();

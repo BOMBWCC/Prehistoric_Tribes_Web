@@ -51,6 +51,9 @@ export type Person = {
   at: { x: number; y: number };
   body: Op[];
   overlay: Op[];
+  /** Shown at building record `building` by its detail pass (a worker at their post): drawn over it,
+   *  as the original drew it right after the building (BUG-049). */
+  building?: number;
 };
 
 /** A tile window (the view and a margin). */
@@ -229,7 +232,7 @@ function markerDetails(rt: LegacyRuntimeState, w: Window): { effects: Op[]; peop
           const saved = g.unitInBuilding;
           g.unitInBuilding = inBuilding;
           try {
-            people.push({ key: `u${unit}`, id: unit, kind: 29, at: { x, y }, ...personOps(rt, unit, x, y, direction, 29, xFlag) });
+            people.push({ key: `u${unit}`, id: unit, kind: 29, at: { x, y }, building: value >= -60 ? -value : undefined, ...personOps(rt, unit, x, y, direction, 29, xFlag) });
           } finally {
             g.unitInBuilding = saved;
           }

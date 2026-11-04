@@ -24,8 +24,7 @@
     "load": "Current game data will be lost! Continue?",
     "save": "Previous save data will be lost! Continue?",
     "quit": "Any unsaved data will be lost! Quit anyway?",
-    "newCampaign": "All campaign saves will be lost! Continue?",
-    "passTutorial": "Pass the tutorial first!"
+    "newCampaign": "All campaign saves will be lost! Continue?"
   },
   "hud": {
     "aim": "{item}: tap a villager",
@@ -170,6 +169,7 @@
     "commands": "Commands",
     "ok": "OK",
     "cancel": "Cancel",
+    "fewer": "One fewer",
     "close": "Close",
     "back": "Back",
     "left": "Left",

@@ -25,6 +25,9 @@ function loadModule(specifier, fromDir) {
 }
 
 const { stepLegacySubsystemEntityRegen } = loadModule("./sim/tribe/LegacySubsystemEntityRegen", srcDir);
+// The thresholds below are the original's (Pacing.childGrowth 1); the faster children are checked at the end.
+const { Pacing } = loadModule("./core/Pacing", srcDir);
+Pacing.childGrowth = 1;
 
 function makeGrid() {
   const grid = [];
@@ -258,6 +261,24 @@ function baseInput(overrides = {}) {
   assert.equal(input.state[6161 + 5], 3);
   assert.deepEqual(changeCalls, [[5, 59]]);
   assert.equal(result, true);
+}
+
+
+// Pacing.childGrowth 2: a child's year needs half the counter steps (team 1: 25); an adult's does not.
+{
+  Pacing.childGrowth = 2;
+  const child = baseInput({ team: 1 });
+  child.state[6666 + 5] = 25;
+  child.state[1919 + 5] = 5;
+  stepLegacySubsystemEntityRegen(child);
+  assert.equal(child.state[1414 + 5], 1);
+  const adult = baseInput({ team: 1 });
+  adult.state[1414 + 5] = 20;
+  adult.state[6666 + 5] = 25;
+  adult.state[1919 + 5] = 5;
+  stepLegacySubsystemEntityRegen(adult);
+  assert.equal(adult.state[1414 + 5], 20);
+  Pacing.childGrowth = 1;
 }
 
 console.log("private boolean q() (level/HP regen) OK");

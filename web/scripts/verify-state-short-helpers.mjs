@@ -47,7 +47,8 @@ stepLegacyAv({ state: av, packedBytes: bytes, packedOffsets: offsets });
 assert.equal(av.Q, 15); assert.equal(av.mByte, -1); assert.equal(aShort[0][24], 10); assert.equal(aShort[1][24], 3);
 
 const aw = { q: 1, R: 0, Q: 8, W: false, Z: 0, r: 0, af: false, vInt: 0, aaInt: 0 };
-stepLegacyAw(aw); assert.deepEqual(aw, { ...aw, q: 7, R: 8, Q: 21, Z: 0, vInt: 70, aaInt: 1 });
+// Custom games are open from the start (user 2026-11-03): no tutorial, still the new-game page (Q 13).
+stepLegacyAw(aw); assert.deepEqual(aw, { ...aw, q: 7, R: 8, Q: 13, Z: 1, vInt: 0, aaInt: 1 });
 
 const ax = { Z: 4, Q: 4, R: 0, q: 2, s: -1, V: 8, vInt: 0, pByte: 1, aaInt: 0, r: 0 };
 stepLegacyAx(ax); assert.equal(ax.Q, 16); assert.equal(ax.vInt, 60); assert.equal(ax.Z, 0);
