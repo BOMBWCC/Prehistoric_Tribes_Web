@@ -91,19 +91,28 @@ const CODE_TO_ORIGINAL: Readonly<Record<string, OriginalKeyName | undefined>> = 
   Digit9: OriginalKey.DIGIT_9,
 };
 
+const originalKeyOf = (event: KeyboardEvent): OriginalKeyName | undefined =>
+  CODE_TO_ORIGINAL[event.code] ?? (event.key === "*" ? OriginalKey.SOFT_LEFT : event.key === "#" ? OriginalKey.SOFT_RIGHT : undefined);
+
+/** A key the game plays with, on its own: not a modifier (Ctrl, Shift, Cmd ...) or function key, not
+ *  a browser shortcut (Ctrl+S, Cmd+R). Only these bring back the keyboard's hand cursor (BUG-042). */
+export function isPlayKey(event: KeyboardEvent): boolean {
+  return !event.ctrlKey && !event.metaKey && !event.altKey && originalKeyOf(event) !== undefined;
+}
+
 /**
  * Attaches browser keyboard events without changing the original key model.
  * Numeric keys are included only where f's bytecode consumes them.
  */
 export function attachOriginalKeyboard(target: Window, state: KeyState): () => void {
   const down = (event: KeyboardEvent): void => {
-    const key = CODE_TO_ORIGINAL[event.code] ?? (event.key === "*" ? OriginalKey.SOFT_LEFT : event.key === "#" ? OriginalKey.SOFT_RIGHT : undefined);
+    const key = originalKeyOf(event);
     if (!key) return;
     event.preventDefault();
     state.press(key);
   };
   const up = (event: KeyboardEvent): void => {
-    const key = CODE_TO_ORIGINAL[event.code] ?? (event.key === "*" ? OriginalKey.SOFT_LEFT : event.key === "#" ? OriginalKey.SOFT_RIGHT : undefined);
+    const key = originalKeyOf(event);
     if (!key) return;
     event.preventDefault();
     state.release(key);

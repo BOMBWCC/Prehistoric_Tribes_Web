@@ -2,7 +2,7 @@ import "./styles.css";
 import { LogicalCanvas } from "./platform/Canvas";
 import { loadOriginalArt, loadOriginalResources } from "./ResourceBootstrap";
 import { FixedLoop } from "./platform/FixedLoop";
-import { attachOriginalKeyboard, KeyState } from "./platform/Input";
+import { attachOriginalKeyboard, isPlayKey, KeyState } from "./platform/Input";
 import { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { attachTouchControls } from "./TouchControls";
 import { WideScreen } from "./WideScreen";
@@ -74,8 +74,8 @@ window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
 // Touch and mouse: taps and drags on the screen (TouchControls) plus the HUD buttons over it.
 const touch = attachTouchControls(screen, runtime, keys);
-// Keys bring back the original's hand cursor; a tap or click takes it away again.
-window.addEventListener("keydown", () => { screen.touchPlay = false; });
+// The game's keys bring back the original's hand cursor; a tap or click takes it away again.
+window.addEventListener("keydown", (event) => { if (isPlayKey(event)) screen.touchPlay = false; });
 window.addEventListener("pointerdown", () => { screen.touchPlay = true; });
 const notify = attachAlerts(app, runtime, touch);
 const hud = attachHud(app, runtime, screen, touch, attachSettings(app, screen, runtime), attachHelp(app, runtime), notify);

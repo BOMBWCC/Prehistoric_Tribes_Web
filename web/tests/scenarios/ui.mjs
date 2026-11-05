@@ -208,6 +208,70 @@ export default [
     },
   },
   {
+    name: "build button: the list is up at the next frame, the same as the original's keys open it (BUG-043)",
+    async run(t) {
+      await start(t);
+      const state = () => t.eval(() => {
+        const rt = window.__prehistoricRuntime, g = rt.game;
+        return { w: g.barMode, ar: g.frameLayoutAR, r: Array.from(rt.mainArrays.r.slice(0, g.frameLayoutAR)), flags: Array.from(g.selectionFlags), p: g.pendingP };
+      });
+      // The original's way: left soft key, cursor on "build", FIRE.
+      const byKeys = await t.eval(() => {
+        const rt = window.__prehistoricRuntime, g = rt.game;
+        S.key("SOFT_LEFT");
+        const slot = Array.from(rt.mainArrays.r.slice(0, 8)).indexOf(10);
+        for (let i = 0; i < slot; i += 1) S.key("RIGHT");
+        S.key("FIRE");
+        S.step(3);
+        return { w: g.barMode, ar: g.frameLayoutAR, r: Array.from(rt.mainArrays.r.slice(0, g.frameLayoutAR)), flags: Array.from(g.selectionFlags), p: g.pendingP };
+      });
+      await t.tap(".hud-sheet-close", 20);
+      t.expect.equal(await t.eval(() => T.ui().barMode), 0, "closed");
+      await t.tap(".hud-build-button", 1);
+      t.expect.ok(await t.visible(".hud-card"), "the list after one frame");
+      t.expect.deepEqual(await state(), byKeys, "the same state as by keys");
+      // And it works: a hut's card starts placing.
+      await t.tap('.hud-card[data-kind="2"]', 30);
+      t.expect.equal(await t.eval(() => T.ui().barMode), 3, "placing");
+    },
+  },
+  {
+    name: "action icon: a rock's picture loading late, no wood icon meanwhile (BUG-041)",
+    async run(t) {
+      await t.page.route("**/hd/effects/45-0.png", async (route) => { await new Promise((done) => setTimeout(done, 1500)); await route.continue(); });
+      const s = await start(t);
+      await select(t, s.id);
+      const icon = () => t.eval(() => { const el = document.querySelector(".hud-action-icon"); return { hidden: el.hidden, src: el.src.split("/").pop() }; });
+      const tree = await t.eval((id) => { const v = T.villager(id); return T.nearest(v.x, v.y, [-124]); }, s.id);
+      await t.tapTile(tree[0], tree[1]);
+      await t.step(100);
+      await t.until(() => { const el = document.querySelector(".hud-action-icon"); return !el.hidden && el.src.endsWith("44-0.png"); }, { max: 400, chunk: 5, what: "the wood icon on the tree" });
+      const rock = await t.eval((id) => { const v = T.villager(id); return T.nearest(v.x, v.y, [-125]); }, s.id);
+      await t.tapTile(rock[0], rock[1]);
+      const waiting = await icon();
+      t.expect.deepEqual(waiting, { hidden: true, src: "45-0.png" }, "while the stone's picture loads: nothing, not the wood");
+      await t.page.waitForTimeout(1700);
+      await t.step(2);
+      t.expect.deepEqual(await icon(), { hidden: false, src: "45-0.png" }, "then the stone");
+    },
+  },
+  {
+    name: "keys: Ctrl and other keys the game does not use leave the touch look; its own keys bring the hand cursor (BUG-042)",
+    async run(t) {
+      await start(t);
+      const touchPlayAfter = (init) => t.eval((init) => {
+        window.__prehistoricScreen.touchPlay = true;
+        window.dispatchEvent(new KeyboardEvent("keydown", init));
+        window.dispatchEvent(new KeyboardEvent("keyup", init));
+        return window.__prehistoricScreen.touchPlay;
+      }, init);
+      for (const init of [{ code: "ControlLeft", key: "Control", ctrlKey: true }, { code: "ShiftLeft", key: "Shift", shiftKey: true }, { code: "MetaLeft", key: "Meta", metaKey: true }, { code: "AltLeft", key: "Alt", altKey: true }, { code: "F5", key: "F5" }, { code: "KeyS", key: "s", ctrlKey: true }]) {
+        t.expect.equal(await touchPlayAfter(init), true, `${init.code} keeps the touch look`);
+      }
+      t.expect.equal(await touchPlayAfter({ code: "ArrowLeft", key: "ArrowLeft" }), false, "an arrow key is keyboard play");
+    },
+  },
+  {
     name: "villager panel: the pouch shows what they carry -- wood (BUG-051)",
     async run(t) {
       const s = await start(t);

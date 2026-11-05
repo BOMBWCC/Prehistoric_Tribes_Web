@@ -44,7 +44,7 @@ async function makeContext(test) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: test.dpr ?? 1, isMobile: true, hasTouch: true });
   const page = await context.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("pageerror", (e) => errors.push(e.stack ?? e.message));
   await page.addInitScript(() => { try { localStorage.clear(); } catch { /* none */ } });
   await page.goto(url + (test.query ?? ""));
   if (test.boot === "real") {

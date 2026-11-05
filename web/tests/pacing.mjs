@@ -56,7 +56,7 @@ try {
   // The run only needs the game's state; a page error (e.g. from the WebGL map in headless Chrome)
   // is reported at the end, not fatal.
   const pageErrors = [];
-  page.on("pageerror", (e) => pageErrors.push(e.message));
+  page.on("pageerror", (e) => pageErrors.push(e.stack ?? e.message));
   await page.addInitScript(() => { try { localStorage.clear(); } catch { /* none */ } });
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => !!window.__prehistoricDebugBootWithoutSplash);

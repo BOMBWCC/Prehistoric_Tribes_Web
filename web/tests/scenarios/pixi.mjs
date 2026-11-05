@@ -27,6 +27,37 @@ async function tiles(t, list) {
 
 export default [
   {
+    name: "WebGL map: a context lost again before the first frame after a restore throws nothing, the map comes back (BUG-064)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.look(14, 40); S.step(20); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      await t.page.waitForTimeout(300);
+      const r = await t.page.evaluate(async () => {
+        const map = window.__prehistoricPixiMap;
+        const gl = map.app.renderer.gl;
+        const ext = gl.getExtension("WEBGL_lose_context");
+        const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+        const out = {};
+        const draw = (key) => { try { map.render(); out[key] = "ok"; } catch (e) { out[key] = e.message; } };
+        ext.loseContext();
+        await wait(150);
+        // Lost again between Pixi's restore (its programs forgotten) and the first frame.
+        gl.canvas.addEventListener("webglcontextrestored", () => { ext.loseContext(); draw("lostAgain"); }, { once: true });
+        ext.restoreContext();
+        await wait(100);
+        ext.restoreContext();
+        await wait(300);
+        draw("restored");
+        // Pixi's program for the map has its uniforms again.
+        out.uniforms = Math.min(...Object.values(map.app.renderer.shader._programDataHash).map((p) => Object.keys(p.uniformData).length));
+        return out;
+      });
+      t.expect.equal(r.lostAgain, "ok", "no throw on the lost context");
+      t.expect.equal(r.restored, "ok", "drawn when it is back");
+      t.expect.ok(r.uniforms > 0, `a working program (${r.uniforms} uniforms)`);
+    },
+  },
+  {
     name: "HD art: the boar's walk frame keeps the shape of its picture, not squeezed into its box (BUG-059)",
     async run(t) {
       await t.eval(() => { S.enter(11); S.step(3); });

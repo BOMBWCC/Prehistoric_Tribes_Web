@@ -202,7 +202,7 @@ export function attachHud(
   // command button above it, the squads at the right edge. Everything for the right thumb. ----
   const buildButton = button("hud-build-button", "", "a11y.build");
   buildButton.innerHTML = img("build-a", "up") + img("build-b", "down");
-  buildButton.addEventListener("click", () => touch.command([10]));
+  buildButton.addEventListener("click", () => touch.openBuildList());
 
   // ✓ / ✕ where something waits for confirming or going back: aiming a weapon or spell, placing
   // (back to the build list).
@@ -868,7 +868,6 @@ export function attachHud(
     const flash = recent && onMap ? touchAction.icon : 0;
     const job = !flash && onMap && screen.villagerSheet ? jobIcon(soloId) : null;
     const icon = flash || job?.icon || 0;
-    actionIcon.hidden = icon === 0;
     if (icon) {
       const frames = ACTION_FRAMES[icon] ?? 1;
       const src = `hd/effects/${icon}-${frames > 1 ? Math.floor(performance.now() / 150) % frames : 0}.png`;
@@ -878,6 +877,9 @@ export function attachHud(
       const size = tile * ACTION_SIZE;
       Object.assign(actionIcon.style, { left: `${at.x + tile / 2 - size / 2}px`, top: `${at.y + (tile * 16) / 22 / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
     }
+    // Not until its picture is in: the browser keeps showing the last one meanwhile (BUG-041: wood on
+    // a rock, for as long as the stone's picture took to load).
+    actionIcon.hidden = icon === 0 || !actionIcon.complete;
     // The placed order's flag on its tile (f.q:[B), a villager high, while the order is on.
     const k22 = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x; // CSS pixels per 22 game pixels
     const flagSize = (k22 * VILLAGER_H) / 22;

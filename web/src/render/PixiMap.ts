@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Texture } from "pixi.js";
+import { Application, Container, Sprite, Texture, type WebGLRenderer } from "pixi.js";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import type { WideScreen } from "../WideScreen";
 import { hdArt } from "./HdArt";
@@ -179,6 +179,10 @@ export class PixiMap {
       chunk.sprite.visible = x + CHUNK * TILE_W + TILE_W > view.x && x - TILE_W < view.x + width
         && y + CHUNK * TILE_H + TILE_H > view.y && y - TILE_H < view.y + height;
     }
+    // Not on a lost WebGL context (a page in the background, a busy GPU): a shader program made then
+    // has no uniforms, Pixi's sync throws, and with it the page's frame loop stopped for good
+    // (BUG-064). Drawn again once it is back.
+    if ((this.app.renderer as WebGLRenderer).gl?.isContextLost()) return;
     this.app.render();
   }
 

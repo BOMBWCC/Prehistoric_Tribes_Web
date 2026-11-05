@@ -55,6 +55,8 @@ export type TouchControls = {
    *  (f.r:[B, mainArrays.r) is one of `codes` -- 10 build, 11 / 14 form up, 12 / 15 call to arms,
    *  13 villagers. */
   command(codes: readonly number[]): void;
+  /** Opens the build list: at once, within the tap (BUG-043), when nothing else is open or running. */
+  openBuildList(): void;
   /** While placing (w == 3): the footprint's map tiles (f.T:I / f.U:I from the camera, the size
    *  from t138 104 / 130 + s); 1 x 1 for the non-building targets (s <= 3, s == 100). */
   footprint(): { column: number; row: number; columns: number; rows: number } | null;
@@ -730,6 +732,23 @@ export function attachTouchControls(
         // Dismiss (14) and back to work (15) leave the original's command bar open: close it.
         if (code === 14 || code === 15) { yield; yield* backOut(); }
       })());
+    },
+    openBuildList() {
+      if (game.loopMode !== 1) return;
+      if (game.barMode !== 0 || script) { controls.command([10]); return; }
+      touched();
+      // What the command() keys do over five ticks, with nothing on screen for most of them: the
+      // left soft key's bar (f.W()), its cursor on "build", FIRE there (af()), the cards filling f.r
+      // (Z(), the pending redraw of f.j()).
+      runtime.runSelectionFlagsRefresh(true, false, false, false, true);
+      game.barMode = 2;
+      runtime.stepFrameSelectionTransition();
+      const slot = Array.from(runtime.mainArrays.r.slice(0, 8)).indexOf(10);
+      if (slot < 0) return;
+      jumpInBar(slot);
+      runtime.stepGameplayZAf();
+      runtime.stepFrameSelectionTransition();
+      game.pendingP = false;
     },
     openPause() {
       if (game.loopMode !== 1) return;
