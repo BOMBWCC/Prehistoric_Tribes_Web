@@ -119,6 +119,115 @@ export default [
     },
   },
   {
+    name: "WebGL map: a villager walks into a building and out of it on screen, no jump (BUG-069)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const job = await t.eval(() => {
+        const hut = T.buildings().find((b) => b.kind === 3);
+        const kitchen = S.buildingNear(4, hut.x + 6, hut.y + 1);
+        const b = T.building(kitchen);
+        const chief = T.ui().chief;
+        const id = T.villagers().filter((v) => v.age >= 14 && !v.inside && v.id !== chief).sort((p, q) => Math.abs(p.x - b.x) + Math.abs(p.y - b.y) - Math.abs(q.x - b.x) - Math.abs(q.y - b.y))[0].id;
+        S.order(id, b.x + 1, b.y + 1);
+        S.look(b.x + 1, b.y + 1);
+        return { id, kitchen };
+      });
+      // At the real pace: the walks are on the page's clock.
+      const follow = async (frames) => {
+        const samples = [];
+        for (let i = 0; i < frames; i += 1) {
+          await t.page.waitForTimeout(40);
+          samples.push(await t.eval((id) => {
+            S.step(1);
+            const map = window.__prehistoricPixiMap;
+            map.render();
+            const m = map.movers.get(`u${id}`);
+            return { x: m ? m.sprite.x - (m.picture?.x ?? 0) : null, y: m ? m.sprite.y - (m.picture?.y ?? 0) : null, walk: !!m?.walk, drawn: !!m?.picture, slot: __prehistoricRuntime.denseState[4646 + id] };
+          }, job.id));
+          if (process.env.SHOT && samples.at(-1).walk && samples.filter((s) => s.walk).length === 12) await t.page.screenshot({ path: process.env.SHOT });
+        }
+        return samples;
+      };
+      const check = (samples, what) => {
+        t.expect.ok(samples.some((s) => s.walk && s.drawn), `${what}: a walk on screen, drawn`);
+        let most = 0;
+        for (let i = 1; i < samples.length; i += 1) {
+          if (samples[i].x === null || samples[i - 1].x === null) continue;
+          most = Math.max(most, Math.abs(samples[i].x - samples[i - 1].x), Math.abs(samples[i].y - samples[i - 1].y));
+        }
+        t.expect.ok(most <= 22, `${what}: no jump between frames (the most: ${Math.round(most)} px)`);
+      };
+      check(await follow(120), "in");
+      await t.eval(([id, x, y]) => { const b = T.building(x); for (let d = 6; d < 14; d += 1) if (T.cell(b.x + d, b.y + 6) === 0) { S.order(id, b.x + d, b.y + 6); return; } }, [job.id, job.kitchen]);
+      check(await follow(80), "out");
+    },
+  },
+  {
+    name: "WebGL map: a couple in a hut: hearts, no pieces, the whole hut sways and comes to rest (BUG-070)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const hut = await t.eval(() => { const chief = T.buildings().find((b) => b.kind === 3); return S.buildingNear(2, chief.x + 6, chief.y + 1); });
+      const two = await t.eval(() => { const c = T.ui().chief; return T.villagers().filter((v) => v.age >= 14 && !v.inside && v.id !== c).slice(0, 2).map((v) => v.id); });
+      await t.eval(([two, hut]) => { const b = T.building(hut); for (const id of two) S.order(id, b.x, b.y); S.look(b.x, b.y); }, [two, hut]);
+      await t.until(([two, hut]) => { const e = __prehistoricRuntime.denseState; return two.some((id) => e[4646 + id] >= 0 && e[4444 + id] === hut); }, { arg: [two, hut], max: 2000, what: "in the hut" });
+      const scene = (timer) => t.eval(async ([two, hut, timer]) => {
+        const { sceneIn } = await import("/src/render/MapScene.ts");
+        const rt = __prehistoricRuntime, g = rt.game, e = rt.denseState;
+        const inside = two.filter((id) => e[4646 + id] >= 0 && e[4444 + id] === hut);
+        for (const id of inside) e[1313 + id] = timer;
+        const r = sceneIn(rt, { column: 0, row: 0, columns: g.mapWidth, rows: g.mapHeight }, true);
+        return { inside, swaying: r.swaying, indexes: r.effects.filter((o) => o.op === "effect").map((o) => o.index) };
+      }, [two, hut, timer]);
+      const on = await scene(2);
+      t.expect.ok(on.inside.length > 0 && on.swaying.includes(hut), `the hut sways (${JSON.stringify(on.swaying)})`);
+      t.expect.ok(on.indexes.includes(90), "the hearts");
+      t.expect.ok(!on.indexes.includes(116), "no piece of the hut");
+      const rest = await t.eval((hut) => { const s = __prehistoricPixiMap.placed.get(`b${hut}`).sprite; return [s.x, s.y]; }, hut);
+      // The step would put a lone occupant's 2 back to 1: the map drawn with it as a couple has it.
+      await t.eval(([two]) => { const e = __prehistoricRuntime.denseState; for (const id of two) if (e[4646 + id] >= 0) e[1313 + id] = 2; __prehistoricPixiMap.update(); }, [two]);
+      const angles = [];
+      for (let i = 0; i < 8; i += 1) {
+        await t.page.waitForTimeout(40);
+        angles.push(await t.eval((hut) => { __prehistoricPixiMap.render(); return __prehistoricPixiMap.placed.get(`b${hut}`).sprite.rotation; }, hut));
+      }
+      t.expect.ok(Math.max(...angles) > 0.005 || Math.min(...angles) < -0.005, `it turns (${angles.map((a) => a.toFixed(3))})`);
+      // Its foot stays where it is: the bottom middle of the rotated picture.
+      const foot = await t.eval((hut) => { const s = __prehistoricPixiMap.placed.get(`b${hut}`).sprite; const a = s.rotation, w = s.width / 2, h = s.height; return [s.x + w * Math.cos(a) - h * Math.sin(a), s.y + w * Math.sin(a) + h * Math.cos(a), w, h]; }, hut);
+      t.expect.ok(Math.abs(foot[0] - (rest[0] + foot[2])) < 3 && Math.abs(foot[1] - (rest[1] + foot[3])) < 3, `the foot stays (${foot} / ${rest})`);
+      await t.eval(([two]) => { const e = __prehistoricRuntime.denseState; for (const id of two) if (e[4646 + id] >= 0) e[1313 + id] = 1; __prehistoricPixiMap.update(); __prehistoricPixiMap.render(); }, [two]);
+      t.expect.equal(await t.eval((hut) => __prehistoricPixiMap.placed.get(`b${hut}`).sprite.rotation, hut), 0, "at rest again");
+      if (process.env.SHOT) await t.page.screenshot({ path: process.env.SHOT });
+    },
+  },
+  {
+    name: "WebGL map: touch play's drawing ignores the hidden cursor; a building shows its bar and corners with its panel open; keys keep them (BUG-068)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const scene = (touch) => t.eval(async (touch) => {
+        const { sceneIn, pickedBuilding } = await import("/src/render/MapScene.ts");
+        const rt = __prehistoricRuntime, g = rt.game;
+        const r = sceneIn(rt, { column: 0, row: 0, columns: g.mapWidth, rows: g.mapHeight }, touch);
+        return { barsOn: r.people.filter((p) => p.overlay.some((o) => o.op === "rect")).map((p) => p.id), rects: r.effects.filter((o) => o.op === "rect").length, picked: pickedBuilding(rt, touch), hover: g.hoverUnit };
+      }, touch);
+      // A healthy villager under the cursor, nobody selected.
+      const v = await t.eval(() => { const g = __prehistoricRuntime.game; const c = T.ui().chief; const v = T.villagers().find((v) => v.age >= 14 && !v.inside && v.id !== c && v.hp * 3 > v.maxHp * 2); S.look(v.x, v.y); S.step(25); const u = T.villager(v.id); g.cursorColumn = u.x - g.cameraColumn; g.cursorRow = u.y - g.cameraRow; g.hoverUnit = v.id; return v.id; });
+      t.expect.ok((await scene(false)).barsOn.includes(v), "keys: the bar on the villager under the cursor");
+      t.expect.ok(!(await scene(true)).barsOn.includes(v), "touch: none");
+      // The cursor on a whole building, its panel closed.
+      const hut = await t.eval(() => { const b = T.buildings().find((b) => b.kind === 3); const g = __prehistoricRuntime.game; S.look(b.x + 1, b.y + 1); S.step(25); g.cameraBFlag = false; g.hoverUnit = 0; g.cursorColumn = b.x + 1 - g.cameraColumn; g.cursorRow = b.y + 1 - g.cameraRow; return b; });
+      t.expect.equal((await scene(false)).picked, hut.id, "keys: the building under the cursor");
+      const closed = await scene(true);
+      t.expect.equal(closed.picked, 0, "touch: no building picked");
+      await t.tapTile(hut.x + 1, hut.y + 1);
+      const open = await scene(true);
+      t.expect.equal(open.picked, hut.id, "touch: its panel open, picked");
+      t.expect.ok(open.rects > closed.rects, `touch: its health bar with the panel open (${closed.rects} -> ${open.rects})`);
+    },
+  },
+  {
     name: "WebGL map: builders on a site are drawn over its picture (BUG-049, BUG-055)",
     async run(t) {
       await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
@@ -252,10 +361,14 @@ export default [
       await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
       await t.eval(() => {
         const hut = T.buildings().find((b) => b.kind === 3);
-        S.look(hut.x + 1, hut.y + 1); // the cursor (the view's middle) on the hut
+        S.look(hut.x + 1, hut.y + 1);
         S.step(20);
+        __prehistoricRuntime.game.cameraBFlag = false;
         return hut;
       });
+      // Touch play: the corners are on the building whose panel is open (BUG-068).
+      const camp = await t.eval(() => T.buildings().find((b) => b.kind === 3));
+      await t.tapTile(camp.x + 1, camp.y + 1);
       // The HD pictures load on first use: a few steps until the hut's and its corners' are there.
       await t.until(() => { const map = window.__prehistoricPixiMap; map.update(); return map.placed.has("b1") && map.effectSprites.slice(0, 4).every((s) => s.visible); }, { max: 200, chunk: 5, what: "the hut's picture and corners" });
       const seen = await t.eval(() => {

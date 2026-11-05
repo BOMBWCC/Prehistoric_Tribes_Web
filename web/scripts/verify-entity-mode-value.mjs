@@ -36,6 +36,7 @@ assert.equal(readLegacyEntityModeValue(queued), 7);
 const active = make();
 active.state[1414 + 4] = 12;
 active.state[3535 + 4] = 1;
+active.state[3636 + 4] = 1;
 active.state[7777 + 4] = 2;
 assert.equal(readLegacyEntityModeValue(active), 1);
 assert.equal(active.state[7777 + 4], 0);

@@ -1,4 +1,4 @@
-import { UNIT_AGE, UNIT_CARRY_KIND, UNIT_FLAGS, UNIT_HELD_ITEM } from "../../core/DenseLayout";
+import { UNIT_AGE, UNIT_CARRY_AMOUNT, UNIT_CARRY_KIND, UNIT_FLAGS, UNIT_HELD_ITEM } from "../../core/DenseLayout";
 /**
  * Direct port of class b's `final byte b(int)` (bytecode/b-javap.txt offsets
  * 0..154), called for its `dense[7777+id]` side effect only -- the original
@@ -21,17 +21,17 @@ export function classifyLegacySubsystemB(input: LegacySubsystemBClassifyInput): 
   if (((dense[UNIT_FLAGS + id] ?? 0) & 2) > 0) {
     if (
       (dense[7777 + id] ?? 0) === 0 ||
-      (dense[UNIT_CARRY_KIND + id] ?? 0) !== 0 ||
+      (dense[UNIT_CARRY_AMOUNT + id] ?? 0) > 0 ||
       (dense[UNIT_HELD_ITEM + id] ?? 0) === 1
     ) {
       dense[7777 + id] = 0;
       return 5;
     }
   }
-  if ((dense[UNIT_CARRY_KIND + id] ?? 0) !== 0 || (dense[UNIT_HELD_ITEM + id] ?? 0) === 1) {
-    dense[7777 + id] = 0;
-    return 1;
-  }
+  // Carrying = an amount above 0 (user 2026-11-05, BUG-072; the original looks at the kind here, which
+  // stays set between trips, so an empty gatherer could not run). The code still follows the kind.
+  if ((dense[UNIT_CARRY_AMOUNT + id] ?? 0) > 0 || (dense[UNIT_HELD_ITEM + id] ?? 0) === 1) dense[7777 + id] = 0;
+  if ((dense[UNIT_CARRY_KIND + id] ?? 0) !== 0 || (dense[UNIT_HELD_ITEM + id] ?? 0) === 1) return 1;
   if ((dense[7777 + id] ?? 0) > 0) return 7;
   return 0;
 }

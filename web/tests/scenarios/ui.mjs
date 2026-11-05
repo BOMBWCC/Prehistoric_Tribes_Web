@@ -208,6 +208,101 @@ export default [
     },
   },
   {
+    name: "a single tap walks: just selected, walking, arrived, a group; call to arms runs (BUG-071)",
+    async run(t) {
+      const s = await start(t);
+      const running = (ids) => t.eval((ids) => ids.filter((id) => __prehistoricRuntime.denseState[7777 + id] > 0), ids);
+      // Never the tile they already head for: that one is a run (kept from the original, docs/gameplay.md 7.1).
+      const free = (id) => t.eval((id) => { const v = T.villager(id); for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (let d = 3; d < 12; d += 1) { const x = v.x + dx * d, y = v.y + dy * d; if (T.cell(x, y) === 0 && (x !== v.targetX || y !== v.targetY)) return [x, y]; } return null; }, id);
+      // Each past the 0.35 s of a double tap, which frames in a test run through much faster than that.
+      const tapGround = async (id) => { const p = await free(id); await t.page.waitForTimeout(400); await t.tapTile(p[0], p[1]); await t.step(5); };
+      await boxSelect(t, s.id);
+      const group = await t.eval(() => Array.from(__prehistoricRuntime.mainArrays.aByte[T.ui().group]).filter((id) => id > 0));
+      t.expect.ok(group.length > 1, "a group selected");
+      await tapGround(s.id);
+      t.expect.deepEqual(await running(group), [], "a group: everyone walks");
+      await t.step(150);
+      await t.tap(".hud-sheet-close", 5);
+      await select(t, s.id);
+      await tapGround(s.id);
+      t.expect.deepEqual(await running([s.id]), [], "just selected: walks");
+      await tapGround(s.id);
+      t.expect.deepEqual(await running([s.id]), [], "while walking: walks");
+      await t.step(150);
+      await tapGround(s.id);
+      t.expect.deepEqual(await running([s.id]), [], "after arriving: walks");
+      await t.step(150);
+      // The original's rule, not a bug: with the horn's call to arms on, everyone runs.
+      await t.eval(() => { __prehistoricRuntime.game.callToArmsActive = true; });
+      await tapGround(s.id);
+      t.expect.deepEqual(await running([s.id]), [s.id], "call to arms: runs");
+    },
+  },
+  {
+    name: "store: a weapon dragged onto a villager is theirs to fetch, the panel stays; a drop on the ground cancels; none left, no drag",
+    async run(t) {
+      const s = await start(t, { stock: 300 });
+      const store = await t.eval((id) => T.building(id), s.store);
+      await t.tapTile(store.x + 1, store.y + 1);
+      t.expect.ok(await t.visible('.hud-item[data-code="2"]'), "the store's spear");
+      const item = () => t.eval(() => { const e = document.querySelector('.hud-item[data-code="2"]'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, index: Number(e.dataset.index) }; });
+      const count = (index) => t.eval((index) => __prehistoricRuntime.mainArrays.s[index], index);
+      const icon = await item();
+      await t.eval((index) => { __prehistoricRuntime.mainArrays.aShort[0][7] = 3; __prehistoricRuntime.mainArrays.s[index] = 3; S.step(2); }, icon.index);
+      const before = await count(icon.index);
+      t.expect.ok(before > 0, `spears in the store (${before})`);
+      // Onto an adult somewhere in view (a finger stays over them, a frame or two for the ring).
+      const v = await t.eval((store) => { const onScreen = T.villagers().filter((v) => v.age >= 14 && !v.inside); const scr = __prehistoricScreen; const sheet = document.querySelector(".hud-sheet").getBoundingClientRect(); const v = onScreen.find((v) => { const p = scr.tileToCss(v.x, v.y); return p.y > 80 && p.y < sheet.top - 60 && p.x > 40 && p.x < innerWidth - 40; }); return v ? { id: v.id, at: scr.tileToCss(v.x, v.y), k: scr.tileToCss(1, 1).x - scr.tileToCss(0, 0).x } : null; }, store);
+      t.expect.ok(v, "a villager in view");
+      const m = t.page.mouse;
+      await m.move(icon.x, icon.y);
+      await m.down();
+      await m.move(icon.x, icon.y - 30, { steps: 3 });
+      await m.move(v.at.x + v.k / 2, v.at.y + v.k / 3, { steps: 5 });
+      await t.page.waitForTimeout(60);
+      t.expect.ok(await t.eval(() => !document.querySelector(".hud-drag-ring").hidden), "the ring on them");
+      await m.up();
+      for (let i = 0; i < 12; i += 1) {
+        await t.step(1);
+        t.expect.ok(await t.visible(".hud-sheet") && !(await t.visible(".hud-prompt")), `the panel stays, no prompt (frame ${i})`);
+      }
+      await t.step(5);
+      t.expect.ok(await t.visible('.hud-item[data-code="2"]'), "the store's panel again");
+      t.expect.equal(await t.eval(() => T.ui().barMode), 2, "the bar open");
+      await t.until((id) => T.villager(id).held === 2, { arg: v.id, max: 2500, what: "holding the spear" });
+      t.expect.ok((await count(icon.index)) < before, "one spear fewer");
+      // On open ground: nothing happens, the panel stays.
+      const left = await count(icon.index);
+      await m.move(icon.x, icon.y);
+      await m.down();
+      await m.move(icon.x, icon.y - 40, { steps: 3 });
+      await m.up();
+      await t.step(15);
+      t.expect.equal(await count(icon.index), left, "dropped short: no order");
+      t.expect.ok(await t.visible('.hud-item[data-code="2"]') && (await t.eval(() => T.ui().barMode)) === 2, "dropped short: the panel");
+      // At the screen's edge the view follows.
+      const view = () => t.eval(() => __prehistoricScreen.viewTransform().y);
+      const top = await view();
+      await m.move(icon.x, icon.y);
+      await m.down();
+      await m.move(icon.x, icon.y - 40, { steps: 3 });
+      await m.move(icon.x, 5, { steps: 4 });
+      await t.page.waitForTimeout(300);
+      t.expect.ok((await view()) < top, "the view moves up with the finger at the top");
+      await m.move(icon.x, icon.y - 40, { steps: 2 });
+      await m.up();
+      await t.step(5);
+      // None left: no drag.
+      await t.eval((index) => { __prehistoricRuntime.mainArrays.aShort[0][7] = 0; __prehistoricRuntime.mainArrays.s[index] = 0; S.step(1); __prehistoricRuntime.mainArrays.s[index] = 0; }, icon.index);
+      await m.move(icon.x, icon.y);
+      await m.down();
+      await m.move(icon.x, icon.y - 60, { steps: 3 });
+      await t.page.waitForTimeout(40);
+      t.expect.ok(await t.eval(() => document.querySelector(".hud-drag-ring").hidden && [...document.querySelectorAll(".hud-pick-marker")].every((e) => e.hidden)), "no icon follows");
+      await m.up();
+    },
+  },
+  {
     name: "build button: the list is up at the next frame, the same as the original's keys open it (BUG-043)",
     async run(t) {
       await start(t);
@@ -286,6 +381,58 @@ export default [
     },
   },
   {
+    name: "villager panel: the basket and its number follow the amount, at once; empty on the way back; an empty gatherer can run (BUG-067, BUG-072)",
+    async run(t) {
+      const s = await start(t);
+      await select(t, s.id);
+      const bush = await t.eval((id) => { const v = T.villager(id), e = __prehistoricRuntime.denseState; let best = null, d = 1e9; for (let i = 0; i < 50; i += 1) { if (e[9833 + i] !== 2) continue; const q = Math.abs(e[9733 + i] - v.x) + Math.abs(e[9783 + i] - v.y); if (q < d) { d = q; best = [e[9733 + i], e[9783 + i]]; } } return best; }, s.id);
+      await t.eval(([id, x, y]) => S.order(id, x, y), [s.id, bush[0], bush[1]]);
+      const cell = () => t.eval(() => { const c = [...document.querySelectorAll(".hud-villager .hud-cell")].find((c) => /pouch|sk-basket/.test(c.querySelector("img")?.src ?? "") && !c.closest(".skills")); return { icon: c?.querySelector("img").src.split("/").pop(), number: c?.querySelector(".n") !== null && c?.querySelector(".n") !== undefined, faint: c?.classList.contains("faint") }; });
+      await t.until((id) => T.villager(id).carry > 0, { arg: s.id, max: 2000, chunk: 5, what: "gathering" });
+      await t.step(1);
+      let c = await cell();
+      t.expect.ok(c.icon.startsWith("sk-basket") && c.number && !c.faint, `carrying: the basket and a number at once (${JSON.stringify(c)})`);
+      await t.until((id) => { const v = T.villager(id); return v.carry === 0 && v.carryKind !== 0; }, { arg: s.id, max: 3000, chunk: 2, what: "the load delivered" });
+      await t.step(1);
+      c = await cell();
+      t.expect.ok(c.icon.startsWith("pouch") && !c.number && c.faint, `delivered: the empty pouch (${JSON.stringify(c)})`);
+      // Empty, though the kind is still set: a double tap runs. Carrying: it does not.
+      const run = async () => {
+        const p = await t.eval((id) => { const v = T.villager(id); for (const [dx, dy] of [[1, 1], [-1, 1], [1, -1], [-1, -1]]) for (let d = 4; d < 12; d += 1) if (T.cell(v.x + dx * d, v.y + dy * d) === 0) return [v.x + dx * d, v.y + dy * d]; return null; }, s.id);
+        await t.tapTile(p[0], p[1]);
+        await t.eval((id) => { const g = __prehistoricRuntime.game; g.nInt = 0; }, s.id);
+        await t.eval(([x, y]) => { const screen = __prehistoricScreen; const box = screen.element.getBoundingClientRect(); const a = screen.tileToCss(x, y); const k = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x; const fire = (type) => screen.element.dispatchEvent(new PointerEvent(type, { clientX: box.left + a.x + k / 2, clientY: box.top + a.y + k / 3, pointerId: 7, button: 0, bubbles: true, isPrimary: true })); fire("pointerdown"); fire("pointerup"); }, p);
+        await t.step(12);
+        return t.eval((id) => __prehistoricRuntime.denseState[7777 + id], s.id);
+      };
+      t.expect.equal(await run(), 3, "empty: the second tap on the same tile runs");
+      await t.eval((id) => { const e = __prehistoricRuntime.denseState; e[3636 + id] = 2; }, s.id);
+      await t.step(2);
+      t.expect.equal(await run(), 0, "carrying: no run");
+    },
+  },
+  {
+    name: "game menu: its button closes it, the same as a tap on the map (BUG-066)",
+    async run(t) {
+      await start(t);
+      const open = () => t.visible(".hud-menu");
+      const at = await t.eval(() => { const r = document.querySelector(".hud-menu-button").getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+      await t.page.mouse.click(at[0], at[1]);
+      await t.step(5);
+      t.expect.ok(await open(), "opens");
+      await t.page.mouse.click(at[0], at[1]);
+      await t.step(5);
+      t.expect.ok(!(await open()), "the button closes it");
+      t.expect.equal(await t.eval(() => __prehistoricRuntime.game.screen < 10 || __prehistoricRuntime.game.screen > 11), true, "not in the pause menu");
+      await t.page.mouse.click(at[0], at[1]);
+      await t.step(5);
+      t.expect.ok(await open(), "opens again");
+      await t.page.mouse.click(at[0], 400);
+      await t.step(5);
+      t.expect.ok(!(await open()), "a tap outside still closes it");
+    },
+  },
+  {
     name: "villager panel: the name on its first line (BUG-054)",
     async run(t) {
       const s = await start(t);
@@ -293,6 +440,9 @@ export default [
       await t.step(10);
       const [shown, name] = await t.eval((id) => [document.querySelector(".hud-villager .hud-name")?.textContent ?? "", __prehistoricRuntime.unitNames[id]], s.id);
       t.expect.ok(name && shown.toLowerCase() === name.toLowerCase(), `the name (${shown} / ${name})`);
+      // Below the vines along the sheet's top edge (BUG-067's note), the panel's bottom inside the sheet.
+      const box = await t.eval(() => { const n = document.querySelector(".hud-villager .hud-name").getBoundingClientRect(); const c = document.querySelector(".hud-villager .hud-cols").getBoundingClientRect(); const s = document.querySelector(".hud-sheet").getBoundingClientRect(); return { top: n.top - s.top, bottom: s.bottom - c.bottom }; });
+      t.expect.ok(box.top >= 15 && box.bottom >= 0, `the whole name in view (${JSON.stringify(box)})`);
       if (process.env.SHOT) await t.page.screenshot({ path: process.env.SHOT });
     },
   },

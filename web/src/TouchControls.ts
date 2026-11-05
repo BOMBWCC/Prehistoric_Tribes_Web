@@ -1,7 +1,7 @@
 import { OriginalKey, type KeyState, type OriginalKeyName } from "./platform/Input";
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { T_BUILDING } from "./core/DataTables";
-import { UNIT_OFFSET_X, UNIT_OFFSET_Y } from "./core/DenseLayout";
+import { UNIT_AGE, UNIT_OFFSET_X, UNIT_OFFSET_Y } from "./core/DenseLayout";
 import type { WideScreen } from "./WideScreen";
 import { stepGameplayZAe } from "./ui/UiRuntime";
 
@@ -74,6 +74,11 @@ export type TouchControls = {
   selectVillager(id: number): void;
   /** The map tile our villager `id` stands on (null inside a building). */
   villagerTile(id: number): [number, number] | null;
+  /** Our nearest adult (on the map) within a tile of screen point (clientX, clientY), or 0: dragging
+   *  a weapon from the store onto them. */
+  adultNear(clientX: number, clientY: number): number;
+  /** Dragging near the screen's edge: the view follows; the map's lower edge is at `bottom`. */
+  edgePan(clientX: number, clientY: number, bottom: number): void;
   /** A scripted key sequence is still running (the game must tick for it). */
   readonly busy: boolean;
   /** While set, a tap on the map goes here instead (with the villager tapped, or 0). */
@@ -305,19 +310,20 @@ export function attachTouchControls(
 
   /** Our villager (1..50) whose figure is nearest frame point (x, y), within about a tile: the
    *  cells around the tap, each unit placed by its walking offset (e[202 + id], e[303 + id]). */
-  const villagerAt = (x: number, y: number): { id: number; tx: number; ty: number } | null => {
+  const villagerAt = (x: number, y: number, reach = { x: 16, y: 18, cells: 1, adults: false }): { id: number; tx: number; ty: number } | null => {
     const [tx, ty] = tileAt(x, y);
     const px = game.cameraColumn * TILE_W + x;
     const py = game.cameraRow * TILE_H + y - mapTop();
     let best: { id: number; tx: number; ty: number } | null = null;
     let bestDistance = Infinity;
-    for (let dy = -1; dy <= 1; dy += 1) {
-      for (let dx = -1; dx <= 1; dx += 1) {
+    for (let dy = -reach.cells; dy <= reach.cells; dy += 1) {
+      for (let dx = -reach.cells; dx <= reach.cells; dx += 1) {
         const id = unitAt(tx + dx, ty + dy);
         if (id < 1 || id > 50) continue;
+        if (reach.adults && (runtime.denseState[UNIT_AGE + id] ?? 0) < 12) continue;
         const cx = (tx + dx) * TILE_W + TILE_W / 2 + (runtime.denseState[UNIT_OFFSET_X + id] ?? 0);
         const cy = (ty + dy) * TILE_H + TILE_H / 2 + (runtime.denseState[UNIT_OFFSET_Y + id] ?? 0);
-        if (Math.abs(px - cx) > 16 || Math.abs(py - cy) > 18) continue;
+        if (Math.abs(px - cx) > reach.x || Math.abs(py - cy) > reach.y) continue;
         const distance = (px - cx) ** 2 + (py - cy) ** 2;
         if (distance < bestDistance) { bestDistance = distance; best = { id, tx: tx + dx, ty: ty + dy }; }
       }
@@ -522,25 +528,30 @@ export function attachTouchControls(
   });
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
+  /** A finger near the screen's edge (the map's lower edge at `bottom`) moves the view; true if it did. */
+  const edgePan = (x: number, y: number, bottom: number): boolean => {
+    const rect = canvas.getBoundingClientRect();
+    const push = (position: number, low: number, size: number) => {
+      const band = size * EDGE_BAND;
+      if (position < low + band) return -(1 - Math.max(0, position - low) / band);
+      if (position > low + size - band) return 1 - Math.max(0, low + size - position) / band;
+      return 0;
+    };
+    const dx = push(x, rect.left, rect.width);
+    const dy = push(y, rect.top, bottom - rect.top);
+    if (dx === 0 && dy === 0) return false;
+    const step = (EDGE_SPEED / 60) * screen.gamePixelsPerCssPixel();
+    screen.panBy(dx * step, dy * step);
+    return true;
+  };
+
   /** Every display frame while a finger is on the map: the long-press arc, the box's start, and
    *  the slow scroll while a box is dragged near the screen's edge. */
   function frame(now: number): void {
     if (!gesture || gesture.on !== "map") return;
     if (box) {
       const rect = canvas.getBoundingClientRect();
-      const push = (position: number, low: number, size: number) => {
-        const band = size * EDGE_BAND;
-        if (position < low + band) return -(1 - Math.max(0, position - low) / band);
-        if (position > low + size - band) return 1 - Math.max(0, low + size - position) / band;
-        return 0;
-      };
-      const dx = push(box.x, rect.left, rect.width);
-      const dy = push(box.y, rect.top, rect.height);
-      if (dx !== 0 || dy !== 0) {
-        const step = (EDGE_SPEED / 60) * screen.gamePixelsPerCssPixel();
-        screen.panBy(dx * step, dy * step);
-        boxCursor();
-      }
+      if (edgePan(box.x, box.y, rect.bottom)) boxCursor();
     } else if (!gesture.drag && !script && game.loopMode === 1 && game.barMode !== 3) {
       const progress = (now - gesture.at - LONG_MS) / ARC_MS;
       if (progress >= 1) startBox();
@@ -641,6 +652,11 @@ export function attachTouchControls(
       })());
     },
     villagerTile: tileOf,
+    adultNear(clientX: number, clientY: number) {
+      const { x, y, on } = screen.locate(clientX, clientY);
+      return on === "map" ? villagerAt(x, y, { x: TILE_W, y: TILE_W, cells: 2, adults: true })?.id ?? 0 : 0;
+    },
+    edgePan(clientX: number, clientY: number, bottom: number) { edgePan(clientX, clientY, bottom); },
     selectVillager(id: number) {
       if (game.loopMode !== 1) return;
       run((function* () {

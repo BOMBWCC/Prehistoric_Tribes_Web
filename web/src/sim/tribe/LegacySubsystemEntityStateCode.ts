@@ -1,4 +1,4 @@
-import { UNIT_AGE, UNIT_CARRY_KIND, UNIT_FLAGS, UNIT_HELD_ITEM } from "../../core/DenseLayout";
+import { UNIT_AGE, UNIT_CARRY_AMOUNT, UNIT_CARRY_KIND, UNIT_FLAGS, UNIT_HELD_ITEM } from "../../core/DenseLayout";
 /**
  * Direct translation of `final byte b(int)` (constant pool #340),
  * bytecode/b-javap.txt offsets 0..154 (line 31567). Real, working state-code
@@ -22,17 +22,17 @@ export function deriveLegacyEntityStateCode(state: Int8Array, id: number): numbe
   const bit2 = (state[UNIT_FLAGS + id] ?? 0) & 2;
   if (bit2 > 0) {
     const counter = state[7777 + id] ?? 0;
-    const flag = state[UNIT_CARRY_KIND + id] ?? 0;
     const role = state[UNIT_HELD_ITEM + id] ?? 0;
-    if (counter === 0 || flag !== 0 || role === 1) {
+    if (counter === 0 || (state[UNIT_CARRY_AMOUNT + id] ?? 0) > 0 || role === 1) {
       state[7777 + id] = 0;
       return 5;
     }
   }
 
   const flag2 = state[UNIT_CARRY_KIND + id] ?? 0;
+  // Carrying = an amount above 0 for running (BUG-072, see LegacySubsystemBClassify.ts).
   if (flag2 !== 0) {
-    state[7777 + id] = 0;
+    if ((state[UNIT_CARRY_AMOUNT + id] ?? 0) > 0) state[7777 + id] = 0;
     return 1;
   }
   const role2 = state[UNIT_HELD_ITEM + id] ?? 0;

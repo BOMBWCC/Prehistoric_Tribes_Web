@@ -3,7 +3,7 @@ import { OriginalKey } from "./platform/Input";
 import { oldArt } from "./platform/OldArt";
 import { BUILDING_KEYS, capitalise, labelKey, messageKey, setLabel, ui } from "./text/UiText";
 import { T_BUILDING } from "./core/DataTables";
-import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_CARRY_KIND, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
+import { BLD_KIND, RES_KIND, UNIT_AGE, UNIT_CARRY_AMOUNT, UNIT_CARRY_KIND, UNIT_ENERGY, UNIT_FOOD, UNIT_GENDER, UNIT_HELD_ITEM, UNIT_HOME_X, UNIT_HOME_Y, UNIT_HP, UNIT_MAX_HP, UNIT_SELECTION, UNIT_TARGET_X, UNIT_TARGET_Y, UNIT_TYPE, UNIT_X, UNIT_Y } from "./core/DenseLayout";
 import type { PauseItem, TouchControls } from "./TouchControls";
 import type { WideScreen } from "./WideScreen";
 import { villagerPanelOf } from "./render/WideView";
@@ -126,7 +126,7 @@ export function attachHud(
   menuButton.addEventListener("click", () => (paused ? resume() : pause()));
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node;
-    if (paused && !menuList.hidden && !menuList.contains(target) && target !== menuButton && !confirmBox.open && !document.querySelector("dialog[open]")) resume();
+    if (paused && !menuList.hidden && !menuList.contains(target) && !menuButton.contains(target) && !confirmBox.open && !document.querySelector("dialog[open]")) resume();
   });
 
   const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.png" alt="">`;
@@ -171,6 +171,81 @@ export function attachHud(
   hud.append(tip);
   /** A long press on `entry` shows `name` beside it (unless `hold` does something instead); the
    *  returned function tells the click that followed whether it was such a press. */
+  // ---- a weapon dragged from the store onto a villager (user 2026-11-05, docs/modernization-plan.md §5):
+  // a lift on them is the tap on the weapon and the tap on them, the same order, without the prompt in
+  // between; the panel stays. Upward from the icon, so the row still scrolls sideways. ----
+  type WeaponDrag = { pointer: number; x: number; y: number; icon: string; active: boolean; target: number };
+  let drag: WeaponDrag | null = null;
+  let dropped = false; // the click after a drag is not a tap
+  let giveTo = 0; // the villager a drop is for, until the aiming is up
+  let giving = false; // a drop's keys are running: the panel stays
+  const dragIcon = document.createElement("img");
+  dragIcon.className = "hud-pick-marker";
+  dragIcon.alt = "";
+  dragIcon.width = dragIcon.height = 40;
+  dragIcon.hidden = true;
+  const dragRing = document.createElement("div");
+  dragRing.className = "hud-drag-ring";
+  dragRing.hidden = true;
+  app.append(dragRing, dragIcon);
+  const dragFollow = () => {
+    if (!drag?.active) return;
+    touch.edgePan(drag.x, drag.y, sheet.getBoundingClientRect().top);
+    drag.target = drag.y < sheet.getBoundingClientRect().top ? touch.adultNear(drag.x, drag.y) : 0;
+    const area = app.getBoundingClientRect();
+    dragIcon.style.left = `${drag.x - area.left}px`;
+    dragIcon.style.top = `${drag.y - area.top}px`;
+    const tile = drag.target > 0 ? touch.villagerTile(drag.target) : null;
+    dragRing.hidden = !tile;
+    if (tile) {
+      const at = screen.tileToCss(tile[0], tile[1]);
+      const k = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
+      dragRing.style.left = `${at.x + k / 2}px`;
+      dragRing.style.top = `${at.y + k * 0.6}px`;
+      dragRing.style.width = `${k * 1.2}px`;
+      dragRing.style.height = `${k * 0.7}px`;
+    }
+    requestAnimationFrame(dragFollow);
+  };
+  const dragEnd = () => {
+    drag = null;
+    dragIcon.hidden = true;
+    dragRing.hidden = true;
+  };
+  const draggable = (entry: HTMLElement, index: number, code: number) => {
+    entry.addEventListener("dragstart", (event) => event.preventDefault()); // the icon's own picture drag
+    entry.addEventListener("pointerdown", (event) => {
+      dropped = false;
+      if (!drag && (runtime.mainArrays.s[index] ?? 0) > 0) drag = { pointer: event.pointerId, x: event.clientX, y: event.clientY, icon: PANEL_ICONS[code] ?? "club", active: false, target: 0 };
+    });
+    entry.addEventListener("pointermove", (event) => {
+      if (drag?.pointer !== event.pointerId) return;
+      if (!drag.active) {
+        const up = drag.y - event.clientY;
+        if (up < 10 || up < Math.abs(event.clientX - drag.x)) return;
+        drag.active = true;
+        try { entry.setPointerCapture(event.pointerId); } catch { /* no capture */ }
+        dragIcon.src = `${UI}${drag.icon}.png`;
+        dragIcon.hidden = false;
+        requestAnimationFrame(dragFollow);
+      }
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+    });
+    entry.addEventListener("pointerup", (event) => {
+      if (drag?.pointer !== event.pointerId) return;
+      if (drag.active) {
+        dropped = true;
+        if (drag.target > 0 && !touch.busy) {
+          giveTo = drag.target;
+          giving = true;
+          touch.pickInBar(index);
+        }
+      }
+      dragEnd();
+    });
+    entry.addEventListener("pointercancel", (event) => { if (drag?.pointer === event.pointerId) dragEnd(); });
+  };
   const longPress = (entry: HTMLElement, name: () => string, hold?: () => boolean) => {
     let timer = 0;
     let held = false;
@@ -524,6 +599,7 @@ export function attachHud(
   // makes one more, the small − beside a count above 0 one fewer (UP / DOWN; BUG-058, user
   // 2026-11-03: no swipe). The chief's camp shows the faint "nothing to do here". ----
   const ARMOURY = 0;
+  const STORE = 6;
   const CHIEFS_HUT = 3;
   const barCodes = () => Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
   /** The open building's kind; -1 for the command bar. */
@@ -628,7 +704,8 @@ export function attachHud(
         entry.dataset.code = String(code);
         entry.setAttribute("aria-label", itemName(code));
         entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>${costHtml(code, kind)}`;
-        const held = longPress(entry, () => itemName(code));
+        const held = longPress(entry, () => itemName(code), () => drag?.active ?? false);
+        if (kind === STORE && code >= 0 && code <= 5) draggable(entry, index, code);
         if (kind === ARMOURY && code >= 0 && code <= 5) {
           const fewer = document.createElement("span");
           fewer.className = "fewer";
@@ -638,7 +715,10 @@ export function attachHud(
           fewer.addEventListener("click", (event) => { event.stopPropagation(); touch.adjustInBar(index, -1); });
           entry.append(fewer);
         }
-        entry.addEventListener("click", () => { if (!held()) tapBarItem(index, code); });
+        entry.addEventListener("click", () => {
+          if (dropped) { dropped = false; return; }
+          if (!held()) tapBarItem(index, code);
+        });
         items.push(entry);
       });
       panelRow.replaceChildren(...items);
@@ -703,7 +783,7 @@ export function attachHud(
   let shownVillager = "";
   const drawVillager = (id: number, cells: typeof runtime.villagerPanelDraft) => {
     const e = runtime.denseState;
-    const key = `${id}:${runtime.unitNames[id]}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}`;
+    const key = `${id}:${runtime.unitNames[id]}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}:${e[UNIT_CARRY_KIND + id]}:${e[UNIT_CARRY_AMOUNT + id]}`;
     if (key === shownVillager) return;
     shownVillager = key;
     const textAt = (x: number, y: number) => cells.find((c) => c.asset < 0 && Math.abs(c.x - x) <= 3 && Math.abs(c.y - y) <= 3)?.text ?? "";
@@ -712,7 +792,6 @@ export function attachHud(
     const mood = asset((a) => a > MOOD_BASE && a <= MOOD_BASE + 5);
     const rest = asset((a) => a === 560 || a === 577);
     const weapon = asset((a) => a >= WEAPON_BASE && a < WEAPON_BASE + 9);
-    const pouch = asset((a) => a >= 625 && a <= 629);
     // The skills: each number right of the panel's middle, with the icon just left of it; the one
     // without an icon is speed (its legs are part of the panel's background).
     const skills = cells
@@ -725,12 +804,14 @@ export function attachHud(
         return cell(icon ? `sk-${SKILLS[base] ?? "z"}` : "sk-legs", c.text, icon && icon.asset >= 577 ? "lit" : "");
       });
     const age = gender ? textAt(gender.x + 24, gender.y + 1) : "";
-    const carried = pouch ? textAt(pouch.x + 15, pouch.y) : "";
+    // Carrying = an amount above 0 (BUG-067 / BUG-072): the kind stays set between trips. Read live,
+    // not from the panel's picture, which is made only every couple of seconds.
+    const carried = e[UNIT_CARRY_AMOUNT + id] ?? 0;
     const maxHp = Math.max(1, e[UNIT_MAX_HP + id] ?? 1);
     const row = (...items: string[]) => `<span class="hud-row">${items.join("")}</span>`;
     // The name on the first line beside the head, as in the original's unit panel (BUG-054).
     villagerBox.innerHTML = `${cellImg(portrait(id, -1), "face")}<span class="hud-vinfo"><span class="hud-name">${capitalise(runtime.unitNames[id] ?? "")}</span><span class="hud-cols">
-      <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell(pouch && pouch.asset !== 625 ? CARGO_ICONS[e[UNIT_CARRY_KIND + id] ?? 0] ?? "pouch" : "pouch", carried, pouch && pouch.asset !== 625 ? "" : "faint"))}</span>
+      <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell(carried > 0 ? CARGO_ICONS[e[UNIT_CARRY_KIND + id] ?? 0] ?? "pouch" : "pouch", carried > 0 ? String(carried) : "", carried > 0 ? "" : "faint"))}</span>
       <span class="hud-col bars">${statBar("heart", (e[UNIT_HP + id] ?? 0) / maxHp, String(e[UNIT_HP + id] ?? 0))}${statBar("hunger", (e[UNIT_FOOD + id] ?? 0) / 99)}${statBar("sleep", (e[UNIT_ENERGY + id] ?? 0) / 99)}</span>
       <span class="hud-col skills">${skills.join("")}</span></span></span>`;
   };
@@ -997,8 +1078,19 @@ export function attachHud(
           prompt.words.textContent = ui("hud.aim", { item: itemName(code) });
           prompt.icon.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
         }
-        prompt.panel.hidden = !picking;
+        prompt.panel.hidden = !picking || giving;
         touch.setMapTapHandler(picking ? (villager) => { pickTarget = villager; } : null);
+      }
+      // A dropped weapon: the aiming is up, its order goes at once, then back to the panel.
+      if (giving && !touch.busy) {
+        if (picking && giveTo > 0) {
+          pickTarget = giveTo;
+          giveTo = 0;
+          if (touch.villagerTile(pickTarget)) confirmPick(); else { pickTarget = 0; touch.pressKey(OriginalKey.SOFT_RIGHT); }
+        } else if (!picking) {
+          giveTo = 0;
+          giving = false;
+        }
       }
       const layout = screen.hudLayout();
       const onMap = layout !== null && game.loopMode === 1 && !choosing;
@@ -1072,15 +1164,15 @@ export function attachHud(
       if (plain) { drawCommands(); drawSquads(); }
       if (sheetUp) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT}px`);
       // The prompt panel: the function button's ✓ on its top edge.
-      if (picking) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT - 26}px`);
+      if (picking && !giving) hud.style.setProperty("--hud-bottom", `${SHEET_HEIGHT - 26}px`);
       chiefPrompt.panel.hidden = !choosing || chiefSheet;
-      show(sheet, building || menu || villager || group.length > 1);
+      show(sheet, building || menu || villager || group.length > 1 || giving);
       show(buildList, building);
       if (building) drawBuildList();
-      if (!menu) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
+      if (!menu && !giving) { shownBar = ""; confirming = false; show(panelRow, false); show(confirmRow, false); show(noticeRow, false); show(sheetTick, false); }
       // ✓ / ✕: choosing a chief, aiming at a villager (✓); placing (✕, back).
       if (!touch.busy && w !== 3) ordering = "";
-      show(fab, picking || (onMap && w === 3));
+      show(fab, !giving && (picking || (onMap && w === 3)));
       fab.classList.toggle("is-tick", picking);
       setLabel(fab, picking ? "a11y.ok" : "a11y.back");
       fab.disabled = picking && pickTarget === 0;
@@ -1095,7 +1187,7 @@ export function attachHud(
       show(right, w === 2 && !building && !menu);
       show(cancelBox, touch.boxing);
       // No ✕ for a selection (BUG-038, user 2026-11-02): its panel or queue has its own.
-      show(cancel, !touch.boxing && ((w !== 0 && w !== 1 && w !== 3) || picking));
+      show(cancel, !giving && !touch.boxing && ((w !== 0 && w !== 1 && w !== 3) || picking));
     },
   };
 }

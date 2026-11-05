@@ -38,6 +38,7 @@ const { classifyLegacySubsystemB } = module.exports;
   dense[7979 + 5] = 2;
   dense[7777 + 5] = 9; // nonzero, so needs 3535!==0 or 6565===1 to still hit the inner branch
   dense[3535 + 5] = 1;
+  dense[3636 + 5] = 1;
   assert.equal(classifyLegacySubsystemB({ dense, id: 5 }), 5);
   assert.equal(dense[7777 + 5], 0);
 }
@@ -52,6 +53,7 @@ const { classifyLegacySubsystemB } = module.exports;
   dense[1414 + 5] = 12;
   dense[7979 + 5] = 0;
   dense[3535 + 5] = 1;
+  dense[3636 + 5] = 1;
   assert.equal(classifyLegacySubsystemB({ dense, id: 5 }), 1);
   assert.equal(dense[7777 + 5], 0);
 }

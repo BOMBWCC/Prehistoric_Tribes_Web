@@ -1,7 +1,7 @@
 import type { Graphics } from "../platform/Graphics";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { T_BUILDING } from "../core/DataTables";
-import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL } from "../core/DenseLayout";
+import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL, UNIT_SPEED, UNIT_TYPE } from "../core/DenseLayout";
 import { stepLegacyEntityAction, type LegacyEntityActionState } from "./LegacyEntityAction";
 import { stepLegacySpriteLayerLoop } from "./LegacySpriteLayerLoop";
 import { stepLegacySpriteLayerPredicateA, stepLegacySpriteLayerPredicateB } from "./LegacySpriteLayerPredicates";
@@ -67,12 +67,15 @@ const within = (w: Window, x: number, y: number) => x >= w.column && x < w.colum
  * numbers) in absolute coordinates. As UnitRuntime.stepEntityAction, but recording instead of
  * drawing and with every scratch field (f.an, f.ao, f.ap, f.aC ...) local.
  */
-export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: number, direction: number, kind: number, xFlag = false): { body: Op[]; overlay: Op[] } {
+export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: number, direction: number, kind: number, xFlag = false, touch = false): { body: Op[]; overlay: Op[] } {
   const body: Op[] = [];
   const overlay: Op[] = [];
   const data = rt.packedData;
   if (!data) return { body, overlay };
   const g = rt.game;
+  // Touch play: the cursor is out of sight, so nothing follows it (BUG-068, user 2026-11-05): no one
+  // is "under it" for the ring's colour, the health bar and the lit skill.
+  const hover = touch ? 0 : g.hoverUnit;
   const state: LegacyEntityActionState = {
     aq: id, ar: x, as: y, at: direction, Y: kind, av: 0, au: 0, aw: 0, xFlag,
     dense: rt.denseState, bShort: rt.saveOffsets, packedBytes: rt.packedBytes, packedOffsets: rt.packedOffsets,
@@ -91,7 +94,7 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
           const a = {
             ay: loop.ay, sFlag: g.cameraSFlag, vByte: g.loopMode, at: state.at, dense: rt.denseState, aq: state.aq,
             FByte: g.selectionGroup, kByte: g.kByte, ar: state.ar, as: state.as, byteTables: data.byteTables, az: loop.az,
-            cWByte: g.hoverUnit, ax: loop.ax, cACInt: 0, CCounter: g.CCounter, ECounter: g.ECounter,
+            cWByte: hover, ax: loop.ax, cACInt: 0, CCounter: g.CCounter, ECounter: g.ECounter,
             BCounter: g.BCounter, DCounter: g.DCounter, gridC: rt.gridC,
           };
           const result = stepLegacySpriteLayerPredicateA(a, { onComposite: (index, cx, cy) => body.push(index === 599 ? { op: "ellipse", ...RINGS[1622]!, x: cx - x + 3, y: cy - y + 5 } : { op: "composite", index, x: cx - x, y: cy - y }) });
@@ -130,9 +133,9 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
       const glyphs: { sx: number; x: number; y: number }[] = [];
       stepLegacyEntityOverlayDraw({
         sFlag: g.cameraSFlag, ao, ap, vByte: g.loopMode, Y: state.Y, aq: state.aq, ar: state.ar, as: state.as,
-        at: state.at, frameLayoutAq: g.frameLayoutAq, kByte: g.kByte, cWByte: g.hoverUnit, FByte: g.selectionGroup,
-        entityFocusFlag: g.entityFocusFlag, viewportOriginK: g.cameraRow, scrollA: g.cursorRow,
-        viewportOriginI: g.cameraColumn, scrollY: g.cursorColumn, XByte: g.unitInBuilding, zAfCursorVFlag: g.zAfCursorVFlag,
+        at: state.at, frameLayoutAq: g.frameLayoutAq, kByte: g.kByte, cWByte: hover, FByte: g.selectionGroup,
+        entityFocusFlag: g.entityFocusFlag, viewportOriginK: touch ? -1000 : g.cameraRow, scrollA: g.cursorRow,
+        viewportOriginI: g.cameraColumn, scrollY: g.cursorColumn, XByte: touch ? 0 : g.unitInBuilding, zAfCursorVFlag: g.zAfCursorVFlag,
         frameLayoutL: g.selectedId, targetSlot: 0, c: g.missionFrame, timingCounterE: g.animStep, fCounter: g.animPhase,
         dense: rt.denseState, colorTable: g.healthBarColorTable, xSlotTable: g.xSlotTable, byteTables: data.byteTables,
         gridC: rt.gridC, packedBytes: rt.packedBytes, packedOffsets: rt.packedOffsets,
@@ -160,11 +163,37 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
 }
 
 /**
+ * The body of unit `id` walking, `tiles` tiles into a walk along (dx, dy), for the screen's walks in
+ * and out of buildings (BUG-069): what p() draws for a walker (type 69) with that step's frame. The
+ * unit's fields are only borrowed for the drawing. Facing from the step table (row 1), the frame as
+ * LegacySubsystemEntityAnimOffset counts it over a tile.
+ */
+export function walkingBody(rt: LegacyRuntimeState, id: number, dx: number, dy: number, tiles: number, touch: boolean): Op[] {
+  const e = rt.denseState;
+  const table = (row: number, index: number) => rt.packedBytes[(rt.packedOffsets[row] ?? 0) + index] ?? 0;
+  let direction = 0;
+  let best = -Infinity;
+  for (let d = 0; d < 8; d += 1) {
+    const score = table(1, d) * dx / 22 + table(1, 8 + d) * dy / 16;
+    if (score > best) { best = score; direction = d; }
+  }
+  const cycle = Math.max(1, table(15, (direction & 1) * 9 + (e[UNIT_SPEED + id] ?? 0)));
+  const fields = [UNIT_TYPE + id, UNIT_DIRECTION + id, 1111 + id];
+  const saved = fields.map((f) => e[f] ?? 0);
+  e[UNIT_TYPE + id] = 69;
+  e[UNIT_DIRECTION + id] = direction;
+  e[1111 + id] = (saved[2]! & 240) + Math.floor((tiles % 1) * cycle);
+  const { body } = personOps(rt, id, 0, 0, direction, 29, false, touch);
+  fields.forEach((f, i) => { e[f] = saved[i]!; });
+  return body;
+}
+
+/**
  * The people and animals on the map in `w` as f.u() draws them (LegacyGameplayCellBodyDispatch):
  * on tiles in sight only (a story too: the true fog, BUG-030); an enemy hidden by its flag 2 is not
  * drawn. (The ones it draws at a building -- a worker at the kitchen -- come from `markerDetails`.)
  */
-function peopleIn(rt: LegacyRuntimeState, w: Window): Person[] {
+function peopleIn(rt: LegacyRuntimeState, w: Window, touch: boolean): Person[] {
   const g = rt.game;
   const e = rt.denseState;
   const people: Person[] = [];
@@ -176,11 +205,11 @@ function peopleIn(rt: LegacyRuntimeState, w: Window): Person[] {
       if (id <= 100) {
         if (id > 50 && ((e[UNIT_FLAGS + id] ?? 0) & 2) !== 0) continue;
         const at = { x: column * 22 + (e[UNIT_OFFSET_X + id] ?? 0), y: row * 16 + (e[UNIT_OFFSET_Y + id] ?? 0) };
-        people.push({ key: `u${id}`, id, kind: 29, at, ...personOps(rt, id, at.x, at.y, e[UNIT_DIRECTION + id] ?? 0, 29) });
+        people.push({ key: `u${id}`, id, kind: 29, at, ...personOps(rt, id, at.x, at.y, e[UNIT_DIRECTION + id] ?? 0, 29, false, touch) });
       } else {
         const slot = id - 101; // an animal: 9403 / 9425 its offsets, 9491 its frame
         const at = { x: column * 22 + (e[9403 + slot] ?? 0), y: row * 16 + (e[9425 + slot] ?? 0) };
-        people.push({ key: `a${slot}`, id: slot, kind: 108, at, ...personOps(rt, slot, at.x, at.y, e[9491 + slot] ?? 0, 108) });
+        people.push({ key: `a${slot}`, id: slot, kind: 108, at, ...personOps(rt, slot, at.x, at.y, e[9491 + slot] ?? 0, 108, false, touch) });
       }
     }
   }
@@ -192,11 +221,12 @@ function peopleIn(rt: LegacyRuntimeState, w: Window): Person[] {
  * 1, its first tile in scan order): the frames on it (fire, smoke, the kitchen's pot ...) and the
  * people it shows (a worker at their post). Its composites are in the marker's HD picture.
  */
-function markerDetails(rt: LegacyRuntimeState, w: Window): { effects: Op[]; people: Person[] } {
+function markerDetails(rt: LegacyRuntimeState, w: Window, touch: boolean): { effects: Op[]; people: Person[]; swaying: number[] } {
   const effects: Op[] = [];
   const people: Person[] = [];
+  const swaying: number[] = [];
   const data = rt.packedData;
-  if (!data) return { effects, people };
+  if (!data) return { effects, people, swaying };
   const g = rt.game;
   const seen = new Set<number>();
   for (let row = Math.max(0, w.row); row < Math.min(g.mapHeight, w.row + w.rows); row += 1) {
@@ -216,6 +246,7 @@ function markerDetails(rt: LegacyRuntimeState, w: Window): { effects: Op[]; peop
       for (const write of r.scratchGWrites) markerG[write.index] = write.value;
       let xFlag = false;
       let inBuilding = 0;
+      let skipPiece = false;
       stepLegacyMapMarkerDetail(r.local3, r.local7, r.local4, r.local10, r.local11, r.arg2, {
         phase: g.animPhase, N: r.N, O: r.O, qByte: g.mission, vByte: g.loopMode, ai: row, originRow: 0,
         dense: rt.denseState, packedBytes: rt.packedBytes, packedOffsets: rt.packedOffsets,
@@ -225,14 +256,24 @@ function markerDetails(rt: LegacyRuntimeState, w: Window): { effects: Op[]; peop
         statScratch: [Int16Array.from(rt.mainArrays.aShort[0] ?? [])],
       }, {
         onX: (unit) => { inBuilding = unit; },
-        onSpriteDraw: (index, x, y, phase) => effects.push({ op: "effect", index, x, y, phase }),
+        onSpriteDraw: (index, x, y, phase) => {
+          // A couple in a hut: the hearts (90), then a piece of the hut in two frames, which redrawn
+          // over the whole picture only flashed (BUG-070, user 2026-11-05). No piece: PixiMap sways
+          // the whole hut instead.
+          if (skipPiece) { skipPiece = false; return; }
+          if (index === 90 && value >= -60 && (rt.denseState[BLD_KIND - value] ?? 0) === 2) {
+            skipPiece = true;
+            if (!swaying.includes(-value)) swaying.push(-value);
+          }
+          effects.push({ op: "effect", index, x, y, phase });
+        },
         onXFlag: () => { xFlag = true; },
         onEntityAction: (unit, x, y, direction) => {
           // q() reads X:B (the unit in the building) for its health bar (BUG-001).
           const saved = g.unitInBuilding;
           g.unitInBuilding = inBuilding;
           try {
-            people.push({ key: `u${unit}`, id: unit, kind: 29, at: { x, y }, building: value >= -60 ? -value : undefined, ...personOps(rt, unit, x, y, direction, 29, xFlag) });
+            people.push({ key: `u${unit}`, id: unit, kind: 29, at: { x, y }, building: value >= -60 ? -value : undefined, ...personOps(rt, unit, x, y, direction, 29, xFlag, touch) });
           } finally {
             g.unitInBuilding = saved;
           }
@@ -241,7 +282,7 @@ function markerDetails(rt: LegacyRuntimeState, w: Window): { effects: Op[]; peop
       });
     }
   }
-  return { effects, people };
+  return { effects, people, swaying };
 }
 
 /**
@@ -277,7 +318,7 @@ function effectsIn(rt: LegacyRuntimeState, w: Window, touchCursor: boolean, deta
       if ((type !== -1 || work === 1 || work === 2) && (e[BLD_OWNER + id] ?? 0) === 0) {
         effects.push({ op: "effect", index: 40, x: column * 22 + width * 11 - 11, y: row * 16 + height * 8 - 8, phase: g.animPhase });
       }
-      buildingBar(rt, id, effects);
+      buildingBar(rt, id, effects, touchCursor);
     }
   }
   const inView = (x: number, y: number) => within(w, x, y);
@@ -364,7 +405,16 @@ let glyphChars: Map<number, string> | null = null;
  * half its health, being built or upgraded (work 1 / 2), or a site -- the frame (composite 607 + n)
  * and the bar in its health colour; under the cursor also a pip per worker (lit: at work).
  */
-function buildingBar(rt: LegacyRuntimeState, id: number, ops: Op[]): void {
+/** The building picked out on the map: under the cursor; in touch play, whose panel is open (the
+ *  cursor is out of sight, BUG-068). */
+export function pickedBuilding(rt: LegacyRuntimeState, touch: boolean): number {
+  const g = rt.game;
+  if (touch) return (g.barMode === 2 || g.barMode === 4) && g.selectionFlags[2] ? g.qCounter : 0;
+  const cell = rt.gridC[g.cameraRow + g.cursorRow]?.[g.cameraColumn + g.cursorColumn] ?? 0;
+  return cell < 0 ? -cell : 0;
+}
+
+function buildingBar(rt: LegacyRuntimeState, id: number, ops: Op[], touch: boolean): void {
   const e = rt.denseState;
   const g = rt.game;
   const hp = e[BLD_HP + id] ?? 0;
@@ -372,7 +422,7 @@ function buildingBar(rt: LegacyRuntimeState, id: number, ops: Op[]): void {
   const kind = e[BLD_KIND + id] ?? 0;
   const work = e[BLD_WORK + id] ?? 0;
   const table = rt.packedOffsets[T_BUILDING] ?? 0;
-  const selected = (rt.gridC[g.cameraRow + g.cursorRow]?.[g.cameraColumn + g.cursorColumn] ?? 0) === -id;
+  const selected = pickedBuilding(rt, touch) === id;
   const shown = (hp > 0 && (selected || Math.trunc(maxHp / 2) > hp)) || work === 1 || work === 2 || kind >= 12;
   if (!shown) return;
   const width = rt.packedBytes[table + 104 + kind] ?? 0;
@@ -395,9 +445,9 @@ function buildingBar(rt: LegacyRuntimeState, id: number, ops: Op[]): void {
 }
 
 /** The people (with the ones shown at buildings) and the effects in `w`. */
-export function sceneIn(rt: LegacyRuntimeState, w: Window, touchCursor: boolean): { people: Person[]; effects: Op[] } {
-  const details = markerDetails(rt, w);
-  return { people: [...peopleIn(rt, w), ...details.people], effects: effectsIn(rt, w, touchCursor, details.effects) };
+export function sceneIn(rt: LegacyRuntimeState, w: Window, touchCursor: boolean): { people: Person[]; effects: Op[]; swaying: number[] } {
+  const details = markerDetails(rt, w, touchCursor);
+  return { people: [...peopleIn(rt, w, touchCursor), ...details.people], effects: effectsIn(rt, w, touchCursor, details.effects), swaying: details.swaying };
 }
 
 /** c(int,int) at the cursor, its sub-records recorded; the game fields it writes (the aimed unit,

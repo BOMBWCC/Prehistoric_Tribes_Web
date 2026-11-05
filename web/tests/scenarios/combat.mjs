@@ -30,6 +30,37 @@ export default [
     },
   },
   {
+    name: "weapons: after fetching one they carry on: idle to where they stood, a gatherer to the same tree, a cook to the kitchen",
+    async run(t) {
+      const s = await start(t);
+      await t.eval(() => { __prehistoricRuntime.mainArrays.aShort[0][7] = 6; S.stock(300); });
+      const fetch = async (id) => {
+        t.expect.ok(await t.eval(([id, store]) => S.giveWeapon(id, 2, store), [id, s.store]), `villager ${id}: the spear ordered`);
+        await t.until((id) => T.villager(id).held === 2, { arg: id, max: 2000, chunk: 5, what: "holding the spear" });
+        await t.eval(() => { for (let i = 0; i < 3; i += 1) S.key("SOFT_RIGHT"); S.step(3); });
+      };
+      const people = await t.eval(() => { const chief = T.ui().chief; return T.villagers().filter((v) => v.age >= 14 && !v.inside && v.id !== chief).map((v) => v.id); });
+      // Idle: back where they stood, idle again.
+      const idle = people[0];
+      const was = await t.eval((id) => T.villager(id), idle);
+      await fetch(idle);
+      await t.until(([id, x, y]) => { const v = T.villager(id); return v.x === x && v.y === y && v.type === 84; }, { arg: [idle, was.x, was.y], max: 1000, what: "idle where they stood" });
+      // Gathering wood: to the same tree, wood coming in.
+      const gatherer = people[1];
+      await t.eval((id) => { const v = T.villager(id); const tree = T.nearest(v.x, v.y, [-124]); S.order(id, tree[0], tree[1]); }, gatherer);
+      await t.until((id) => T.villager(id).carry > 0, { arg: gatherer, max: 2000, what: "gathering" });
+      const tree = await t.eval((id) => { const v = T.villager(id); return [v.targetX, v.targetY]; }, gatherer);
+      await fetch(gatherer);
+      await t.until(([id, x, y]) => { const v = T.villager(id); return v.type === 11 && v.targetX === x && v.targetY === y; }, { arg: [gatherer, tree[0], tree[1]], max: 1000, what: "back at the tree" });
+      // A cook: back to the kitchen's post.
+      const cook = people[2];
+      const kitchen = await t.eval(([id, x, y]) => { const k = S.buildingNear(4, x + 6, y + 1); const b = T.building(k); S.order(id, b.x + 1, b.y + 1); return k; }, [cook, s.hut.x, s.hut.y]);
+      await t.until((id) => __prehistoricRuntime.denseState[6464 + id] === 66 && __prehistoricRuntime.denseState[4646 + id] < 0 && !T.villager(id).inside, { arg: cook, max: 2000, chunk: 5, what: "a cook, out of the kitchen" });
+      await fetch(cook);
+      await t.until(([id, k]) => { const e = __prehistoricRuntime.denseState; return e[4646 + id] >= 0 && e[4444 + id] === k; }, { arg: [cook, kitchen], max: 1000, what: "back at the kitchen" });
+    },
+  },
+  {
     name: "hunting: a deer is killed and its meat reaches the store",
     async run(t) {
       const s = await start(t);

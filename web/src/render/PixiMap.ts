@@ -5,10 +5,10 @@ import { hdArt } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
 import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
 import { drawLegacyMapMarkerPieces, prepareLegacyMapMarkerDispatch, type LegacyMapMarkerDispatchResult } from "./LegacyMapMarkerDispatch";
-import { sceneIn, type Op, type Person, type Window } from "./MapScene";
+import { pickedBuilding, sceneIn, walkingBody, type Op, type Person, type Window } from "./MapScene";
 import { stepZSubrecordDraw } from "./RenderRuntime";
 import { drawMapMargin, loadMarginPictures, MARGIN_TILES } from "./MapMargin";
-import { BLD_KIND, BLD_X, BLD_Y, RES_KIND } from "../core/DenseLayout";
+import { BLD_KIND, BLD_X, BLD_Y, RES_KIND, UNIT_HP, UNIT_RECORD, UNIT_SLOT, UNIT_SPEED } from "../core/DenseLayout";
 import { T_BUILDING } from "../core/DataTables";
 
 const TILE_W = 22;
@@ -23,7 +23,9 @@ type Chunk = { sprite: Sprite; column: number; row: number; key: string };
 type Placed = { sprite: Sprite; path: string };
 type Point = { x: number; y: number };
 /** A person or animal: its sprite and where it stood at the last two steps. */
-type Mover = { sprite: Sprite; from: Point; to: Point; picture?: Picture | null };
+/** On screen only, walking between two far places (BUG-069): the game has them at `to` already. */
+type Walk = { from: Point; to: Point; start: number; ms: number; tileMs: number; vanish: boolean };
+type Mover = { sprite: Sprite; from: Point; to: Point; picture?: Picture | null; walk?: Walk };
 /** A list of the original's drawing calls drawn once (HD through HdArt), trimmed: its texture and
  *  where its top-left corner is relative to the calls' origin, in game pixels. */
 type Picture = { texture: Texture; x: number; y: number; width: number; height: number; used: number };
@@ -38,6 +40,18 @@ const PICTURE_CACHE = 800;
 const STEP_MS = 120;
 /** Further than this in one step is a jump (into or out of a building, a new villager): no sliding. */
 const JUMP = 2 * TILE_W;
+/** A villager's move further than this in one step is walked on screen (into or out of a building). */
+const WALK_OVER = TILE_W + 1;
+/** Further than this it stays a jump: a walk that long would show them far from where they are. */
+const WALK_MOST = 6 * TILE_W;
+/** A hut with a couple in it sways about its foot (BUG-070): radians either way, ms for a sway. */
+const SWAY_ANGLE = 0.035;
+const SWAY_MS = 700;
+
+function walkPoint(walk: Walk, now: number): Point {
+  const t = Math.min(1, (now - walk.start) / walk.ms);
+  return { x: walk.from.x + (walk.to.x - walk.from.x) * t, y: walk.from.y + (walk.to.y - walk.from.y) * t };
+}
 
 /**
  * The map drawn with WebGL (PixiJS), modernization step 3 (docs/modernization-plan.md §4.3). Layers
@@ -143,6 +157,7 @@ export class PixiMap {
     const view = this.screen.viewTransform();
     this.pictureScale = Math.min(hdArt.scale(), Math.max(1, Math.ceil(view.cssPerGame * (window.devicePixelRatio || 1))));
     const scene = sceneIn(rt, this.viewWindow(3), this.screen.touchPlay);
+    this.setSwaying(scene.swaying);
     this.drawMovers(scene.people);
     this.placeEffects(scene.effects);
     this.drawFog();
@@ -166,8 +181,23 @@ export class PixiMap {
     const width = this.app.screen.width / k;
     const height = this.app.screen.height / k;
     const t = Math.max(0, Math.min(1, (performance.now() - this.stepAt) / STEP_MS));
+    const now = performance.now();
+    const angle = Math.sin((now / SWAY_MS) * Math.PI * 2) * SWAY_ANGLE;
+    for (const { sprite, x, y } of this.swaying.values()) {
+      if (sprite.destroyed) continue;
+      // Turned about the middle of its foot; the sprite's own origin is its top-left corner.
+      const dx = sprite.width / 2;
+      const dy = sprite.height;
+      sprite.rotation = angle;
+      sprite.position.set(x + dx - dx * Math.cos(angle) + dy * Math.sin(angle), y + dy - dx * Math.sin(angle) - dy * Math.cos(angle));
+    }
     for (const mover of this.movers.values()) {
       const { from, to } = mover;
+      if (mover.walk && mover.picture) {
+        const at = walkPoint(mover.walk, now);
+        mover.sprite.position.set(at.x + mover.picture.x, at.y + mover.picture.y);
+        continue;
+      }
       const slide = Math.abs(to.x - from.x) <= JUMP && Math.abs(to.y - from.y) <= JUMP;
       const picture = mover.picture;
       if (!picture) continue;
@@ -190,6 +220,7 @@ export class PixiMap {
     for (const chunk of this.chunks) chunk.sprite.destroy({ texture: true, textureSource: true });
     for (const { sprite } of this.placed.values()) sprite.destroy();
     for (const mover of this.movers.values()) mover.sprite.destroy();
+    this.swaying.clear();
     this.chunks = [];
     this.placed.clear();
     this.movers.clear();
@@ -353,40 +384,123 @@ export class PixiMap {
    * the objects by its feet; their marks (selection, health bar, thought ...) just above them. A
    * picture is drawn the first time its calls come up and kept (`pictureOf`).
    */
+  /** The huts swaying now, by building id: each sprite and its place at rest (placeObjects' each step). */
+  private swaying = new Map<number, { sprite: Sprite; x: number; y: number }>();
+
+  private setSwaying(ids: number[]): void {
+    for (const [id, { sprite, x, y }] of this.swaying) {
+      if (ids.includes(id)) continue;
+      if (!sprite.destroyed) {
+        sprite.rotation = 0;
+        sprite.position.set(x, y);
+      }
+      this.swaying.delete(id);
+    }
+    for (const id of ids) {
+      const sprite = this.placed.get(`b${id}`)?.sprite;
+      if (sprite) this.swaying.set(id, { sprite, x: sprite.x, y: sprite.y });
+    }
+  }
+
+  /** peopleInside() a step ago: who comes out of a building. */
+  private insideBefore = new Map<number, Point>();
+
   private drawMovers(people: Person[]): void {
+    const now = performance.now();
+    const inside = this.peopleInside();
     const seen = new Set(people.map((p) => p.key));
     for (const [key, mover] of this.movers) {
       if (seen.has(key)) continue;
+      const point = key[0] === "u" ? inside.get(Number(key.slice(1))) : undefined;
+      if (!mover.walk?.vanish && point && mover.picture && this.startWalk(mover, Number(key.slice(1)), mover.walk ? walkPoint(mover.walk, now) : mover.to, point, now)) mover.walk!.vanish = true;
+      const walk = mover.walk;
+      if (walk?.vanish && now - walk.start < walk.ms) {
+        this.drawWalk(mover, Number(key.slice(1)), now);
+        continue;
+      }
       mover.sprite.destroy();
       this.movers.delete(key);
     }
     let marks = 0;
     for (const person of people) {
+      const villager = person.kind === 29 && person.id <= 100;
       let mover = this.movers.get(person.key);
+      let start: Point | undefined = mover?.walk?.vanish ? walkPoint(mover.walk, now) : undefined;
       if (!mover) {
         const sprite = new Sprite();
         this.objects.addChild(sprite);
         mover = { sprite, from: person.at, to: person.at };
         this.movers.set(person.key, mover);
+        if (villager) start = this.insideBefore.get(person.id);
+      } else if (villager && !mover.walk && (Math.abs(person.at.x - mover.to.x) > WALK_OVER || Math.abs(person.at.y - mover.to.y) > WALK_OVER)) {
+        start = mover.to;
+      }
+      if (start) {
+        mover.walk = undefined;
+        this.startWalk(mover, person.id, start, person.at, now);
+      }
+      if (mover.walk) {
+        mover.walk.to = person.at;
+        if (now - mover.walk.start >= mover.walk.ms) mover.walk = undefined;
       }
       mover.from = mover.to;
       mover.to = person.at;
-      const picture = this.pictureOf(person.body, person.kind === 108 ? person.id : -1);
-      mover.picture = picture;
-      mover.sprite.visible = !!picture;
-      if (picture) {
-        mover.sprite.texture = picture.texture;
-        mover.sprite.width = picture.width;
-        mover.sprite.height = picture.height;
-      }
+      const walked = mover.walk ? this.drawWalk(mover, person.id, now) : null;
+      if (!walked) this.setPicture(mover, this.pictureOf(person.body, person.kind === 108 ? person.id : -1));
       // A worker shown at a building goes over its picture (BUG-049).
       const under = person.building ? this.placed.get(`b${person.building}`)?.sprite.zIndex ?? 0 : 0;
-      const z = Math.max(person.at.y + TILE_H, under + 0.25);
+      const z = Math.max((walked ?? person.at).y + TILE_H, under + 0.25);
       mover.sprite.zIndex = z;
-      for (const op of person.overlay) this.placeOp(this.marks, this.objects, marks++, op, z + 0.5);
+      // Their marks (selection's health bar ...) go with the figure on screen.
+      const shift = walked ? { x: walked.x - person.at.x, y: walked.y - person.at.y } : { x: 0, y: 0 };
+      for (const op of person.overlay) this.placeOp(this.marks, this.objects, marks++, "x" in op ? { ...op, x: op.x + shift.x, y: op.y + shift.y } : op, z + 0.5);
     }
+    this.insideBefore = inside;
     this.hideFrom(this.marks, marks);
     this.stepAt = performance.now();
+  }
+
+  /** The villagers in a building now (not on the map's grid: 4646 >= 0), each with the place on
+   *  screen they walk to or from: behind the middle of the building's picture. */
+  private peopleInside(): Map<number, Point> {
+    const e = this.runtime.denseState;
+    const inside = new Map<number, Point>();
+    for (let id = 1; id <= 100; id += 1) {
+      if ((e[UNIT_HP + id] ?? 0) <= 0 || (e[UNIT_SLOT + id] ?? 0) < 0) continue;
+      const sprite = this.placed.get(`b${e[UNIT_RECORD + id] ?? 0}`)?.sprite;
+      if (sprite) inside.set(id, { x: sprite.x + sprite.width / 2 - TILE_W / 2, y: sprite.y + sprite.height - 3 * TILE_H });
+    }
+    return inside;
+  }
+
+  /** Starts unit `id`'s walk on screen from `from` to `to`, at their walking speed; false when it is
+   *  too far, and they stay a jump. */
+  private startWalk(mover: Mover, id: number, from: Point, to: Point, now: number): boolean {
+    const dx = Math.abs(to.x - from.x);
+    const dy = Math.abs(to.y - from.y);
+    if (dx > WALK_MOST || dy > WALK_MOST) return false;
+    const tileMs = Math.max(1, this.runtime.denseState[UNIT_SPEED + id] ?? 8) * STEP_MS;
+    mover.walk = { from, to, start: now, ms: Math.max(1, Math.max(dx / TILE_W, dy / TILE_H) * tileMs), tileMs, vanish: false };
+    return true;
+  }
+
+  /** The walking picture for this moment; where they are on screen. */
+  private drawWalk(mover: Mover, id: number, now: number): Point {
+    const walk = mover.walk!;
+    this.setPicture(mover, this.pictureOf(walkingBody(this.runtime, id, walk.to.x - walk.from.x, walk.to.y - walk.from.y, (now - walk.start) / walk.tileMs, this.screen.touchPlay), -1));
+    const at = walkPoint(walk, now);
+    mover.sprite.zIndex = at.y + TILE_H;
+    return at;
+  }
+
+  private setPicture(mover: Mover, picture: Picture | null | undefined): void {
+    mover.picture = picture;
+    mover.sprite.visible = !!picture;
+    if (picture) {
+      mover.sprite.texture = picture.texture;
+      mover.sprite.width = picture.width;
+      mover.sprite.height = picture.height;
+    }
   }
 
   /** The tiles around the view (`margin` more on each side). */
@@ -426,9 +540,8 @@ export class PixiMap {
     let used = 0;
     const rt = this.runtime;
     const g = rt.game;
-    const cell = rt.gridC[g.cameraRow + g.cursorRow]?.[g.cameraColumn + g.cursorColumn] ?? 0;
-    if (cell <= -1 && cell >= -30) {
-      const id = -cell;
+    const id = pickedBuilding(rt, this.screen.touchPlay);
+    if (id >= 1 && id <= 30) {
       const kind = rt.denseState[BLD_KIND + id] ?? 0;
       const sprite = this.placed.get(`b${id}`)?.sprite;
       const x = sprite?.x ?? (rt.denseState[BLD_X + id] ?? 0) * TILE_W;

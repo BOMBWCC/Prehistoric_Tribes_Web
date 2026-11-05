@@ -41,7 +41,7 @@ function makeState(overrides = {}) {
 
 // level>=12, bit2 clear, flag!==0 -> 1.
 {
-  const state = makeState({ [1414 + 5]: 12, [7979 + 5]: 0, [3535 + 5]: 1 });
+  const state = makeState({ [1414 + 5]: 12, [7979 + 5]: 0, [3535 + 5]: 1, [3636 + 5]: 1 });
   assert.equal(deriveLegacyEntityStateCode(state, 5), 1);
 }
 
@@ -72,7 +72,7 @@ function makeState(overrides = {}) {
 
 // level>=12, bit2 set, counter!==0, flag!==0 -> 5.
 {
-  const state = makeState({ [1414 + 5]: 12, [7979 + 5]: 2, [7777 + 5]: 4, [3535 + 5]: 1, [6565 + 5]: 0 });
+  const state = makeState({ [1414 + 5]: 12, [7979 + 5]: 2, [7777 + 5]: 4, [3535 + 5]: 1, [3636 + 5]: 1, [6565 + 5]: 0 });
   assert.equal(deriveLegacyEntityStateCode(state, 5), 5);
 }
 
