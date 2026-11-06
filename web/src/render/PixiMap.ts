@@ -1,7 +1,7 @@
-import { Application, Container, Sprite, Texture, type WebGLRenderer } from "pixi.js";
+import { Application, Container, Rectangle, Sprite, Texture, type WebGLRenderer } from "pixi.js";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import type { WideScreen } from "../WideScreen";
-import { hdArt } from "./HdArt";
+import { hdArt, type Piece } from "./HdArt";
 import { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
 import { LegacyPackedSpriteRenderer } from "./LegacyPackedSpriteRenderer";
 import { drawLegacyMapMarkerPieces, prepareLegacyMapMarkerDispatch, type LegacyMapMarkerDispatchResult } from "./LegacyMapMarkerDispatch";
@@ -40,8 +40,9 @@ const PICTURE_CACHE = 800;
 const STEP_MS = 120;
 /** Further than this in one step is a jump (into or out of a building, a new villager): no sliding. */
 const JUMP = 2 * TILE_W;
-/** A villager's move further than this in one step is walked on screen (into or out of a building). */
-const WALK_OVER = TILE_W + 1;
+/** A villager's move further than this in one step is walked on screen (into or out of a building, to
+ *  another post): a real step is at most half a tile, running. */
+const WALK_OVER = TILE_W / 2 + 1;
 /** Further than this it stays a jump: a walk that long would show them far from where they are. */
 const WALK_MOST = 6 * TILE_W;
 /** A hut with a couple in it sways about its foot (BUG-070): radians either way, ms for a sway. */
@@ -479,7 +480,8 @@ export class PixiMap {
     const dx = Math.abs(to.x - from.x);
     const dy = Math.abs(to.y - from.y);
     if (dx > WALK_MOST || dy > WALK_MOST) return false;
-    const tileMs = Math.max(1, this.runtime.denseState[UNIT_SPEED + id] ?? 8) * STEP_MS;
+    const e = this.runtime.denseState;
+    const tileMs = Math.max(1, (e[UNIT_SPEED + id] ?? 8) - (e[7777 + id] ?? 0)) * STEP_MS; // running: 3 ticks less a tile
     mover.walk = { from, to, start: now, ms: Math.max(1, Math.max(dx / TILE_W, dy / TILE_H) * tileMs), tileMs, vanish: false };
     return true;
   }
@@ -487,7 +489,7 @@ export class PixiMap {
   /** The walking picture for this moment; where they are on screen. */
   private drawWalk(mover: Mover, id: number, now: number): Point {
     const walk = mover.walk!;
-    this.setPicture(mover, this.pictureOf(walkingBody(this.runtime, id, walk.to.x - walk.from.x, walk.to.y - walk.from.y, (now - walk.start) / walk.tileMs, this.screen.touchPlay), -1));
+    this.setPicture(mover, this.pictureOf(walkingBody(this.runtime, id, walk.to.x - walk.from.x, walk.to.y - walk.from.y, now - walk.start, walk.tileMs, STEP_MS, this.screen.touchPlay), -1));
     const at = walkPoint(walk, now);
     mover.sprite.zIndex = at.y + TILE_H;
     return at;
@@ -769,10 +771,11 @@ export class PixiMap {
   }
 
   /** One texture per picture file, shared by every sprite showing it. */
-  private texture(path: string, image: HTMLImageElement): Texture {
+  private texture(path: string, picture: Piece): Texture {
     let texture = this.textures.get(path);
     if (!texture) {
-      texture = Texture.from(image);
+      const whole = Texture.from(picture.image);
+      texture = picture.packed ? new Texture({ source: whole.source, frame: new Rectangle(picture.x, picture.y, picture.width, picture.height) }) : whole;
       this.textures.set(path, texture);
     }
     return texture;

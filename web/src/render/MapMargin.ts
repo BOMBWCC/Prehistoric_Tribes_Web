@@ -1,3 +1,4 @@
+import { hdArt } from "./HdArt";
 import type { LegacyOffscreenImage } from "./LegacyOffscreenTargets";
 import type { WideWindow } from "./WideView";
 
@@ -21,24 +22,9 @@ const TREES = [1034, 1035, 1036, 1039, 1040, 1043, 1044, 1046, 1047, 1049, 1050,
 const BUSHES = [1027, 1028, 1029, 1084];
 const ROCK = 1097;
 
-const pictures = new Map<number, HTMLImageElement>();
-const picture = (id: number) => {
-  let image = pictures.get(id);
-  if (!image) {
-    image = new Image();
-    image.src = `hd/objects/${id}.png`;
-    pictures.set(id, image);
-  }
-  return image;
-};
-
 /** Every picture the border uses, loaded (the WebGL map draws the border once). */
 export function loadMarginPictures(): Promise<void> {
-  return Promise.all([...TREES, ...BUSHES, ROCK].map((id) => new Promise<void>((resolve) => {
-    const image = picture(id);
-    if (image.complete) resolve();
-    else { image.addEventListener("load", () => resolve()); image.addEventListener("error", () => resolve()); }
-  }))).then(() => {});
+  return hdArt.loadObjects([...TREES, ...BUSHES, ROCK]);
 }
 
 /** A fixed pseudo-random number 0..n-1 for tile (x, y). */
@@ -80,12 +66,12 @@ export function drawMapMargin(image: LegacyOffscreenImage, window: WideWindow, m
       if (column >= 0 && column < mapWidth && row >= 0 && row < mapHeight) continue;
       const roll = pick(column, row, 20);
       const id = roll < 13 ? TREES[pick(column, row, TREES.length, 1)]! : roll < 18 ? BUSHES[pick(column, row, BUSHES.length, 2)]! : ROCK;
-      const art = picture(id);
-      if (!art.complete || art.naturalWidth === 0) continue;
-      const w = art.naturalWidth / k;
-      const h = art.naturalHeight / k;
+      const art = hdArt.objectPicture(id);
+      if (!art) continue;
+      const w = art.width / k;
+      const h = art.height / k;
       const jitter = pick(column, row, 7, 3) - 3;
-      context.drawImage(art, x(column) + TILE_W / 2 - w / 2 + jitter, y(row) + TILE_H - h, w, h);
+      context.drawImage(art.image, art.x, art.y, art.width, art.height, x(column) + TILE_W / 2 - w / 2 + jitter, y(row) + TILE_H - h, w, h);
     }
   }
   // The nearest edge tile's fog, over the scenery (trees reach up a row).

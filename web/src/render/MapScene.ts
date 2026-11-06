@@ -1,7 +1,7 @@
 import type { Graphics } from "../platform/Graphics";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { T_BUILDING } from "../core/DataTables";
-import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL, UNIT_SPEED, UNIT_TYPE } from "../core/DenseLayout";
+import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_MODE, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL, UNIT_SPEED, UNIT_TYPE } from "../core/DenseLayout";
 import { stepLegacyEntityAction, type LegacyEntityActionState } from "./LegacyEntityAction";
 import { stepLegacySpriteLayerLoop } from "./LegacySpriteLayerLoop";
 import { stepLegacySpriteLayerPredicateA, stepLegacySpriteLayerPredicateB } from "./LegacySpriteLayerPredicates";
@@ -36,7 +36,7 @@ export type Op =
   | { op: "rect"; color: number; x: number; y: number; width: number; height: number }
   /** A selection ellipse drawn in code (the original's pieces 1622..1627, 2026-10-29): its box. */
   | { op: "ellipse"; color: number; light: number; x: number; y: number; width: number; height: number }
-  /** An HD UI picture (hd/ui/<name>.png) over the box: a skill icon in place of the original's. */
+  /** An HD UI picture (hd/ui/<name>.webp) over the box: a skill icon in place of the original's. */
   | { op: "ui"; name: string; x: number; y: number; width: number; height: number }
   /** A floating number (c.a(int,int,int): "+n" / "-n"), in the web font, its top-left at (x, y). */
   | { op: "text"; text: string; x: number; y: number };
@@ -163,12 +163,12 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
 }
 
 /**
- * The body of unit `id` walking, `tiles` tiles into a walk along (dx, dy), for the screen's walks in
- * and out of buildings (BUG-069): what p() draws for a walker (type 69) with that step's frame. The
- * unit's fields are only borrowed for the drawing. Facing from the step table (row 1), the frame as
- * LegacySubsystemEntityAnimOffset counts it over a tile.
+ * The body of unit `id` walking, `ms` into a walk along (dx, dy) at `tileMs` a tile, for the screen's
+ * walks in and out of buildings (BUG-069, BUG-074): what p() draws for a walker with that moment's
+ * frame. A walker is type 69, mode 0, its phase (3030) one further each step, which is what picks the
+ * picture. The unit's fields are only borrowed for the drawing. Facing from the step table (row 1).
  */
-export function walkingBody(rt: LegacyRuntimeState, id: number, dx: number, dy: number, tiles: number, touch: boolean): Op[] {
+export function walkingBody(rt: LegacyRuntimeState, id: number, dx: number, dy: number, ms: number, tileMs: number, stepMs: number, touch: boolean): Op[] {
   const e = rt.denseState;
   const table = (row: number, index: number) => rt.packedBytes[(rt.packedOffsets[row] ?? 0) + index] ?? 0;
   let direction = 0;
@@ -178,11 +178,13 @@ export function walkingBody(rt: LegacyRuntimeState, id: number, dx: number, dy: 
     if (score > best) { best = score; direction = d; }
   }
   const cycle = Math.max(1, table(15, (direction & 1) * 9 + (e[UNIT_SPEED + id] ?? 0)));
-  const fields = [UNIT_TYPE + id, UNIT_DIRECTION + id, 1111 + id];
+  const fields = [UNIT_TYPE + id, UNIT_MODE + id, 3030 + id, UNIT_DIRECTION + id, 1111 + id];
   const saved = fields.map((f) => e[f] ?? 0);
   e[UNIT_TYPE + id] = 69;
+  e[UNIT_MODE + id] = 0;
+  e[3030 + id] = Math.floor(ms / stepMs) % 4;
   e[UNIT_DIRECTION + id] = direction;
-  e[1111 + id] = (saved[2]! & 240) + Math.floor((tiles % 1) * cycle);
+  e[1111 + id] = (saved[4]! & 240) + Math.floor(((ms / tileMs) % 1) * cycle);
   const { body } = personOps(rt, id, 0, 0, direction, 29, false, touch);
   fields.forEach((f, i) => { e[f] = saved[i]!; });
   return body;
@@ -353,7 +355,7 @@ const RINGS: Record<number, { color: number; light: number; width: number; heigh
   1627: { color: 0x680000, light: 0xff0000, width: 13, height: 6 },
 };
 
-/** The skill pictures (hd/ui/sk-*.png) by the original's skill composite 561..576 (the villager
+/** The skill pictures (hd/ui/sk-*.webp) by the original's skill composite 561..576 (the villager
  *  panel's; docs/hd-art-handoff.md §8). */
 export const SKILL_ICONS: Record<number, string> = {
   561: "basket", 562: "basket-wood", 563: "basket-meat", 564: "basket-ice", 565: "basket-stone", 566: "basket-mushroom",

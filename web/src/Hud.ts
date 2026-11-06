@@ -67,12 +67,12 @@ export function attachHud(
   const bar = document.createElement("div");
   bar.className = "hud-bar";
   bar.hidden = true;
-  bar.innerHTML = `<img class="hud-bar-bg" src="${UI}bar-bg.png" alt=""><img class="hud-bar-deco left" src="${UI}deco-top-left.png" alt=""><img class="hud-bar-deco right" src="${UI}deco-top-right.png" alt="">`;
+  bar.innerHTML = `<img class="hud-bar-bg" src="${UI}bar-bg.webp" alt=""><img class="hud-bar-deco left" src="${UI}deco-top-left.webp" alt=""><img class="hud-bar-deco right" src="${UI}deco-top-right.webp" alt="">`;
   const counters = ([["people", "a11y.people"], ["food", "a11y.food"], ["wood", "a11y.wood"], ["stone", "a11y.stone"], ["bones", "a11y.bones"]] as const).map(([icon, name]) => {
     const group = document.createElement("div");
     group.className = `hud-count ${icon}`;
     group.setAttribute("role", "img");
-    group.innerHTML = `<img src="${UI}icon-${icon}.png" alt="">`;
+    group.innerHTML = `<img src="${UI}icon-${icon}.webp" alt="">`;
     const digits = document.createElement("span");
     group.append(digits);
     bar.append(group);
@@ -91,14 +91,14 @@ export function attachHud(
       if (text === counter.text) return;
       counter.text = text;
       counter.group.setAttribute("aria-label", `${ui(counter.name)} ${text}`);
-      counter.digits.innerHTML = Array.from(text, (c) => `<img src="${UI}digit-${c === "/" ? "slash" : c}.png" alt="">`).join("");
+      counter.digits.innerHTML = Array.from(text, (c) => `<img src="${UI}digit-${c === "/" ? "slash" : c}.webp" alt="">`).join("");
     });
   };
 
   // ---- top right: the game menu, which pauses the game: a stone plate (pressed while open), the
   // items as plates with glyphs dropping down under it ----
   const menuButton = button("hud-menu-button", "", "a11y.gameMenu");
-  menuButton.innerHTML = `<img class="up" src="${UI}plate-normal.png" alt=""><img class="down" src="${UI}plate-pressed.png" alt=""><img class="glyph" src="${UI}glyph-menu.png" alt="">`;
+  menuButton.innerHTML = `<img class="up" src="${UI}plate-normal.webp" alt=""><img class="down" src="${UI}plate-pressed.webp" alt=""><img class="glyph" src="${UI}glyph-menu.webp" alt="">`;
   const menuList = document.createElement("div");
   menuList.className = "hud-menu";
   menuList.hidden = true;
@@ -129,7 +129,7 @@ export function attachHud(
     if (paused && !menuList.hidden && !menuList.contains(target) && !menuButton.contains(target) && !confirmBox.open && !document.querySelector("dialog[open]")) resume();
   });
 
-  const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.png" alt="">`;
+  const img = (name: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="${UI}${name}.webp" alt="">`;
   // A yes / no box for the original's prompts (/t 63 load, 64 overwrite a save, 65 quit), as the UI
   // design's card ("提示与消息" A, 2026-10-27): the menu item's plate and glyph, ✓ / ✕ on its edge.
   const confirmBox = document.createElement("dialog");
@@ -141,7 +141,7 @@ export function attachHud(
   confirmBox.addEventListener("keydown", (event) => event.stopPropagation());
   app.append(confirmBox);
   const ask = (glyph: string, text: string, then: () => void) => {
-    confirmBox.querySelector<HTMLImageElement>(".plate .glyph")!.src = `${UI}glyph-${glyph}.png`;
+    confirmBox.querySelector<HTMLImageElement>(".plate .glyph")!.src = `${UI}glyph-${glyph}.webp`;
     confirmBox.querySelector("p")!.textContent = text;
     confirmBox.returnValue = "no";
     confirmBox.onclose = () => { if (confirmBox.returnValue === "yes") then(); };
@@ -159,7 +159,7 @@ export function attachHud(
   ];
   const menuEntries = menuItems.map((item) => {
     const entry = button("hud-menu-item", "", item.label);
-    entry.innerHTML = `<img class="up" src="${UI}plate-normal.png" alt=""><img class="down" src="${UI}plate-pressed.png" alt=""><img class="glyph" src="${UI}glyph-${item.glyph}.png" alt="">`;
+    entry.innerHTML = `<img class="up" src="${UI}plate-normal.webp" alt=""><img class="down" src="${UI}plate-pressed.webp" alt=""><img class="glyph" src="${UI}glyph-${item.glyph}.webp" alt="">`;
     entry.addEventListener("click", item.act);
     menuList.append(entry);
     return { entry, item };
@@ -225,7 +225,7 @@ export function attachHud(
         if (up < 10 || up < Math.abs(event.clientX - drag.x)) return;
         drag.active = true;
         try { entry.setPointerCapture(event.pointerId); } catch { /* no capture */ }
-        dragIcon.src = `${UI}${drag.icon}.png`;
+        dragIcon.src = `${UI}${drag.icon}.webp`;
         dragIcon.hidden = false;
         requestAnimationFrame(dragFollow);
       }
@@ -326,13 +326,13 @@ export function attachHud(
     cmdButton.classList.toggle("lit", running !== "");
     const badge = cmdButton.querySelector<HTMLImageElement>(".badge")!;
     badge.hidden = running === "";
-    if (running && !badge.src.endsWith(`${running}.png`)) badge.src = `${UI}${running}.png`;
+    if (running && !badge.src.endsWith(`${running}.webp`)) badge.src = `${UI}${running}.webp`;
     for (const { entry, command } of commands) {
       if (entry.dataset.uiLabel !== command.name()) setLabel(entry, command.name());
       entry.classList.toggle("active", command.active());
       // A running order's item cancels it: its icon with a red cross (UI design, 2026-10-22).
       const glyph = entry.querySelector<HTMLImageElement>(".glyph")!;
-      const src = `${UI}${command.glyph}${command.active() ? "-cancel" : ""}.png`;
+      const src = `${UI}${command.glyph}${command.active() ? "-cancel" : ""}.webp`;
       if (!glyph.src.endsWith(src)) glyph.src = src;
     }
   };
@@ -552,11 +552,11 @@ export function attachHud(
     const panel = document.createElement("div");
     panel.className = "hud-prompt";
     panel.hidden = true;
-    panel.innerHTML = `${img("deco-grass", "deco bottom")}${img("deco-vine", "deco top")}<div class="hud-prompt-line"><img class="icon" src="${icon.includes("/") ? icon : `${UI}${icon}.png`}" alt=""><span></span></div>`;
+    panel.innerHTML = `${img("deco-grass", "deco bottom")}${img("deco-vine", "deco top")}<div class="hud-prompt-line"><img class="icon" src="${icon.includes("/") ? icon : `${UI}${icon}.webp`}" alt=""><span></span></div>`;
     hud.append(panel);
     return { panel, icon: panel.querySelector<HTMLImageElement>(".icon")!, words: panel.querySelector("span")! };
   };
-  const chiefPrompt = promptPanel("hd/buildings/3-1.png"); // the chief's camp
+  const chiefPrompt = promptPanel("hd/buildings/3-1.webp"); // the chief's camp
   const candidates = () => {
     if (!game.choosingChief || game.barMode !== 2 || game.loopMode !== 1) return [];
     const row = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR));
@@ -634,8 +634,11 @@ export function attachHud(
     if (id === (runtime.mainArrays.aShort[0]?.[17] ?? 0)) return "pt-chief";
     if ((e[UNIT_TYPE + id] ?? 0) === 17 || (e[UNIT_AGE + id] ?? 20) < 12) return "pt-child";
     const man = (e[UNIT_GENDER + id] ?? 0) === 0;
-    if (kind === 4) return man ? "pt-cook" : "pt-cook-woman";
-    if (kind >= 12) return "pt-builder";
+    // By the job they keep when out of their building too (BUG-075: a builder off the site showed no
+    // helmet): dense 2222 = t41[job], 9 a cook, 12 a builder.
+    const hat = e[2222 + id] ?? 0;
+    if (kind === 4 || hat === 9) return man ? "pt-cook" : "pt-cook-woman";
+    if (kind >= 12 || hat === 12) return "pt-builder";
     return man ? "pt-man" : "pt-woman";
   };
   const panelRow = document.createElement("div");
@@ -783,7 +786,7 @@ export function attachHud(
   let shownVillager = "";
   const drawVillager = (id: number, cells: typeof runtime.villagerPanelDraft) => {
     const e = runtime.denseState;
-    const key = `${id}:${runtime.unitNames[id]}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}:${e[UNIT_CARRY_KIND + id]}:${e[UNIT_CARRY_AMOUNT + id]}`;
+    const key = `${id}:${runtime.unitNames[id]}:${cells.map((c) => `${c.asset}${c.text}@${c.x},${c.y}`).join(" ")}:${e[UNIT_HP + id]}:${e[UNIT_FOOD + id]}:${e[UNIT_ENERGY + id]}:${e[UNIT_CARRY_KIND + id]}:${e[UNIT_CARRY_AMOUNT + id]}:${e[2222 + id]}`;
     if (key === shownVillager) return;
     shownVillager = key;
     const textAt = (x: number, y: number) => cells.find((c) => c.asset < 0 && Math.abs(c.x - x) <= 3 && Math.abs(c.y - y) <= 3)?.text ?? "";
@@ -951,7 +954,7 @@ export function attachHud(
     const icon = flash || job?.icon || 0;
     if (icon) {
       const frames = ACTION_FRAMES[icon] ?? 1;
-      const src = `hd/effects/${icon}-${frames > 1 ? Math.floor(performance.now() / 150) % frames : 0}.png`;
+      const src = `hd/effects/${icon}-${frames > 1 ? Math.floor(performance.now() / 150) % frames : 0}.webp`;
       if (!actionIcon.src.endsWith(src)) actionIcon.src = src;
       const at = job ? screen.tileToCss(job.tx, job.ty) : screen.tileToCss(game.cameraColumn + game.cursorColumn, game.cameraRow + game.cursorRow);
       const tile = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
@@ -974,7 +977,7 @@ export function attachHud(
     }
     orderFlag.hidden = !flagShown;
     if (flagShown) {
-      if (!orderFlagPicture.src.endsWith(`${placed}.png`)) orderFlagPicture.src = `hd/ui/${placed}.png`;
+      if (!orderFlagPicture.src.endsWith(`${placed}.webp`)) orderFlagPicture.src = `hd/ui/${placed}.webp`;
       const spot = screen.tileToCss(game.outerLoopRowEndMarker[0]!, game.outerLoopRowEndMarker[1]!);
       Object.assign(orderFlag.style, { left: `${spot.x + k22 / 2 - flagSize / 2}px`, top: `${spot.y + (k22 * 16) / 22 - flagSize}px`, width: `${flagSize}px`, height: `${flagSize}px` });
     }
@@ -1012,7 +1015,7 @@ export function attachHud(
     placeTick.classList.toggle("blocked", blocked);
     placeTick.setAttribute("aria-disabled", String(blocked));
     Object.assign(ghostPatch.style, { left: `${from.x}px`, top: `${from.y}px`, width: `${to.x - from.x}px`, height: `${to.y - from.y}px` });
-    const src = spot ? `hd/ui/${spot}.png` : `hd/buildings/${kind}-1.png`;
+    const src = spot ? `hd/ui/${spot}.webp` : `hd/buildings/${kind}-1.webp`;
     if (!ghostPicture.src.endsWith(src)) ghostPicture.src = src;
     // The picture at the map's scale: its pixels / the HD scale = game pixels, standing on the footprint
     // (an order's flag: a villager high).
@@ -1073,10 +1076,10 @@ export function attachHud(
         pickTarget = 0;
         if (picking) {
           // The aimed item over the villager: its HD icon (the original's small picture until 2026-10-29).
-          marker.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
+          marker.src = `${UI}${PANEL_ICONS[code] ?? "club"}.webp`;
           marker.width = marker.height = 28;
           prompt.words.textContent = ui("hud.aim", { item: itemName(code) });
-          prompt.icon.src = `${UI}${PANEL_ICONS[code] ?? "club"}.png`;
+          prompt.icon.src = `${UI}${PANEL_ICONS[code] ?? "club"}.webp`;
         }
         prompt.panel.hidden = !picking || giving;
         touch.setMapTapHandler(picking ? (villager) => { pickTarget = villager; } : null);

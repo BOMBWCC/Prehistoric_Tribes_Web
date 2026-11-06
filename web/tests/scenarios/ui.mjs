@@ -140,7 +140,7 @@ export default [
       const costs = await t.eval(() => {
         const rt = window.__prehistoricRuntime;
         const t138 = (row, column) => rt.packedBytes[rt.packedOffsets[138] + row * 26 + column];
-        const shown = (code) => [...document.querySelectorAll(`.hud-item[data-code="${code}"] .cost .line`)].map((line) => [...line.querySelectorAll("img")].map((i) => i.src.split("/").pop().replace(".png", "").replace("digit-", "")).join(" "));
+        const shown = (code) => [...document.querySelectorAll(`.hud-item[data-code="${code}"] .cost .line`)].map((line) => [...line.querySelectorAll("img")].map((i) => i.src.split("/").pop().replace(".webp", "").replace("digit-", "")).join(" "));
         return { upgrade: shown(16), club: shown(0), want: { upgrade: [t138(10, 0), t138(11, 0)] } };
       });
       const n = (v) => String(v).split("").join(" ");
@@ -303,6 +303,61 @@ export default [
     },
   },
   {
+    name: "real touch: the build list swipes (one page in the first mission), the store's row swipes, a weapon still drags up (BUG-076, BUG-015)",
+    async run(t) {
+      const cdp = await t.page.context().newCDPSession(t.page);
+      const point = (x, y) => [{ x, y }];
+      const touchFrom = async (x, y) => cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: point(x, y) });
+      const touchTo = async (x0, y0, x1, y1) => {
+        for (let i = 1; i <= 10; i += 1) {
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: point(x0 + ((x1 - x0) * i) / 10, y0 + ((y1 - y0) * i) / 10) });
+          await t.page.waitForTimeout(16);
+        }
+      };
+      const lift = async () => { await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] }); await t.page.waitForTimeout(400); };
+      const list = (selector) => t.eval((selector) => { const l = document.querySelector(selector); const r = l.getBoundingClientRect(); return { x: r.left, y: r.top + r.height / 2, width: r.width, left: l.scrollLeft, over: l.scrollWidth > l.clientWidth, cards: l.children.length, dots: document.querySelector(".hud-sheet-dots").children.length }; }, selector);
+      const swipe = async (selector) => { const l = await list(selector); await touchFrom(l.x + l.width - 30, l.y); await touchTo(l.x + l.width - 30, l.y, l.x + 30, l.y); await lift(); return list(selector); };
+      // The first mission: three cards, one page, nothing to swipe to.
+      await t.eval(() => { S.enter(0); S.step(3); S.stock(300); });
+      await t.step(30);
+      await t.tap(".hud-build-button", 10);
+      const first = await list(".hud-sheet-list");
+      t.expect.ok(!first.over && first.dots === 1, `the first mission fits one page (${first.cards} cards, ${first.dots} dots)`);
+      await t.tap(".hud-sheet-close", 5);
+      // Later: more pages, a swipe on a card turns them.
+      await t.eval(() => { S.enter(2); S.step(3); S.stock(300); });
+      await t.step(30);
+      await t.tap(".hud-build-button", 10);
+      const later = await list(".hud-sheet-list");
+      t.expect.ok(later.over && later.dots > 1, `several pages (${later.cards} cards, ${later.dots} dots)`);
+      t.expect.ok((await swipe(".hud-sheet-list")).left > later.left, "a swipe on a card turns the page");
+      await t.tap(".hud-sheet-close", 5);
+      // The store: a weapon's row swipes when it does not fit, and a finger going up drags the weapon.
+      const s = await start(t, { stock: 300 });
+      await t.tap(".hud-sheet-close", 5).catch(() => {});
+      const store = await t.eval((id) => T.building(id), s.store);
+      await t.tapTile(store.x + 1, store.y + 1);
+      await t.eval(() => { const row = document.querySelector('.hud-item[data-code="2"]').parentElement; row.style.width = "120px"; });
+      const row = await t.eval(() => { const l = document.querySelector('.hud-item[data-code="2"]').parentElement; const r = l.getBoundingClientRect(); return { x: r.left, y: r.top + r.height / 2, width: r.width, over: l.scrollWidth > l.clientWidth, left: l.scrollLeft, ov: getComputedStyle(l).overflowX }; });
+      if (row.over && row.ov !== "visible") {
+        await touchFrom(row.x + row.width - 10, row.y);
+        await touchTo(row.x + row.width - 10, row.y, row.x + 10, row.y);
+        await lift();
+        t.expect.ok(await t.eval((left) => document.querySelector('.hud-item[data-code="2"]').parentElement.scrollLeft > left, row.left), "the store's row swipes");
+      }
+      await t.eval(() => { document.querySelector('.hud-item[data-code="2"]').parentElement.style.width = ""; document.querySelector('.hud-item[data-code="2"]').parentElement.scrollLeft = 0; });
+      const icon = await t.eval(() => { const e = document.querySelector('.hud-item[data-code="2"]'); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, index: Number(e.dataset.index) }; });
+      await t.eval((index) => { __prehistoricRuntime.mainArrays.aShort[0][7] = 3; __prehistoricRuntime.mainArrays.s[index] = 3; S.step(2); }, icon.index);
+      const v = await t.eval(() => { const scr = __prehistoricScreen; const sheet = document.querySelector(".hud-sheet").getBoundingClientRect(); const v = T.villagers().filter((v) => v.age >= 14 && !v.inside).find((v) => { const p = scr.tileToCss(v.x, v.y); return p.y > 80 && p.y < sheet.top - 60 && p.x > 40 && p.x < innerWidth - 40; }); return { id: v.id, at: scr.tileToCss(v.x, v.y), k: scr.tileToCss(1, 1).x - scr.tileToCss(0, 0).x }; });
+      await touchFrom(icon.x, icon.y);
+      await touchTo(icon.x, icon.y, v.at.x + v.k / 2, v.at.y + v.k / 3);
+      await t.page.waitForTimeout(60);
+      t.expect.ok(await t.eval(() => !document.querySelector(".hud-drag-ring").hidden), "touch: the ring on the villager");
+      await lift();
+      await t.until((id) => T.villager(id).held === 2, { arg: v.id, max: 2500, what: "holding the spear" });
+    },
+  },
+  {
     name: "build button: the list is up at the next frame, the same as the original's keys open it (BUG-043)",
     async run(t) {
       await start(t);
@@ -333,21 +388,26 @@ export default [
   {
     name: "action icon: a rock's picture loading late, no wood icon meanwhile (BUG-041)",
     async run(t) {
-      await t.page.route("**/hd/effects/45-0.png", async (route) => { await new Promise((done) => setTimeout(done, 1500)); await route.continue(); });
+      // Held back until checked: the preload asks for every picture at once, this one too.
+      let release;
+      const held = new Promise((done) => { release = done; });
+      await t.page.route("**/hd/effects/45-0.webp", async (route) => { await held; await route.continue(); });
       const s = await start(t);
       await select(t, s.id);
       const icon = () => t.eval(() => { const el = document.querySelector(".hud-action-icon"); return { hidden: el.hidden, src: el.src.split("/").pop() }; });
       const tree = await t.eval((id) => { const v = T.villager(id); return T.nearest(v.x, v.y, [-124]); }, s.id);
       await t.tapTile(tree[0], tree[1]);
       await t.step(100);
-      await t.until(() => { const el = document.querySelector(".hud-action-icon"); return !el.hidden && el.src.endsWith("44-0.png"); }, { max: 400, chunk: 5, what: "the wood icon on the tree" });
-      const rock = await t.eval((id) => { const v = T.villager(id); return T.nearest(v.x, v.y, [-125]); }, s.id);
+      await t.until(() => { const el = document.querySelector(".hud-action-icon"); return !el.hidden && el.src.endsWith("44-0.webp"); }, { max: 400, chunk: 5, what: "the wood icon on the tree" });
+      // Away from them: a tap right beside the selected villager is a tap on them.
+      const rock = await t.eval((id) => { const v = T.villager(id); for (const [dx, dy] of [[0, 0], [6, 0], [-6, 0], [0, 6], [0, -6], [8, 8], [-8, -8]]) { const r = T.nearest(v.x + dx, v.y + dy, [-125]); if (r && Math.max(Math.abs(r[0] - v.x), Math.abs(r[1] - v.y)) >= 3) return r; } return null; }, s.id);
       await t.tapTile(rock[0], rock[1]);
       const waiting = await icon();
-      t.expect.deepEqual(waiting, { hidden: true, src: "45-0.png" }, "while the stone's picture loads: nothing, not the wood");
-      await t.page.waitForTimeout(1700);
+      t.expect.deepEqual(waiting, { hidden: true, src: "45-0.webp" }, "while the stone's picture loads: nothing, not the wood");
+      release();
+      await t.page.waitForTimeout(300);
       await t.step(2);
-      t.expect.deepEqual(await icon(), { hidden: false, src: "45-0.png" }, "then the stone");
+      t.expect.deepEqual(await icon(), { hidden: false, src: "45-0.webp" }, "then the stone");
     },
   },
   {
@@ -486,7 +546,7 @@ export default [
       await t.page.waitForTimeout(900);
       await t.step(200, false);
       const icon = () => t.page.evaluate(() => { const i = document.querySelector(".hud-action-icon"); return i.hidden ? "" : i.src.split("/").pop(); });
-      t.expect.equal(await icon(), "44-0.png", "the wood icon stays");
+      t.expect.equal(await icon(), "44-0.webp", "the wood icon stays");
       const where = await t.page.evaluate(([x, y]) => { const i = document.querySelector(".hud-action-icon").getBoundingClientRect(); const s = window.__prehistoricScreen; const p = s.tileToCss(x, y); const k = s.tileToCss(1, 1).x - s.tileToCss(0, 0).x; return Math.hypot(i.left + i.width / 2 - (p.x + k / 2), i.top + i.height / 2 - (p.y + (k * 16) / 22 / 2)); }, tree);
       t.expect.ok(where < 3, `centred on the tree (${where.toFixed(1)} px off)`);
       await t.tap(".hud-sheet-close");
@@ -495,7 +555,7 @@ export default [
       await select(t, s.id);
       await t.page.waitForTimeout(900);
       await t.step(2);
-      t.expect.equal(await icon(), "44-0.png", "back when selected again");
+      t.expect.equal(await icon(), "44-0.webp", "back when selected again");
     },
   },
   {
@@ -511,10 +571,10 @@ export default [
       await t.step(1);
       // The HUD updates on display frames (requestAnimationFrame), late on a busy machine: wait for it.
       const icon = (want) => t.page.waitForFunction((want) => { const i = document.querySelector(".hud-action-icon"); return (i.hidden ? "" : i.src.split("/").pop()) === want; }, want, { timeout: 2000 }).then(() => want, () => "not shown");
-      t.expect.equal(await icon("43-0.png"), "43-0.png", "the food icon on the deer");
+      t.expect.equal(await icon("43-0.webp"), "43-0.webp", "the food icon on the deer");
       await t.until((slot) => !T.animals().some((a) => a.slot === slot), { arg: deer, max: 4000, what: "the deer dead" });
       await t.step(50, false);
-      t.expect.equal(await icon("43-0.png"), "43-0.png", "the food icon on its meat");
+      t.expect.equal(await icon("43-0.webp"), "43-0.webp", "the food icon on its meat");
     },
   },
   {
@@ -527,7 +587,7 @@ export default [
       await t.tapTile(spot[0], spot[1]);
       await t.page.waitForTimeout(900);
       await t.step(1);
-      const icon = () => t.page.evaluate(() => { const i = document.querySelector(".hud-action-icon"); return i.hidden ? "" : i.src.split("/").pop().replace(/-\d+\.png$/, ""); });
+      const icon = () => t.page.evaluate(() => { const i = document.querySelector(".hud-action-icon"); return i.hidden ? "" : i.src.split("/").pop().replace(/-\d+\.webp$/, ""); });
       t.expect.equal(await icon(), "35", "the move arrows while walking");
       await t.until(([id, x, y]) => T.villager(id).x === x && T.villager(id).y === y, { arg: [s.id, ...spot], max: 600, what: "arrived" });
       await t.page.waitForTimeout(50);
@@ -591,7 +651,7 @@ export default [
         await t.tap(".hud-cmd", 2);
         await t.tap(`.hud-cmd-item[data-ui-label="${order}"]`, 25);
         const before = await ghost();
-        t.expect.ok(before.shown && before.tick && before.src.endsWith(`${glyph}.png`), `${order}: its flag and tick on the map`);
+        t.expect.ok(before.shown && before.tick && before.src.endsWith(`${glyph}.webp`), `${order}: its flag and tick on the map`);
         t.expect.ok(Math.abs(before.h - before.villager) < 1, `${order}: a villager high (${before.h} / ${before.villager})`);
         t.expect.deepEqual(before.tile, before.centre, `${order}: on the tile in the middle`);
         // Finger drags (touch events, as on the phone).
@@ -633,12 +693,12 @@ export default [
           const spot = sc.tileToCss(g.outerLoopRowEndMarker[0], g.outerLoopRowEndMarker[1]); const k = sc.tileToCss(1, 0).x - sc.tileToCss(0, 0).x;
           return { shown: !el.hidden, burst: el.classList.contains("burst"), rings: el.querySelectorAll(".ring").length, src: el.querySelector("img").src, spot: [...g.outerLoopRowEndMarker], dx: r.left + r.width / 2 - (b.left + spot.x + k / 2), dy: r.bottom - (b.top + spot.y + (k * 16) / 22) };
         });
-        t.expect.ok(flag.shown && flag.burst && flag.rings === 2 && flag.src.endsWith(`${glyph}.png`), `${order}: the flag, its pop and rings (${JSON.stringify(flag)})`);
+        t.expect.ok(flag.shown && flag.burst && flag.rings === 2 && flag.src.endsWith(`${glyph}.webp`), `${order}: the flag, its pop and rings (${JSON.stringify(flag)})`);
         t.expect.deepEqual(flag.spot, good, `${order}: placed on the chosen tile`);
         t.expect.ok(Math.abs(flag.dx) < 1 && Math.abs(flag.dy) < 1, `${order}: standing on its tile`);
         t.expect.ok(!(await t.visible(".hud-ghost")), `${order}: the preview gone`);
         await t.tap(".hud-cmd", 2);
-        t.expect.ok(await t.eval((cancel) => [...document.querySelectorAll(".hud-cmd-item .glyph")].some((g) => g.src.endsWith(`${cancel}.png`)), cancel), `${order}: the cancel icon`);
+        t.expect.ok(await t.eval((cancel) => [...document.querySelectorAll(".hud-cmd-item .glyph")].some((g) => g.src.endsWith(`${cancel}.webp`)), cancel), `${order}: the cancel icon`);
         await t.tap(`.hud-cmd-item[data-ui-label="${cancelLabel}"]`, 30);
         t.expect.ok(!(await t.eval((active) => window.__prehistoricRuntime.game[active], active)), `${order}: cancelled`);
         t.expect.ok(!(await t.visible(".hud-order-flag")), `${order}: the flag gone`);

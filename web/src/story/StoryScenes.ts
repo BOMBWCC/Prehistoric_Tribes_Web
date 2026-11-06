@@ -4,7 +4,7 @@
  * once (`onceMs`, the original's length at 0.12 s a frame), then held while the words that follow
  * show. Moved by code, not drawn frame by frame (user 2026-10-29):
  *
- * - a map scene is one picture (UI design 2026-10-30, hd/story/scenes/scene-<nn>.jpg, 1024 x 1536, the
+ * - a map scene is one picture (UI design 2026-10-30, hd/story/scenes/scene-<nn>.webp, 1024 x 1536, the
  *   bottom left for the box) that slowly pushes in; 24 (the quake) shakes instead;
  * - the cave (scenes 1-6) is layered: the cave, the fire's 6 frames in a loop, pairs of eyes (open,
  *   half shut, shut, looking aside) that wake, blink, gather round the chief and walk out of the cave
@@ -24,7 +24,7 @@ const ART = "hd/story/scenes/";
 const FRAME_MS = 120;
 const once = (frames: number) => Math.max(500, frames * FRAME_MS);
 const picture = (n: string, frames: number, motion: "push" | "shake" = "push"): StoryScene =>
-  ({ kind: "picture", picture: `${ART}scene-${n}.jpg`, motion, onceMs: once(frames) });
+  ({ kind: "picture", picture: `${ART}scene-${n}.webp`, motion, onceMs: once(frames) });
 const cave = (pose: CavePose, frames: number, bubble?: "mumbo" | "chief"): StoryScene => ({ kind: "cave", pose, bubble, onceMs: once(frames) });
 
 export const STORY_SCENES: Record<string, StoryScene> = {
@@ -60,7 +60,7 @@ const EYES_W = 10;
 const EYES_AT = [[30, 44], [62, 40], [44, 37], [55, 47], [74, 46]] as const;
 const GATHERED = [[52, 41], [62, 40], [56, 35], [58, 46], [69, 44]] as const;
 const MOUTH = [68, 12] as const;
-const BUBBLE = { mumbo: { x: 39, y: 42, src: "hd/cave/bubble-big-left.png" }, chief: { x: 53, y: 38, src: "hd/cave/bubble-big-right.png" } } as const;
+const BUBBLE = { mumbo: { x: 39, y: 42, src: "hd/cave/bubble-big-left.webp" }, chief: { x: 53, y: 38, src: "hd/cave/bubble-big-right.webp" } } as const;
 
 /** The element a scene plays in; `draw` moves it to `ms` after the scene started. */
 export function sceneElement(scene: StoryScene): { element: HTMLElement; draw(ms: number): void } {
@@ -98,10 +98,10 @@ export function sceneElement(scene: StoryScene): { element: HTMLElement; draw(ms
     stage.append(image);
     return image;
   };
-  layer(`${ART}cave-bg.jpg`, "cave-bg");
-  const fire = layer(`${ART}cave-fire-1.png`, "cave-fire");
+  layer(`${ART}cave-bg.webp`, "cave-bg");
+  const fire = layer(`${ART}cave-fire-1.webp`, "cave-fire");
   Object.assign(fire.style, { left: `${FIRE.x}%`, top: `${FIRE.y}%`, width: `${FIRE.w}%` });
-  const eyes = EYES_AT.map(() => layer(`${ART}cave-eyes-3.png`, "cave-eyes"));
+  const eyes = EYES_AT.map(() => layer(`${ART}cave-eyes-3.webp`, "cave-eyes"));
   for (const image of eyes) image.style.width = `${EYES_W}%`;
   const bubble = scene.bubble ? layer(BUBBLE[scene.bubble].src, "cave-bubble") : null;
   if (bubble && scene.bubble) Object.assign(bubble.style, { left: `${BUBBLE[scene.bubble].x}%`, top: `${BUBBLE[scene.bubble].y}%` });
@@ -111,7 +111,7 @@ export function sceneElement(scene: StoryScene): { element: HTMLElement; draw(ms
     draw(ms) {
       // The pictures switch on the original's 0.12 s frames; the eyes move smoothly.
       const frame = Math.floor(ms / FRAME_MS);
-      const fireSrc = `${ART}cave-fire-${(frame % 6) + 1}.png`;
+      const fireSrc = `${ART}cave-fire-${(frame % 6) + 1}.webp`;
       if (!fire.src.endsWith(fireSrc)) fire.src = fireSrc;
       const t = Math.min(1, ms / scene.onceMs);
       eyes.forEach((image, i) => {
@@ -134,7 +134,7 @@ export function sceneElement(scene: StoryScene): { element: HTMLElement; draw(ms
         const blink = (frame + i * 7) % 26 === 0;
         const look = (scene.pose === "gather" || scene.pose === "leave") && t < 1 ? 4 : 1;
         const state = wake < 0 ? 3 : wake < 2 ? 2 : blink ? 3 : look;
-        const src = `${ART}cave-eyes-${state}.png`;
+        const src = `${ART}cave-eyes-${state}.webp`;
         if (!image.src.endsWith(src)) image.src = src;
         Object.assign(image.style, { left: `${x}%`, top: `${y}%`, opacity: String(alpha), transform: `translate(-50%, -50%) scale(${size})` });
       });

@@ -49,21 +49,26 @@ type Catalog = {
   /** Pieces by index (with an HD part or in `pieces`): the opaque part of the piece's rectangle,
    *  relative to its corner. */
   parts: Record<string, Box>;
-  /** Pieces without an HD part, in hd/pieces.png (the original four times larger): their box there. */
+  /** Pieces without an HD part, in hd/pieces.webp (the original four times larger): their box there. */
   pieces: Record<string, Box>;
-  /** The ground's composites in hd/ground.png ("t<tile>", "b<record>" a marker's ground piece under
+  /** The ground's composites in hd/ground.webp ("t<tile>", "b<record>" a marker's ground piece under
    *  its picture, "f<record>" one of a marker without a picture): the box there (HD pixels) and the
    *  offset of its corner from the composite's drawing (x, y), in game pixels; null: draws nothing. */
   ground: Record<string, [number, number, number, number, number, number] | null>;
   /** How many times larger the HD pictures are than the original's. */
   scale: number;
 };
+/** hd/atlas.json (scripts/hd-atlas.mjs): the small pictures packed into big ones, by their old path. */
+type Atlas = { sheets: string[]; pictures: Record<string, [number, number, number, number, number]> };
+/** A picture: `image` itself or its place in an atlas. */
+export type Piece = { image: HTMLImageElement; x: number; y: number; width: number; height: number; packed: boolean };
 const box = (b: Box | undefined): Bounds | null => b ? { x: b[0], y: b[1], width: b[2], height: b[3] } : null;
 
 const BASE = "hd/";
 
 let manifest: Manifest | null = null;
 let catalog: Catalog = { markers: {}, animals: {}, effects: {}, parts: {}, pieces: {}, ground: {}, scale: 1 };
+let atlas: Atlas = { sheets: [], pictures: {} };
 const has = { parts: new Set<number>(), variants: new Map<number, Set<number>>(), terrain: new Set<number>(), objects: new Set<number>(), buildings: new Set<string>(), animals: new Set<string>(), effects: new Set<string>(), resources: new Set<string>() };
 const images = new Map<string, HTMLImageElement>();
 /** shadeTile's colour, made on first use. */
@@ -90,6 +95,22 @@ function loaded(path: string): HTMLImageElement | null {
   return image;
 }
 
+/** The picture once called `path` (hd/atlas.json has it now, or it is still a file of its own), or
+ *  null while it loads. */
+function piece(path: string): Piece | null {
+  const at = atlas.pictures[path];
+  const image = picture(at ? atlas.sheets[at[0]]! : path);
+  if (!image) return null;
+  return at ? { image, x: at[1], y: at[2], width: at[3], height: at[4], packed: true } : { image, x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight, packed: false };
+}
+
+/** piece(), noting in hdArt.incomplete when it is not there yet. */
+function loadedPiece(path: string): Piece | null {
+  const found = piece(path);
+  if (!found) hdArt.incomplete = true;
+  return found;
+}
+
 let loading: Promise<void> | null = null;
 let preloading: Promise<void> | null = null;
 let preloadShare = 0;
@@ -98,8 +119,10 @@ let preloadShare = 0;
  *  start loading. */
 async function loadManifest(): Promise<void> {
   try {
-    const [m, c] = await Promise.all([fetch(`${BASE}manifest.json`), fetch(`${BASE}catalog.json`)]);
+    const [m, c, a] = await Promise.all([fetch(`${BASE}manifest.json`), fetch(`${BASE}catalog.json`), fetch(`${BASE}atlas.json`)]);
     if (!m.ok) return;
+    // None while scripts/make-catalog.mjs measures: the small files are still there.
+    atlas = await a.json().catch(() => atlas) as Atlas;
     manifest = await m.json() as Manifest;
     // Missing only before scripts/make-catalog.mjs has made it (the dev server then answers with its
     // page, not an error: BUG-034): nothing HD is placed, the manifest still counts.
@@ -166,20 +189,19 @@ export const hdArt = {
   preloadAll(onProgress?: (done: number) => void): Promise<void> {
     preloading ??= (async () => {
       await this.load();
-      let files: string[] = [];
-      try { files = await (await fetch(`${BASE}files.json`)).json() as string[]; } catch { /* none: pictures load as they are used */ }
+      let files: [string, number][] = [];
+      try { files = await (await fetch(`${BASE}files.json`)).json() as [string, number][]; } catch { /* none: pictures load as they are used */ }
+      const total = files.reduce((sum, [, bytes]) => sum + bytes, 0);
       let done = 0;
-      const one = (path: string) => new Promise<void>((resolve) => {
+      // All at once (GitHub Pages is HTTP/2); the bar goes by the bytes, the big ones are the wait.
+      await Promise.all(files.map(([path, bytes]) => new Promise<void>((resolve) => {
         const kept = /^(story|menu|cave)\//.test(path) ? null : (picture(path), images.get(path)!);
         const image = kept ?? new Image();
         if (!kept) image.src = BASE + path;
-        const finish = () => { done += 1; preloadShare = done / files.length; onProgress?.(preloadShare); resolve(); };
+        const finish = () => { done += bytes; preloadShare = done / total; onProgress?.(preloadShare); resolve(); };
         if (image.complete) finish();
         else { image.addEventListener("load", finish, { once: true }); image.addEventListener("error", finish, { once: true }); }
-      });
-      // A few at a time: the browser's own limit, and the first ones done early.
-      let next = 0;
-      await Promise.all(Array.from({ length: 6 }, async () => { while (next < files.length) await one(files[next++]!); }));
+      })));
       preloadShare = 1;
     })();
     return preloading;
@@ -190,21 +212,34 @@ export const hdArt = {
     return preloadShare;
   },
 
-  /** hd/ground.png and hd/pieces.png loaded (the WebGL map draws each ground chunk once). */
+  /** hd/ground.webp and hd/pieces.webp loaded (the WebGL map draws each ground chunk once). */
   async loadGround(): Promise<void> {
     await this.load();
     // The load event, not decode(): decode() can hang in a hidden page.
-    await Promise.all(["ground.png", "pieces.png"].map((path) => {
+    await Promise.all(["ground.webp", "pieces.webp"].map((path) => {
       picture(path);
       const image = images.get(path)!;
       return image.complete ? undefined : new Promise<void>((resolve) => { image.addEventListener("load", () => resolve()); image.addEventListener("error", () => resolve()); });
     }));
   },
 
-  /** Ground composite `key` (Catalog.ground) in hd/ground.png: the picture and its box, or null. */
+  /** Map objects `ids`' pictures loaded (the WebGL map draws its border once). */
+  async loadObjects(ids: number[]): Promise<void> {
+    await this.load();
+    await Promise.all(ids.map((id) => {
+      const path = `objects/${id}.webp`;
+      const at = atlas.pictures[path];
+      const name = at ? atlas.sheets[at[0]]! : path;
+      picture(name);
+      const image = images.get(name)!;
+      return image.complete ? undefined : new Promise<void>((resolve) => { image.addEventListener("load", () => resolve()); image.addEventListener("error", () => resolve()); });
+    }));
+  },
+
+  /** Ground composite `key` (Catalog.ground) in hd/ground.webp: the picture and its box, or null. */
   groundPiece(key: string): { image: HTMLImageElement; box: [number, number, number, number, number, number] } | null {
     const box = catalog.ground[key];
-    const image = picture("ground.png");
+    const image = picture("ground.webp");
     return box && image ? { image, box } : null;
   },
 
@@ -216,26 +251,26 @@ export const hdArt = {
   /**
    * drawSprite's picture piece `index` of `sheet` (pi9 variant when `variant`), its rectangle
    * (sx, sy, width, height) of the original's sheet going to (x, y): its HD part, or its place in
-   * hd/pieces.png (the original four times larger, until redrawn), or the region of the upscaled
+   * hd/pieces.webp (the original four times larger, until redrawn), or the region of the upscaled
    * terrain sheet. Returns false when there is none (or it is still loading: `incomplete`).
    */
   drawPiece(graphics: Graphics, index: number, sheet: number, variant: boolean, sx: number, sy: number, width: number, height: number, x: number, y: number): boolean {
     const trim = box(catalog.parts[index]);
     if ((variant ? has.variants.get(sheet) : has.parts)?.has(index)) {
-      const hd = loaded(variant ? `parts-v${sheet}/${index}.png` : `parts/${index}.png`);
+      const hd = loadedPiece(variant ? `parts-v${sheet}/${index}.webp` : `parts/${index}.webp`);
       if (!hd || !trim) return false;
-      graphics.drawScaled(hd, x + trim.x, y + trim.y, trim.width, trim.height);
+      graphics.drawRegionScaled(hd.image, hd.x, hd.y, hd.width, hd.height, x + trim.x, y + trim.y, trim.width, trim.height);
       return true;
     }
     const piece = !variant ? catalog.pieces[index] : undefined;
     if (piece && trim) {
-      const atlas = loaded("pieces.png");
+      const atlas = loaded("pieces.webp");
       if (!atlas) return false;
       graphics.drawRegionScaled(atlas, piece[0], piece[1], piece[2], piece[3], x + trim.x, y + trim.y, trim.width, trim.height);
       return true;
     }
     if (!variant && has.terrain.has(sheet)) {
-      const hd = loaded(`terrain/${sheet}.png`);
+      const hd = loaded(`terrain/${sheet}.webp`);
       if (!hd) return false;
       const k = catalog.scale;
       graphics.drawRegionScaled(hd, sx * k, sy * k, width * k, height * k, x, y, width, height);
@@ -252,16 +287,21 @@ export const hdArt = {
    * The WebGL map's objects (render/PixiMap.ts): the HD picture a map marker shows and where,
    * relative to the marker's origin (from the catalog; null bounds: not in it). Null: no HD picture.
    */
-  markerPicture(building: number, kind: number, level: number, resource: number, look: number): { path: string; image: HTMLImageElement | null; bounds: Bounds | null } | null {
+  markerPicture(building: number, kind: number, level: number, resource: number, look: number): { path: string; image: Piece | null; bounds: Bounds | null } | null {
     const marker = markerKey(building, kind, level, resource, look);
     if (!marker) return null;
     const bounds = marker.looked ? { x: 11, y: 8, width: 22, height: 16 } : box(catalog.markers[marker.boundsKey]);
-    return { path: BASE + marker.path, image: picture(marker.path), bounds };
+    return { path: BASE + marker.path, image: piece(marker.path), bounds };
   },
 
-  /** The HUD's picture hd/ui/`name`.png, or null while it loads. */
+  /** Map object `id`'s picture (hd/objects/`id`.webp once), or null while it loads. */
+  objectPicture(id: number): Piece | null {
+    return piece(`objects/${id}.webp`);
+  },
+
+  /** The HUD's picture hd/ui/`name`.webp, or null while it loads. */
   uiPicture(name: string): HTMLImageElement | null {
-    return picture(`ui/${name}.png`);
+    return picture(`ui/${name}.webp`);
   },
 
   /** Animal slot `slot`'s current frame (kind, dense 9557 animation, 9579 frame) drawn whole at
@@ -274,7 +314,7 @@ export const hdArt = {
     const direction = e[9491 + slot] ?? 0;
     const left = direction >= 3 && direction <= 6;
     const bounds = box(catalog.animals[left ? `${key}:left` : key]);
-    const hd = this.target && has.animals.has(key) && bounds ? loaded(`animals/${key}.png`) : null;
+    const hd = this.target && has.animals.has(key) && bounds ? loadedPiece(`animals/${key}.webp`) : null;
     if (!hd || !bounds) return false;
     // A frame drawn in a picture of another shape than its box (the boar's walk and run, 0-2 /
     // 0-37: a whole boar with room above it in a 29 x 17 box) is scaled evenly to the box's width
@@ -283,8 +323,8 @@ export const hdArt = {
     const shape = (hd.width / hd.height) / (width / height);
     if (Math.abs(shape - 1) > 0.15) height = (width * hd.height) / hd.width;
     const top = y + bounds.y + bounds.height - height;
-    if (left) this.target!.drawScaledMirrored(hd, x + bounds.x, top, width, height);
-    else this.target!.drawScaled(hd, x + bounds.x, top, width, height);
+    if (left) this.target!.drawRegionScaledMirrored(hd.image, hd.x, hd.y, hd.width, hd.height, x + bounds.x, top, width, height);
+    else this.target!.drawRegionScaled(hd.image, hd.x, hd.y, hd.width, hd.height, x + bounds.x, top, width, height);
     return true;
   },
 
@@ -298,10 +338,10 @@ export const hdArt = {
     const step = tile >= 63 && tile <= 75 ? tile - 63 : tile >= 115 && tile <= 127 ? tile - 115 : -1;
     if (step < 0 || !this.target || !this.ground) return false;
     const n = step <= 3 ? 1 : step <= 6 ? 2 : step <= 9 ? 3 : 4;
-    const hd = has.resources.has(`stone-${n}`) ? picture(`objects/stone-${n}.png`) : null;
+    const hd = has.resources.has(`stone-${n}`) ? piece(`objects/stone-${n}.webp`) : null;
     if (!hd) return false;
     this.ground.drawComposite(tile, x, y);
-    this.target.drawScaled(hd, x + 11, y + 8, 22, 16);
+    this.target.drawRegionScaled(hd.image, hd.x, hd.y, hd.width, hd.height, x + 11, y + 8, 22, 16);
     return true;
   },
 
@@ -331,9 +371,9 @@ export const hdArt = {
     const composites: number[] = [];
     stepZSubrecordDraw(runtime, record, 0, 0, phase, { onSpriteRecord: (r, cx, cy) => composites.push(r, cx, cy) });
     const frame = frames[JSON.stringify(composites)];
-    const hd = frame && loaded(`effects/${record}-${frame[0]}.png`);
+    const hd = frame && loadedPiece(`effects/${record}-${frame[0]}.webp`);
     if (!frame || !hd) return false;
-    this.target.drawScaled(hd, x + frame[1], y + frame[2], frame[3], frame[4]);
+    this.target.drawRegionScaled(hd.image, hd.x, hd.y, hd.width, hd.height, x + frame[1], y + frame[2], frame[3], frame[4]);
     return true;
   },
 };
@@ -347,7 +387,7 @@ export function markerKey(building: number, kind: number, level: number, resourc
   const looked = building === 0 && has.resources.has(`${1000 + resource}-look${look}`);
   const key = building > 0 ? buildingKey(kind, level) : looked ? `o${1000 + resource}-look${look}` : has.objects.has(1000 + resource) ? `o${1000 + resource}` : null;
   if (!key) return null;
-  return { path: key.startsWith("o") ? `objects/${key.slice(1)}.png` : `buildings/${key}.png`, boundsKey: building > 0 ? key : `${key}:${resource}:${look}`, looked };
+  return { path: key.startsWith("o") ? `objects/${key.slice(1)}.webp` : `buildings/${key}.webp`, boundsKey: building > 0 ? key : `${key}:${resource}:${look}`, looked };
 }
 
 function buildingKey(kind: number, level: number): string | null {

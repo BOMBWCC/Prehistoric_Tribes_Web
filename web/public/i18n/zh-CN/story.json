@@ -1,8 +1,8 @@
 {
   "intro": [
-    {"picture":"story-00.jpg","speaker":"narrator","pages":["很久很久以前，这片土地是一片郁郁葱葱的乐园。巨大的猛犸象在森林里漫步，巨鸟展开宽大的翅膀遮住了太阳，体型和力量都难以想象的巨兽在湖泊河流中游弋。","在这个狂野的世界里，没有人类的容身之地……"]},
-    {"picture":"story-01.jpg","speaker":"narrator","pages":["后来冰河时代降临，毁灭了一切。"]},
-    {"picture":"story-02.jpg","speaker":"narrator","pages":["嗯，几乎是一切……我是说，要是真的全死光了，你现在也没法在这儿读这段话了……总之，幸存下来的少数生物里，就有原始人。","他们蜷缩在阴森的洞穴里围着篝火，艰难地熬着少得可怜、冷得要命的日子。有一个部落尤其如此，就是Avnotaklu部落，直到有一天……"]}
+    {"picture":"story-00.webp","speaker":"narrator","pages":["很久很久以前，这片土地是一片郁郁葱葱的乐园。巨大的猛犸象在森林里漫步，巨鸟展开宽大的翅膀遮住了太阳，体型和力量都难以想象的巨兽在湖泊河流中游弋。","在这个狂野的世界里，没有人类的容身之地……"]},
+    {"picture":"story-01.webp","speaker":"narrator","pages":["后来冰河时代降临，毁灭了一切。"]},
+    {"picture":"story-02.webp","speaker":"narrator","pages":["嗯，几乎是一切……我是说，要是真的全死光了，你现在也没法在这儿读这段话了……总之，幸存下来的少数生物里，就有原始人。","他们蜷缩在阴森的洞穴里围着篝火，艰难地熬着少得可怜、冷得要命的日子。有一个部落尤其如此，就是Avnotaklu部落，直到有一天……"]}
   ],
   "cave-awakening": [
     {"scene":"cave-wake"},
@@ -146,7 +146,7 @@
     {"speaker":"mumbo","pages":["好了，现在你应该已经掌握生存所需的一切了。","不过要保持头脑清醒，因为你的部落可没有自己的头脑！"]}
   ],
   "m2-intro": [
-    {"picture":"story-03.jpg","speaker":"narrator","pages":["就这样，Avnotaklu部落把敌对的邻居赶出了这片土地。他们很喜欢敌人村子的样子，尤其是敌人挂的窗帘，于是决定搬进去住。","他们发现这片土地物产丰饶，动物自由奔跑，水果漫山遍野。于是长老们聚在一起，商讨部落的命运，以及怎样才能把地毯上煮熟的原始人的味道弄掉……"]}
+    {"picture":"story-03.webp","speaker":"narrator","pages":["就这样，Avnotaklu部落把敌对的邻居赶出了这片土地。他们很喜欢敌人村子的样子，尤其是敌人挂的窗帘，于是决定搬进去住。","他们发现这片土地物产丰饶，动物自由奔跑，水果漫山遍野。于是长老们聚在一起，商讨部落的命运，以及怎样才能把地毯上煮熟的原始人的味道弄掉……"]}
   ],
   "enemy-among-us": [
     {"speaker":"chief","pages":["敌人可能在任何地方……他甚至可能就在我们中间！是你吗？还是你？嗯？"]},
@@ -191,7 +191,7 @@
     {"speaker":"chief","pages":["兄弟们！我们去把族人从汤锅里救出来！"]}
   ],
   "m3-intro": [
-    {"picture":"story-04.jpg","speaker":"narrator","pages":["于是Avnotaklu部落兵分几路，去寻找他们的家人……他们上天入地，走遍远近，再往更远处找，往更高更低处找……好吧，你懂的……"]}
+    {"picture":"story-04.webp","speaker":"narrator","pages":["于是Avnotaklu部落兵分几路，去寻找他们的家人……他们上天入地，走遍远近，再往更远处找，往更高更低处找……好吧，你懂的……"]}
   ],
   "smell-food": [
     {"speaker":"chief","pages":["嗯——你闻到了吗？好香啊！我饿死了，你觉得他们在煮什么？"]},
@@ -239,7 +239,7 @@
     {"speaker":"shaman","pages":["需要的时候，哪儿有间小屋啊！"]}
   ],
   "back-home": [
-    {"picture":"story-05.jpg","speaker":"narrator","pages":["于是Avnotaklu部落的男男女女踏上了回家的路，我就不细说了，反正也没什么意思……不过他们回到家的喜悦注定是短暂的……"]}
+    {"picture":"story-05.webp","speaker":"narrator","pages":["于是Avnotaklu部落的男男女女踏上了回家的路，我就不细说了，反正也没什么意思……不过他们回到家的喜悦注定是短暂的……"]}
   ],
   "village-flattened": [
     {"scene":"village-flattened"},
@@ -259,8 +259,8 @@
     {"scene":"follow-jafar"}
   ],
   "m4-intro": [
-    {"picture":"story-06.jpg","speaker":"narrator","pages":["于是Avnotaklu部落再一次离开了家园。经历了那么多事，你本以为他们会长点记性，可是没有，他们偏要出去闲逛……"]},
-    {"picture":"story-07.jpg","speaker":"narrator","pages":["许多天后，一座山出现在地平线上，山脚下有一片绿洲。族人们决定扎营休整，再继续旅程……"]}
+    {"picture":"story-06.webp","speaker":"narrator","pages":["于是Avnotaklu部落再一次离开了家园。经历了那么多事，你本以为他们会长点记性，可是没有，他们偏要出去闲逛……"]},
+    {"picture":"story-07.webp","speaker":"narrator","pages":["许多天后，一座山出现在地平线上，山脚下有一片绿洲。族人们决定扎营休整，再继续旅程……"]}
   ],
   "rest-stop": [
     {"speaker":"chief","pages":["我们在这儿停下歇一会儿吧。这里有水有食物，而且据我所见没有僵尸。"]},
@@ -307,10 +307,10 @@
     {"speaker":"chief","pages":["如果我们想要自由，就必须用尽一切手段离开这个地方。"]}
   ],
   "m5-intro": [
-    {"picture":"story-08.jpg","speaker":"narrator","pages":["终于，Avnotaklu人再次获得了自由，不过老实说，到目前为止这自由除了麻烦什么也没给他们带来。","他们发现自己被一片美丽辽阔的山谷环绕，完全能养活他们子孙后代。于是他们决定在那里定居……"]}
+    {"picture":"story-08.webp","speaker":"narrator","pages":["终于，Avnotaklu人再次获得了自由，不过老实说，到目前为止这自由除了麻烦什么也没给他们带来。","他们发现自己被一片美丽辽阔的山谷环绕，完全能养活他们子孙后代。于是他们决定在那里定居……"]}
   ],
   "m6-intro": [
-    {"picture":"story-09.jpg","speaker":"narrator","pages":["终于，Avnotaklu人再次获得了自由，不过老实说，到目前为止这自由除了麻烦什么也没给他们带来。","他们发现自己被一片美丽辽阔的山谷环绕，完全能养活他们子孙后代。于是他们决定在那里定居……"]}
+    {"picture":"story-09.webp","speaker":"narrator","pages":["终于，Avnotaklu人再次获得了自由，不过老实说，到目前为止这自由除了麻烦什么也没给他们带来。","他们发现自己被一片美丽辽阔的山谷环绕，完全能养活他们子孙后代。于是他们决定在那里定居……"]}
   ],
   "arrival-promised-land": [
     {"speaker":"chief","pages":["我们跋山涉水才找到这个地方，尽管明显缺少裸体跳舞，但这里相当不错！","我们已无家可归，我也厌倦了流浪，那就让我们把这里当作家吧。","我们不知道前方有什么危险，但我们会抵御一切来犯者，保卫我们的新家！","我们不知道危险何时来临……哦，这不就来了。"]}

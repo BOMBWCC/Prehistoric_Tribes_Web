@@ -29,7 +29,7 @@ import type { WideScreen } from "./WideScreen";
 const ART = "hd/menu/";
 const LANGUAGE_KEY = "pt.language";
 const MUSIC_KEY = "pt.music";
-/** One row per language: the stored code, the art folder (flag-<art>.png, words/<art>/), and the
+/** One row per language: the stored code, the art folder (flag-<art>.webp, words/<art>/), and the
  *  original's language list row. Adding a language is a row here plus its pictures. */
 const LANGUAGES = [
   { code: "en", art: "en", row: 0 },
@@ -89,7 +89,7 @@ export function attachStartMenu(
     return element;
   };
   const word = (key: string, onClick: () => void) =>
-    button("start-item", key, picture(`words/${language().art}/${key}.png`, "start-word"), onClick);
+    button("start-item", key, picture(`words/${language().art}/${key}.webp`, "start-word"), onClick);
 
   const go = (next: Page) => { if (page) history.push(page); show(next); };
   const back = () => show(history.pop() ?? "main");
@@ -140,7 +140,7 @@ export function attachStartMenu(
     return element;
   };
   const mapCard = (index: number) => {
-    const badge = Array.from(String(index + 1), (c) => `<img src="hd/ui/digit-${c}.png" alt="">`).join("");
+    const badge = Array.from(String(index + 1), (c) => `<img src="hd/ui/digit-${c}.webp" alt="">`).join("");
     const card = button("start-map", ui("start.map", { n: index + 1 }),
       `<img class="start-map-picture" src="${MAP_PICTURE(index)}" alt="" draggable="false"><span class="start-map-number">${badge}</span>`,
       () => start(false, index));
@@ -163,7 +163,7 @@ export function attachStartMenu(
     for (let i = 1; i <= 4; i += 1) {
       const cloud = document.createElement("img");
       cloud.className = `start-cloud c${i}`;
-      cloud.src = `${ART}cloud-${i}.png`;
+      cloud.src = `${ART}cloud-${i}.webp`;
       cloud.alt = "";
       cloud.draggable = false;
       cloud.style.animationDelay = `${-(performance.now() / 1000 + CLOUD_START_S[i - 1]!)}s`;
@@ -180,14 +180,14 @@ export function attachStartMenu(
     layer.replaceChildren();
     layer.insertAdjacentHTML("beforeend", picture(next === "splash" ? "bg-splash.jpg" : "bg-menu-sky.jpg", "start-bg"));
     if (next !== "splash") layer.append(clouds());
-    layer.insertAdjacentHTML("beforeend", picture("logo.png", "start-logo"));
+    layer.insertAdjacentHTML("beforeend", picture("logo.webp", "start-logo"));
     if (next === "splash") {
-      layer.insertAdjacentHTML("beforeend", picture("chars.png", "start-chars"));
+      layer.insertAdjacentHTML("beforeend", picture("chars.webp", "start-chars"));
       return;
     }
     if (next === "loading") {
       layer.insertAdjacentHTML("beforeend",
-        `<div class="start-loading">${picture("loading-empty.png", "")}<div class="start-loading-fill">${picture("loading-full.png", "")}</div></div>`);
+        `<div class="start-loading">${picture("loading-empty.webp", "")}<div class="start-loading-fill">${picture("loading-full.webp", "")}</div></div>`);
       return;
     }
 
@@ -205,17 +205,17 @@ export function attachStartMenu(
       for (let i = 0; i < MAPS; i += 1) list.append(mapCard(i));
       layer.append(list);
     } else if (next === "about") {
-      layer.insertAdjacentHTML("beforeend", `<div class="start-column">${picture(`words/${language().art}/about.png`, "start-word")}</div>`);
+      layer.insertAdjacentHTML("beforeend", `<div class="start-column">${picture(`words/${language().art}/about.webp`, "start-word")}</div>`);
     }
 
     const corner = document.createElement("div");
     corner.className = "start-corner";
     corner.append(
-      button("start-round", ui("a11y.language"), picture(`flag-${language().art}.png`, ""), nextLanguage),
-      button("start-round", ui(game.eByte !== 0 ? "a11y.soundOn" : "a11y.soundOff"), picture(game.eByte !== 0 ? "sound-on.png" : "sound-off.png", ""), toggleMusic),
+      button("start-round", ui("a11y.language"), picture(`flag-${language().art}.webp`, ""), nextLanguage),
+      button("start-round", ui(game.eByte !== 0 ? "a11y.soundOn" : "a11y.soundOff"), picture(game.eByte !== 0 ? "sound-on.webp" : "sound-off.webp", ""), toggleMusic),
     );
     layer.append(corner);
-    if (next !== "main") layer.append(button("start-back", ui("a11y.back"), picture("back.png", ""), back));
+    if (next !== "main") layer.append(button("start-back", ui("a11y.back"), picture("back.webp", ""), back));
   }
 
   /** The loading bar: fills over LOADING_MS at the least, as far as the pictures are loaded (most of

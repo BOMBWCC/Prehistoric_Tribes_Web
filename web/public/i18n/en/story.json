@@ -1,8 +1,8 @@
 {
   "intro": [
-    {"picture":"story-00.jpg","speaker":"narrator","pages":["Long ago these lands were a verdant wonderland.","giant mammoths roamed the forests, huge birds eclipsed the sun with their mighty wings and beasts of","unimaginable size and power swam the lakes and rivers.","there was no place for man in this wild world..."]},
-    {"picture":"story-01.jpg","speaker":"narrator","pages":["Then the ice age began and killed everything."]},
-    {"picture":"story-02.jpg","speaker":"narrator","pages":["Well, almost everything... i mean you wouldn't be here reading this if everything had died...","anyway, among the few creatures that survived was primitive man.","eking out a meagre and extremely chilly existence, huddled around fires in dismal caves.","so it was with one tribe in particular, the avnotaklu tribe, until one day..."]}
+    {"picture":"story-00.webp","speaker":"narrator","pages":["Long ago these lands were a verdant wonderland.","giant mammoths roamed the forests, huge birds eclipsed the sun with their mighty wings and beasts of","unimaginable size and power swam the lakes and rivers.","there was no place for man in this wild world..."]},
+    {"picture":"story-01.webp","speaker":"narrator","pages":["Then the ice age began and killed everything."]},
+    {"picture":"story-02.webp","speaker":"narrator","pages":["Well, almost everything... i mean you wouldn't be here reading this if everything had died...","anyway, among the few creatures that survived was primitive man.","eking out a meagre and extremely chilly existence, huddled around fires in dismal caves.","so it was with one tribe in particular, the avnotaklu tribe, until one day..."]}
   ],
   "cave-awakening": [
     {"scene":"cave-wake"},
@@ -146,7 +146,7 @@
     {"speaker":"mumbo","pages":["Ok, now you should know everything you need to survive.","but keep your wits about you, because your tribe doesn't have","any of their own!"]}
   ],
   "m2-intro": [
-    {"picture":"story-03.jpg","speaker":"narrator","pages":["Thus the avnotaklu tribe chased it's hostile neighbours from the land.","they liked the look of their enemies village, particularly what they had done with the curtains.","so they decided to move in.","they found the land bounteous, with animals roaming free and fruit in abundance.","and so the elders met to discuss the tribes' fate and how to get the smell of cooked caveman out of the carpet..."]}
+    {"picture":"story-03.webp","speaker":"narrator","pages":["Thus the avnotaklu tribe chased it's hostile neighbours from the land.","they liked the look of their enemies village, particularly what they had done with the curtains.","so they decided to move in.","they found the land bounteous, with animals roaming free and fruit in abundance.","and so the elders met to discuss the tribes' fate and how to get the smell of cooked caveman out of the carpet..."]}
   ],
   "enemy-among-us": [
     {"speaker":"chief","pages":["Our enemy could be anywhere...","he may even be amongst us right now! is it you? or you? hmmm?"]},
@@ -191,7 +191,7 @@
     {"speaker":"chief","pages":["Come men! let us go and save our people from the cooking pot!"]}
   ],
   "m3-intro": [
-    {"picture":"story-04.jpg","speaker":"narrator","pages":["And so it was that the avnotaklu separated and went in search of their families...","they searched high and low, near and far and farther still, higher and lower and... well you get the idea..."]}
+    {"picture":"story-04.webp","speaker":"narrator","pages":["And so it was that the avnotaklu separated and went in search of their families...","they searched high and low, near and far and farther still, higher and lower and... well you get the idea..."]}
   ],
   "smell-food": [
     {"speaker":"chief","pages":["Mmmmm, do you smell that? it smells delicious!","i'm starving, what do you think they're cooking?"]},
@@ -239,7 +239,7 @@
     {"speaker":"shaman","pages":["Where's there a hut around here when you need one!"]}
   ],
   "back-home": [
-    {"picture":"story-05.jpg","speaker":"narrator","pages":["And so the men and women of the avnotaklu tribe made their way back home, i won't bore you with the details, it's not","very interesting anyway...","but their joy at returning home was to be short lived..."]}
+    {"picture":"story-05.webp","speaker":"narrator","pages":["And so the men and women of the avnotaklu tribe made their way back home, i won't bore you with the details, it's not","very interesting anyway...","but their joy at returning home was to be short lived..."]}
   ],
   "village-flattened": [
     {"scene":"village-flattened"},
@@ -259,8 +259,8 @@
     {"scene":"follow-jafar"}
   ],
   "m4-intro": [
-    {"picture":"story-06.jpg","speaker":"narrator","pages":["And so it was that the avnotaklu once again left their homes.","you'd think they'd have learnt really, after everything they'd been through, but nooooo, they just had to go","gallivanting off..."]},
-    {"picture":"story-07.jpg","speaker":"narrator","pages":["After many days a mountain loomed on the horizon and at it's feet there stood an oasis.","the tribesmen decided to build a camp to rest before continuing with their journey..."]}
+    {"picture":"story-06.webp","speaker":"narrator","pages":["And so it was that the avnotaklu once again left their homes.","you'd think they'd have learnt really, after everything they'd been through, but nooooo, they just had to go","gallivanting off..."]},
+    {"picture":"story-07.webp","speaker":"narrator","pages":["After many days a mountain loomed on the horizon and at it's feet there stood an oasis.","the tribesmen decided to build a camp to rest before continuing with their journey..."]}
   ],
   "rest-stop": [
     {"speaker":"chief","pages":["Let's stop here and rest a while.","we have water, food and there are no zombies as far as i can","see."]},
@@ -307,10 +307,10 @@
     {"speaker":"chief","pages":["We're going to have to use every means at our disposal to get out of","this place if we want our freedom."]}
   ],
   "m5-intro": [
-    {"picture":"story-08.jpg","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
+    {"picture":"story-08.webp","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
   ],
   "m6-intro": [
-    {"picture":"story-09.jpg","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
+    {"picture":"story-09.webp","speaker":"narrator","pages":["Finally the avnotaklu had gained their freedom once more, though to be honest, so far it had bought them nothing","but trouble.","they found themselves surrounded by a beautiful sprawling dale, well equipped to sustain them for","generations to come.","and so they decided to settle there.."]}
   ],
   "arrival-promised-land": [
     {"speaker":"chief","pages":["We have journeyed far and wide to find this place and despite the","distinct lack of naked dancing, it's pretty good!","We have nowhere to go home to and i am tired of wandering, so let us","make this place our home.","we do not know what danger lies in store, but we shall defend","our new home against all comers!","We do not know when peril will strike... oh there it is."]}

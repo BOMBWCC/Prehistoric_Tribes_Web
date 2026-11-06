@@ -67,7 +67,7 @@ export default [
         // Animal slot 0 as a boar (kind 0) facing right in its walk, frame 0 (0-2-0: 140 x 152).
         e[9535] = 0; e[9557] = 2; e[9579] = 0; e[9491] = 0;
         const calls = [];
-        const target = { drawScaled: (image, x, y, w, h) => calls.push([image.width, image.height, w, h]), drawScaledMirrored: () => {} };
+        const target = { drawRegionScaled: (image, sx, sy, sw, sh, x, y, w, h) => calls.push([sw, sh, w, h]), drawRegionScaledMirrored: () => {} };
         for (let i = 0; i < 100; i += 1) {
           hdArt.begin(rt, target);
           const done = hdArt.drawAnimal(rt, 0, 0, 0);
@@ -119,6 +119,63 @@ export default [
     },
   },
   {
+    name: "screen walk: walking frames that change, the same as a real walker's; a short hop walks too; a real step at a run does not (BUG-069, BUG-074)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const id = await t.eval(() => { const chief = T.ui().chief; return T.villagers().find((v) => v.age >= 14 && !v.inside && v.id !== chief).id; });
+      const frames = await t.eval(async (id) => {
+        const { walkingBody } = await import("/src/render/MapScene.ts");
+        const rt = __prehistoricRuntime, e = rt.denseState;
+        const before = Array.from(e);
+        const key = (b) => JSON.stringify(b.filter((o) => o.op !== "ellipse").map((o) => [o.index, o.x, o.y]));
+        const counts = [[22, 0], [-22, 0], [0, 16], [0, -16]].map(([dx, dy]) => { const s = new Set(); for (let ms = 0; ms < 960; ms += 120) s.add(key(walkingBody(rt, id, dx, dy, ms, 960, 120, true))); return s.size; });
+        return { counts, restored: Array.from(e).every((v, i) => v === before[i]) };
+      }, id);
+      t.expect.ok(frames.counts.every((n) => n >= 3), `three or more frames each way (${frames.counts})`);
+      t.expect.ok(frames.restored, "the unit's fields put back");
+      // A hop of 15 pixels (under a tile), as to a post next to the door: walked, its picture changing.
+      const hop = await t.eval(async (id) => {
+        const map = window.__prehistoricPixiMap, e = __prehistoricRuntime.denseState;
+        map.update();
+        e[202 + id] += 15;
+        map.update();
+        e[202 + id] -= 15;
+        const m = map.movers.get(`u${id}`);
+        return { walk: !!m.walk };
+      }, id);
+      t.expect.ok(hop.walk, "a 15 pixel hop is walked");
+      await t.page.waitForTimeout(1500);
+      await t.eval(() => { __prehistoricPixiMap.update(); });
+      // A real run, the fastest walker there is: never taken for a hop.
+      const run = await t.eval(async (id) => {
+        const map = window.__prehistoricPixiMap, e = __prehistoricRuntime.denseState;
+        e[1010 + id] = 5;
+        const v = T.villager(id);
+        const to = T.freeSpot ? T.freeSpot(v.x + 8, v.y + 2) : [v.x + 8, v.y + 2];
+        S.order(id, to[0], to[1]);
+        // A real step is at most 11 pixels, running; a rare hop further is walked, that is fine.
+        let wrong = 0, ran = 0;
+        const start = [e[id], e[101 + id]];
+        let was = map.movers.get(`u${id}`);
+        let before = was?.to, walking = !!was?.walk;
+        for (let i = 0; i < 80; i += 1) {
+          e[7777 + id] = 3;
+          S.step(1);
+          map.update();
+          if (e[id] !== start[0] || e[101 + id] !== start[1]) ran += 1;
+          const m = map.movers.get(`u${id}`);
+          if (m?.walk && !walking && before && Math.abs(m.walk.from.x - before.x) <= 11 && Math.abs(m.to.x - m.walk.from.x) <= 11 && Math.abs(m.to.y - m.walk.from.y) <= 11) wrong += 1;
+          before = m?.to;
+          walking = !!m?.walk;
+        }
+        return { wrong, ran };
+      }, id);
+      t.expect.ok(run.ran > 0, "they ran");
+      t.expect.equal(run.wrong, 0, "a real step at a run is not taken for a hop");
+    },
+  },
+  {
     name: "WebGL map: a villager walks into a building and out of it on screen, no jump (BUG-069)",
     async run(t) {
       await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); S.stock(300); });
@@ -143,7 +200,7 @@ export default [
             const map = window.__prehistoricPixiMap;
             map.render();
             const m = map.movers.get(`u${id}`);
-            return { x: m ? m.sprite.x - (m.picture?.x ?? 0) : null, y: m ? m.sprite.y - (m.picture?.y ?? 0) : null, walk: !!m?.walk, drawn: !!m?.picture, slot: __prehistoricRuntime.denseState[4646 + id] };
+            return { x: m ? m.sprite.x - (m.picture?.x ?? 0) : null, y: m ? m.sprite.y - (m.picture?.y ?? 0) : null, walk: !!m?.walk, drawn: !!m?.picture, picture: m?.sprite.texture.uid, slot: __prehistoricRuntime.denseState[4646 + id] };
           }, job.id));
           if (process.env.SHOT && samples.at(-1).walk && samples.filter((s) => s.walk).length === 12) await t.page.screenshot({ path: process.env.SHOT });
         }
@@ -151,6 +208,8 @@ export default [
       };
       const check = (samples, what) => {
         t.expect.ok(samples.some((s) => s.walk && s.drawn), `${what}: a walk on screen, drawn`);
+        const walking = new Set(samples.filter((s) => s.walk).map((s) => s.picture));
+        t.expect.ok(walking.size >= 2, `${what}: its picture changes along the walk (${walking.size})`);
         let most = 0;
         for (let i = 1; i < samples.length; i += 1) {
           if (samples[i].x === null || samples[i - 1].x === null) continue;
@@ -440,12 +499,11 @@ export default [
     async run(t) {
       await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); });
       await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
-      await t.eval(() => { const hut = T.buildings().find((b) => b.kind === 3); S.animal(2, hut.x + 3, hut.y + 4); S.look(hut.x + 3, hut.y + 4); S.step(5); });
+      const placed = await t.eval(() => { const hut = T.buildings().find((b) => b.kind === 3); const slot = S.animal(2, hut.x + 3, hut.y + 4); S.look(hut.x + 3, hut.y + 4); S.step(5); return slot; });
       // Facing right (direction 1) and left (direction 4), the same frame: the picture each draws.
-      const read = (direction) => t.eval(async (direction) => {
+      const read = (direction) => t.eval(async ([direction, slot]) => {
         const rt = __prehistoricRuntime;
         const map = window.__prehistoricPixiMap;
-        const slot = T.animals()[0].slot;
         rt.denseState[9491 + slot] = direction;
         for (let i = 0; i < 50; i += 1) { map.update(); const m = map.movers.get(`a${slot}`); if (m?.picture) break; await new Promise((r) => setTimeout(r, 50)); }
         const source = map.movers.get(`a${slot}`).picture.texture.source.resource;
@@ -454,7 +512,7 @@ export default [
         const x = c.getContext("2d", { willReadFrequently: true });
         x.drawImage(source, 0, 0);
         return { width: c.width, height: c.height, alpha: Array.from(x.getImageData(0, 0, c.width, c.height).data.filter((_, i) => i % 4 === 3)) };
-      }, direction);
+      }, [direction, placed]);
       const right = await read(1);
       const left = await read(4);
       t.expect.deepEqual([left.width, left.height], [right.width, right.height], "the same size");

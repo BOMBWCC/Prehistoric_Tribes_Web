@@ -74,7 +74,7 @@ export function attachAlerts(app: HTMLElement, runtime: LegacyRuntimeState, touc
       line.className = attack ? "notice attack" : "notice";
       const words = document.createElement("span");
       words.textContent = text;
-      line.innerHTML = icon ? `<span class="notice-icon"><img src="hd/ui/${icon}.png" alt=""></span>` : "";
+      line.innerHTML = icon ? `<span class="notice-icon"><img src="hd/ui/${icon}.webp" alt=""></span>` : "";
       line.append(words);
       if (x !== 0 || y !== 0) line.insertAdjacentHTML("beforeend", '<span class="notice-go" aria-hidden="true">›</span>');
       const created = { line, x, y, timer: 0 };

@@ -23,6 +23,8 @@
 //   ground   each composite the map's ground draws (ground tiles, markers' ground pieces) in HD, packed
 //            into hd/ground.png: its box there and its offset from the composite's (x, y)
 //   scale    how many times larger the HD pictures are than the original's
+import { packAtlases } from "./hd-atlas.mjs";
+import { pngToWebp } from "./hd-webp.mjs";
 import { writeHdFiles } from "./hd-files.mjs";
 import { createServer } from "vite";
 import { chromium } from "playwright";
@@ -129,7 +131,7 @@ try {
     };
     const column = 20, row = 20;
     // The HD scale: the upscaled ground sheet against the original's.
-    const k = await new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(Math.round(image.naturalWidth / rt.imageGroups[0].get(8).image.width)); image.src = "/hd/terrain/8.png"; });
+    const k = await new Promise((resolve, reject) => { const image = new Image(); image.onload = () => resolve(Math.round(image.naturalWidth / rt.imageGroups[0].get(8).image.width)); image.onerror = () => reject(new Error("no hd/terrain/8.webp: run import-hd.mjs first")); image.src = "/hd/terrain/8.webp"; });
     for (const key of manifest.buildings) {
       const kind = Number(key.split("-")[0]);
       const size = 400, ox = 150, oy = 260;
@@ -140,7 +142,7 @@ try {
         drawImageHelper(rt, 1000 + kind + 1, 2, ox, oy);
       });
       const preview = relative(trim(s.context, size), ox, oy);
-      const hd = await new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = `/hd/buildings/${key}.png`; });
+      const hd = await new Promise((resolve) => { const image = new Image(); image.onload = () => resolve(image); image.onerror = () => resolve(null); image.src = `/hd/buildings/${key}.webp`; });
       if (!preview || !hd) continue;
       const width = hd.naturalWidth / k, height = hd.naturalHeight / k;
       markers[key] = [preview[0] + (preview[2] - width) / 2, preview[1] + preview[3] - height, width, height];
@@ -388,6 +390,8 @@ try {
     const png = (dataUrl) => Buffer.from(dataUrl.split(",")[1], "base64");
     fs.writeFileSync(path.join(webDir, "public/hd/ground.png"), png(catalog.groundPng));
     fs.writeFileSync(path.join(webDir, "public/hd/pieces.png"), png(catalog.piecesPng));
+    await pngToWebp(path.join(webDir, "public/hd/ground.png"));
+    await pngToWebp(path.join(webDir, "public/hd/pieces.png"));
     const overviewDir = path.resolve(webDir, "../design/missing-art");
     fs.mkdirSync(overviewDir, { recursive: true });
     for (const [sheet, { png: data, pieces }] of Object.entries(catalog.overviews)) {
@@ -405,4 +409,5 @@ try {
   await browser.close();
   await server.close();
 }
+if (!process.exitCode) console.log(`atlas.json: ${await packAtlases()} pictures`);
 console.log(`files.json: ${writeHdFiles()} pictures`);

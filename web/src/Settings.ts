@@ -33,7 +33,7 @@ export function attachSettings(app: HTMLElement, screen: WideScreen, runtime: Le
 
   // The UI design's card ("提示与消息" E, 2026-10-27): the settings plate on top, a row per setting
   // (icon, words, control), ✕ on the top edge; changes apply at once.
-  const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.png" alt="">`;
+  const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.webp" alt="">`;
   const dialog = document.createElement("dialog");
   dialog.className = "card settings";
   dialog.dataset.uiLabel = "menu.settings";

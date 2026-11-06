@@ -99,14 +99,14 @@ export function attachStoryHud(
     element.textContent = value;
     return element;
   };
-  const tick = '<img class="story-tick" src="hd/ui/btn-tick.png" alt="">';
+  const tick = '<img class="story-tick" src="hd/ui/btn-tick.webp" alt="">';
   const background = '<img class="story-picture" src="hd/menu/bg-menu.jpg" alt="">';
 
   /** The box: face, name, the page, the page dots and ▼. */
   function box(face: string, name: string, pages: readonly string[], at: number): HTMLElement {
     const element = document.createElement("div");
     element.className = "story-box";
-    if (face) element.insertAdjacentHTML("beforeend", `<img class="story-face" src="${ART}faces/${face}.png" alt="">`);
+    if (face) element.insertAdjacentHTML("beforeend", `<img class="story-face" src="${ART}faces/${face}.webp" alt="">`);
     else element.classList.add("no-face");
     if (name) element.append(text("story-name", name));
     element.append(text("story-text", pages[at] ?? ""));
@@ -114,7 +114,7 @@ export function attachStoryHud(
     dots.className = "story-dots";
     dots.innerHTML = pages.length > 1 ? pages.map((_, i) => `<span${i === at ? ' class="on"' : ""}></span>`).join("") : "";
     element.append(dots);
-    element.insertAdjacentHTML("beforeend", '<img class="story-more" src="hd/ui/btn-next.png" alt="">');
+    element.insertAdjacentHTML("beforeend", '<img class="story-more" src="hd/ui/btn-next.webp" alt="">');
     return element;
   }
 
@@ -295,7 +295,7 @@ export function attachStoryHud(
       const names = ["end.population", "end.built", "end.razed", "end.killed", "end.resources", "end.total"].map((key) => ui(key));
       const [ours, theirs] = [0, 1].map((team) => runtime.mainArrays.aShort[team]!);
       box.classList.add("end-score");
-      const head = `<div class="end-row head"><img src="hd/ui/pt-chief.png" alt="${ui("a11y.ours")}"><span></span><img src="${ART}faces/face-cannibal.png" alt="${ui("a11y.theirs")}"></div>`;
+      const head = `<div class="end-row head"><img src="hd/ui/pt-chief.webp" alt="${ui("a11y.ours")}"><span></span><img src="${ART}faces/face-cannibal.webp" alt="${ui("a11y.theirs")}"></div>`;
       // The total (row 24) shows as the original draws it, count * 10 + a random last digit
       // (c.a(Graphics,int)); the page's own random, not the game's.
       const value = (row: Int16Array, i: number) => (i === 5 ? (row[24] ?? 0) * 10 + Math.floor(Math.random() * 10) : row[19 + i] ?? 0);
@@ -307,7 +307,7 @@ export function attachStoryHud(
     }
     // "play again?": the question and the menus' word pictures; YES is the left soft key.
     const art = runtime.language === ZH_LANGUAGE ? "cn" : "en";
-    layer.insertAdjacentHTML("beforeend", '<img class="end-logo" src="hd/menu/logo.png" alt="">');
+    layer.insertAdjacentHTML("beforeend", '<img class="end-logo" src="hd/menu/logo.webp" alt="">');
     const column = document.createElement("div");
     column.className = "end-again";
     column.append(text("story-text", ui("end.again")));
@@ -315,7 +315,7 @@ export function attachStoryHud(
       const button = document.createElement("button");
       button.type = "button";
       setLabel(button, word === "yes" ? "a11y.yes" : "a11y.no");
-      button.innerHTML = `<img src="hd/menu/words/${art}/${word}.png" alt="">`;
+      button.innerHTML = `<img src="hd/menu/words/${art}/${word}.webp" alt="">`;
       button.addEventListener("click", (event) => { event.stopPropagation(); touch.pressKey(key); });
       column.append(button);
     }

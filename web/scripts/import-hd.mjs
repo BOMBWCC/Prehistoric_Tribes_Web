@@ -19,11 +19,13 @@
 //   story/scenes/...          the story scenes' pictures (design/story/scenes/processed: scene-<nn>.jpg, cave-*)
 //   ui/, menu/                the 2026-10-29 UI pictures (design/ui-0429/processed): chief-hat, btn-next to ui/;
 //                             bg-menu-sky.jpg, cloud-<n>.png to menu/
+// All of them as lossless WebP (scripts/hd-webp.mjs): the .png above are .webp in web/public/hd.
 // Then run `npm --prefix web run catalog` (scripts/make-catalog.mjs): this empties web/public/hd, catalog.json
 // (where each picture goes) included. See docs/hd-art-handoff.md.
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { convertAll } from "./hd-webp.mjs";
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
 const design = path.join(root, "design");
@@ -145,6 +147,8 @@ if (fs.existsSync(cave)) for (const f of fs.readdirSync(cave).filter((f) => f.en
 for (const f of fs.readdirSync(path.join(design, "story/processed")).filter((f) => /^story-\d+\.png$/.test(f))) {
   execFileSync("magick", [path.join(design, "story/processed", f), "-quality", "85", path.join(out, "story", f.replace(/\.png$/, ".webp"))]);
 }
+manifest.ui = manifest.ui.map((name) => name.replace(/\.png$/, ".webp"));
 fs.writeFileSync(path.join(out, "manifest.json"), JSON.stringify(manifest));
+console.log(`${await convertAll()} pictures as lossless WebP (the names above with .webp)`);
 const count = Object.values(manifest).reduce((n, v) => n + (Array.isArray(v) ? v.length : Object.values(v).reduce((m, w) => m + w.length, 0)), 0);
 console.log(`${count} files -> ${out}`);

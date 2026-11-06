@@ -149,12 +149,12 @@ export default [
       const play = async (shamanAlive) => {
         const expected = await t.eval((alive) => {
           const rt = __prehistoricRuntime;
-          const face = (id) => `face-0${720 + rt.denseState[2727 + id]}.png`;
+          const face = (id) => `face-0${720 + rt.denseState[2727 + id]}.webp`;
           rt.stepSubsystemStateCommand(33);
           const shaman = rt.stateCommandState.p[3];
           if (!alive) rt.denseState[1919 + shaman] = 0;
           S.step(5);
-          return { chief: face(rt.mainArrays.aShort[0][17]), shaman: alive ? face(shaman) : "face-0727.png" };
+          return { chief: face(rt.mainArrays.aShort[0][17]), shaman: alive ? face(shaman) : "face-0727.webp" };
         }, shamanAlive);
         await t.until(() => !document.querySelector(".story-hud").hidden, { max: 100, chunk: 5, what: "the story's words" });
         const seen = [];

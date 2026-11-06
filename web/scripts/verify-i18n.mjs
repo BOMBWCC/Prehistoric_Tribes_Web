@@ -25,7 +25,7 @@ const faces = read("speakers.json") ?? {};
 if (!isObject(faces)) errors.push("speakers.json: not an object");
 for (const [code, entry] of Object.entries(faces)) {
   if (!isObject(entry) || (entry.face !== undefined && !isText(entry.face))) errors.push(`speakers.json: ${code}: {} or { "face": "..." }`);
-  else if (entry.face && !fs.existsSync(path.join(dir, `../hd/story/faces/${entry.face}.png`))) errors.push(`speakers.json: ${code}: no picture hd/story/faces/${entry.face}.png`);
+  else if (entry.face && !fs.existsSync(path.join(dir, `../hd/story/faces/${entry.face}.webp`))) errors.push(`speakers.json: ${code}: no picture hd/story/faces/${entry.face}.webp`);
 }
 
 // The ui.json keys the code uses: every "group.name" string in src/ whose group is one of English's.
@@ -86,6 +86,7 @@ for (const language of fs.readdirSync(dir).filter((name) => fs.statSync(path.joi
       } else if (fields === "pages,speaker" || fields === "pages,picture,speaker") {
         if (!(step.speaker in faces)) errors.push(`${where}: no speaker "${step.speaker}" in speakers.json`);
         if (!Array.isArray(step.pages) || step.pages.length === 0 || !step.pages.every(isText)) errors.push(`${where}: "pages" must be a list of texts`);
+        if (step.picture && !fs.existsSync(path.join(dir, `../hd/story/${step.picture}`))) errors.push(`${where}: no picture hd/story/${step.picture}`);
         if (step.picture !== undefined && (!isText(step.picture) || !fs.existsSync(path.join(dir, `../hd/story/${step.picture}`)))) errors.push(`${where}: no picture hd/story/${step.picture}`);
       } else {
         errors.push(`${where}: expected { speaker, pages }, { picture, speaker, pages }, { scene } or { next }`);

@@ -17,7 +17,7 @@ type Help = { sections: { title: string; pages: string[] }[] };
 
 /** Adds the card; returns the function that opens it. */
 export function attachHelp(app: HTMLElement, runtime: LegacyRuntimeState): () => void {
-  const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.png" alt="">`;
+  const art = (path: string, cls = "") => `<img${cls ? ` class="${cls}"` : ""} src="hd/${path}.webp" alt="">`;
   const dialog = document.createElement("dialog");
   dialog.className = "card help";
   dialog.dataset.uiLabel = "menu.help";
