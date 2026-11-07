@@ -37,7 +37,7 @@ export class LegacyProgressStore {
   save(record: Slot0Record): void {
     const store = RecordStore.open(this.storeName());
     try {
-      store.replaceRecord(encodeSlot0Record(record));
+      store.replaceRecords(encodeSlot0Record(record));
     } finally {
       store.close();
     }
@@ -64,8 +64,7 @@ export class LegacyProgressStore {
   saveGameplay(slot: 1 | 2, record: RmsGameplayRecord, names: readonly string[]): void {
     const store = RecordStore.open(this.storeName(slot));
     try {
-      store.replaceRecord(encodeGameplayRecord(record));
-      store.addRecord(new TextEncoder().encode(JSON.stringify(names)));
+      store.replaceRecords(encodeGameplayRecord(record), new TextEncoder().encode(JSON.stringify(names)));
     } finally {
       store.close();
     }

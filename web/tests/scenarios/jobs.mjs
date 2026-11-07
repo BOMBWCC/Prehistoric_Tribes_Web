@@ -69,11 +69,23 @@ const command = async (t, label, tick) => {
   await t.step(5);
   await t.tap(".hud-cmd", 2);
   await t.tap(`.hud-cmd-item[data-ui-label="${label}"]`, 25);
-  if (tick) { await t.page.evaluate(() => { const b = [...document.querySelectorAll(".hud-place")].find((e) => !e.hidden && e.getClientRects().length); b?.click(); }); await t.step(25); }
+  if (tick) {
+    // No tick to press must say so, with the state (BUG-078: one unexplained failure, no trace of why).
+    const state = await t.page.evaluate(() => {
+      const g = __prehistoricRuntime.game;
+      const b = [...document.querySelectorAll(".hud-place")].find((e) => !e.hidden && e.getClientRects().length);
+      const seen = JSON.stringify({ tick: !!b, blocked: b?.classList.contains("blocked"), bar: g.barMode, s: g.cSInt, frozen: __prehistoricScreen.frozen, tile: [g.cameraColumn + g.cursorColumn, g.cameraRow + g.cursorRow], frame: g.missionFrame, dialog: !!document.querySelector("dialog[open]") });
+      b?.click();
+      return seen;
+    });
+    await t.step(25);
+    return state;
+  }
+  return "";
 };
 const CASES = {
-  arms: async (t, s) => { await t.eval((id) => { const v = T.villager(id); S.look(v.x, v.y); __run(25); __prehistoricRuntime.game.cameraBFlag = false; }, s.id); await command(t, "orders.callToArms", true); t.expect.ok(await t.eval(() => __prehistoricRuntime.game.callToArmsActive), "call to arms on"); await t.eval(() => __run(400)); await command(t, "orders.backToWork", false); t.expect.ok(!(await t.eval(() => __prehistoricRuntime.game.callToArmsActive)), "back to work"); },
-  rally: async (t, s) => { await t.eval((id) => { const v = T.villager(id); S.look(v.x, v.y); __run(25); __prehistoricRuntime.game.cameraBFlag = false; }, s.id); await command(t, "orders.formUp", true); t.expect.ok(await t.eval(() => __prehistoricRuntime.game.formUpActive), "form up on"); await t.eval(() => __run(400)); await command(t, "orders.disband", false); t.expect.ok(!(await t.eval(() => __prehistoricRuntime.game.formUpActive)), "disbanded"); },
+  arms: async (t, s) => { await t.eval((id) => { const v = T.villager(id); S.look(v.x, v.y); __run(25); __prehistoricRuntime.game.cameraBFlag = false; }, s.id); const placing = await command(t, "orders.callToArms", true); t.expect.ok(await t.eval(() => __prehistoricRuntime.game.callToArmsActive), `call to arms on (${placing})`); await t.eval(() => __run(400)); await command(t, "orders.backToWork", false); t.expect.ok(!(await t.eval(() => __prehistoricRuntime.game.callToArmsActive)), "back to work"); },
+  rally: async (t, s) => { await t.eval((id) => { const v = T.villager(id); S.look(v.x, v.y); __run(25); __prehistoricRuntime.game.cameraBFlag = false; }, s.id); const placing = await command(t, "orders.formUp", true); t.expect.ok(await t.eval(() => __prehistoricRuntime.game.formUpActive), `form up on (${placing})`); await t.eval(() => __run(400)); await command(t, "orders.disband", false); t.expect.ok(!(await t.eval(() => __prehistoricRuntime.game.formUpActive)), "disbanded"); },
   enemy: (t, s) => t.eval((id) => { const v = T.villager(id); const k = S.enemy(v.x + 4, v.y + 3); __run(500); if (k > 0) __prehistoricRuntime.denseState[1919 + k] = 0; for (const u of T.villagers()) {} __run(1); }, s.id),
   // The real choice of a new chief, when they stand on the map (a worker at a post cannot be tapped).
   chief: async (t, s) => {

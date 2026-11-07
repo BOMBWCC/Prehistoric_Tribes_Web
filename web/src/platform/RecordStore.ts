@@ -24,32 +24,38 @@ export class RecordStore {
     return records.length;
   }
 
-  /** The original game writes one replacement record after deleting the store. */
-  replaceRecord(data: Uint8Array): number {
-    this.delete();
-    return this.addRecord(data);
+  /** The store is these records now, in one write: when it fails (storage full) the old ones stay
+   *  (BUG-077; the original deleted the store first). */
+  replaceRecords(...data: Uint8Array[]): void {
+    this.writeRecords(data);
   }
 
   close(): void {}
 
+  // The browser's storage may be full or blocked, when even touching `localStorage` throws (BUG-077).
+  // This is the one place that handles it: reading finds nothing, deleting does nothing. Writing
+  // throws, for saveOriginalResourceAction (f.e(int)'s boundary) to report the save failed.
   delete(): void {
-    localStorage.removeItem(this.name);
+    try {
+      localStorage.removeItem(this.name);
+    } catch { /* nothing to delete, as far as anyone can tell */ }
   }
 
   private readRecords(): Uint8Array[] {
-    const encoded = localStorage.getItem(this.name);
-    if (encoded === null) return [];
+    try {
+      const encoded = localStorage.getItem(this.name);
+      if (encoded === null) return [];
 
-    // Compatibility with the earlier Web scaffold, which stored record 1 as
-    // one bare base64 string rather than a record list.
-    if (!encoded.startsWith("[")) return [decodeBase64(encoded)];
+      // Compatibility with the earlier Web scaffold, which stored record 1 as
+      // one bare base64 string rather than a record list.
+      if (!encoded.startsWith("[")) return [decodeBase64(encoded)];
 
-    const values: unknown = JSON.parse(encoded);
-    if (!Array.isArray(values)) throw new Error(`Invalid RMS store ${this.name}`);
-    return values.map((value) => {
-      if (typeof value !== "string") throw new Error(`Invalid RMS record in ${this.name}`);
-      return decodeBase64(value);
-    });
+      const values: unknown = JSON.parse(encoded);
+      if (!Array.isArray(values)) return [];
+      return values.map((value) => decodeBase64(value as string));
+    } catch {
+      return []; // blocked, or not ours to read: as if there were no save
+    }
   }
 
   private writeRecords(records: readonly Uint8Array[]): void {

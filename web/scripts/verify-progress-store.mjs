@@ -52,7 +52,7 @@ const store = records.RecordStore.open("t0");
 store.addRecord(codec.encodeSlot0Record({ l: 7, W: true, r: 2, s: -1, t: 3, c: 4, p: 5 }));
 assert.equal(store.getNumRecords(), 1);
 assert.deepEqual([...store.getRecord(1)], [...codec.encodeSlot0Record({ l: 7, W: true, r: 2, s: -1, t: 3, c: 4, p: 5 })]);
-store.replaceRecord(codec.encodeSlot0Record({ l: 8, W: false, r: 4, s: 1, t: 0, c: 0, p: 0 }));
+store.replaceRecords(codec.encodeSlot0Record({ l: 8, W: false, r: 4, s: 1, t: 0, c: 0, p: 0 }));
 assert.equal(store.getNumRecords(), 1);
 assert.equal(codec.decodeSlot0Record(store.getRecord(1)).l, 8);
 console.log("J2ME record-1 replace semantics OK");
