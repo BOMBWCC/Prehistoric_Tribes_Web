@@ -239,6 +239,172 @@ export default [
     },
   },
   {
+    name: "tap marker: a double tap on the ground by someone cutting wood shows only the closing arrows, each frame at its own size (BUG-083)",
+    async run(t) {
+      const s = await start(t);
+      const v = await t.eval((id) => T.villager(id), s.id);
+      await t.tapTile(v.x, v.y);
+      await t.step(3);
+      const tree = await t.eval(([x, y]) => T.nearest(x, y, [-124]), [v.x, v.y]);
+      await t.eval(([x, y]) => { S.look(x, y); S.step(20); __prehistoricRuntime.game.cameraBFlag = false; }, tree);
+      await t.tapTile(tree[0], tree[1]);
+      await t.step(5);
+      await t.step(30); // the tree's FIRE and its double-press window are over
+      await t.page.waitForTimeout(900);
+      const spot = await t.eval(([x, y]) => { for (const [dx, dy] of [[2, 2], [-2, 2], [2, -2], [-2, -2], [3, 0], [-3, 0], [0, 3]]) if ([0, -1, 1].every((d) => T.cell(x + dx, y + dy + d) === 0)) return [x + dx, y + dy]; return null; }, tree);
+      t.expect.ok(spot, "open ground near the tree");
+      await t.eval(() => {
+        const a = document.querySelector(".hud-action-icon");
+        const t0 = performance.now();
+        window.__seen = [];
+        const look = () => { window.__seen.push({ src: a.hidden ? "" : a.src.split("/").pop(), width: parseFloat(a.style.width) }); if (performance.now() - t0 < 900) requestAnimationFrame(look); };
+        requestAnimationFrame(look);
+        window.__ticking = setInterval(() => S.step(1), 120);
+      });
+      const tap = () => t.eval(([x, y]) => { const scr = __prehistoricScreen; const b = scr.element.getBoundingClientRect(); const p = scr.tileToCss(x, y); const k = scr.tileToCss(1, 1).x - scr.tileToCss(0, 0).x; for (const type of ["pointerdown", "pointerup"]) scr.element.dispatchEvent(new PointerEvent(type, { clientX: b.left + p.x + k / 2, clientY: b.top + p.y + k / 2, pointerId: 7, button: 0, bubbles: true, isPrimary: true })); }, spot);
+      await tap();
+      await t.page.waitForTimeout(150);
+      await tap();
+      await t.page.waitForTimeout(800);
+      const seen = await t.eval(() => { clearInterval(window.__ticking); return window.__seen; });
+      const shown = seen.filter((f) => f.src);
+      t.expect.ok(shown.length > 0 && shown.some((f) => f.src.startsWith("35-")), `the arrows show (${shown.length} frames)`);
+      // Their job's wood stays on the tree until the arrows take over; from then on, only arrows.
+      const arrows = shown.slice(shown.findIndex((f) => f.src.startsWith("35-")));
+      t.expect.deepEqual([...new Set(arrows.map((f) => f.src.split("-")[0]))], ["35"], "nothing but the arrows");
+      for (const [frame, width] of [[0, 104], [4, 32]]) {
+        const widths = arrows.filter((f) => f.src === `35-${frame}.webp`).map((f) => f.width);
+        const one = arrows.find((f) => f.src === "35-0.webp")?.width;
+        if (widths.length && one) t.expect.ok(Math.abs(widths[0] / one - width / 104) < 0.02, `frame ${frame} is ${width}/104 of the first (${widths[0]} / ${one})`);
+      }
+    },
+  },
+  {
+    name: "portraits: a hat over the face by gender, for men and women; none for the others (BUG-081)",
+    async run(t) {
+      const s = await start(t);
+      // Dense 2222 follows the job each step (t41[6464]): a job whose t41 is that hat.
+      for (const [gender, wears, face, hat] of [[0, 12, "pt-man", "hat-builder"], [1, 12, "pt-woman", "hat-builder"], [0, 9, "pt-man", "hat-cook"], [1, 9, "pt-woman", "hat-cook"], [1, 2, "pt-woman", ""]]) {
+        await t.eval(([id, gender, wears]) => { const rt = __prehistoricRuntime, e = rt.denseState; e[1515 + id] = gender; for (let job = 0; job < 128; job += 1) if (rt.packedBytes[rt.packedOffsets[41] + job] === wears) { e[6464 + id] = job; break; } e[2222 + id] = wears; }, [s.id, gender, wears]);
+        await select(t, s.id);
+        await t.step(3);
+        const shown = await t.eval(() => { const i = document.querySelector(".hud-villager .face"); return { src: i.src.split("/").pop(), under: i.style.backgroundImage }; });
+        if (hat) {
+          t.expect.equal(shown.src, `${hat}.webp`, `the hat (${face})`);
+          t.expect.ok(shown.under.includes(`${face}.webp`), `over the face (${JSON.stringify(shown)})`);
+        } else t.expect.deepEqual(shown, { src: `${face}.webp`, under: "" }, "no hat");
+        await t.tap(".hud-sheet-close", 5);
+      }
+    },
+  },
+  {
+    name: "a finger on someone or a building shows the ring at once, before the game's step; one ring after; gone if nothing is selected; an order shows none (BUG-085)",
+    async run(t) {
+      const s = await start(t, { stock: 300 });
+      const finger = (x, y, ...types) => t.eval(async ([x, y, types]) => {
+        const scr = __prehistoricScreen, b = scr.element.getBoundingClientRect(), p = scr.tileToCss(x, y), k = scr.tileToCss(1, 1).x - scr.tileToCss(0, 0).x;
+        for (const type of types) scr.element.dispatchEvent(new PointerEvent(type, { clientX: b.left + p.x + k / 2 + (type === "pointermove" ? 60 : 0), clientY: b.top + p.y + k / 3, pointerId: 7, button: 0, bubbles: true, isPrimary: true }));
+        await new Promise((go) => requestAnimationFrame(() => requestAnimationFrame(go))); // two display frames, no game step
+      }, [x, y, types]);
+      const state = () => t.eval((id) => { const m = __prehistoricPixiMap, g = __prehistoricRuntime.game, mover = m.movers.get(`u${id}`); return { v: m.preselected.villager, b: m.preselected.building, bar: g.barMode, selected: g.selectedId, rings: mover?.person.body.filter((o) => o.op === "ellipse").length, waiting: !!mover?.person.ring }; }, s.id);
+      const look = (x, y) => t.eval(([x, y]) => { S.look(x, y); S.step(20); __prehistoricRuntime.game.cameraBFlag = false; }, [x, y]);
+      const near = (id) => t.eval((id) => T.villager(id), id);
+      // A villager: the ring within two frames, the game not there yet; then the real one, once.
+      let v = await near(s.id);
+      await look(v.x, v.y);
+      v = await near(s.id);
+      const before = await t.eval((id) => __prehistoricPixiMap.movers.get(`u${id}`).picture, s.id);
+      await finger(v.x, v.y, "pointerdown");
+      let n = await state();
+      t.expect.ok(n.v === s.id && n.bar === 0, `the ring before the step (${JSON.stringify(n)})`);
+      t.expect.ok(await t.eval(([id, a]) => __prehistoricPixiMap.movers.get(`u${id}`).picture.texture.uid !== a, [s.id, before.texture?.uid]), "their picture has it");
+      await finger(v.x, v.y, "pointerup");
+      await t.step(8);
+      n = await state();
+      t.expect.ok(n.bar === 1 && n.selected === s.id && n.rings === 1 && !n.waiting && n.v === 0, `one real ring, the early one gone (${JSON.stringify(n)})`);
+      // Selected, a tap on the store or the ground is an order: no ring anywhere.
+      const store = await t.eval((id) => T.building(id), s.store);
+      await finger(store.x + 1, store.y + 1, "pointerdown", "pointercancel");
+      n = await state();
+      t.expect.ok(n.v === 0 && n.b === 0, `the store while someone is selected (${JSON.stringify(n)})`);
+      await t.step(4);
+      await t.tap(".hud-sheet-close", 5);
+      await t.step(10);
+      // A building: its corners at once, the panel a step or two later, the early mark then gone.
+      await look(store.x + 1, store.y + 1);
+      await finger(store.x + 1, store.y + 1, "pointerdown");
+      n = await state();
+      t.expect.ok(n.b === s.store && n.bar === 0, `the corners before the step (${JSON.stringify(n)})`);
+      await finger(store.x + 1, store.y + 1, "pointerup");
+      await t.step(8);
+      n = await state();
+      t.expect.ok(n.bar === 2 && n.b === 0, `the store's own corners (${JSON.stringify(n)})`);
+      // Its panel open: a tap on a villager selects nothing.
+      v = await near(s.id);
+      await finger(v.x, v.y, "pointerdown", "pointercancel");
+      n = await state();
+      t.expect.ok(n.v === 0 && n.b === 0, `a villager under the store's panel (${JSON.stringify(n)})`);
+      await t.step(4);
+      await t.tap(".hud-sheet-close", 5);
+      await t.step(10);
+      // A drag is no tap; nor a press let go by the system.
+      v = await near(s.id);
+      await look(v.x, v.y);
+      v = await near(s.id);
+      await finger(v.x, v.y, "pointerdown", "pointermove");
+      n = await state();
+      t.expect.ok(n.v === 0, `dragged off (${JSON.stringify(n)})`);
+      await finger(v.x, v.y, "pointercancel");
+      await t.step(30);
+      await t.page.waitForTimeout(400);
+      v = await near(s.id);
+      await look(v.x, v.y);
+      v = await near(s.id);
+      await finger(v.x, v.y, "pointerdown");
+      t.expect.equal((await state()).v, s.id, "pressed");
+      await finger(v.x, v.y, "pointercancel");
+      await t.step(3);
+      n = await state();
+      t.expect.ok(n.v === 0 && n.bar === 0, `cancelled: nothing (${JSON.stringify(n)})`);
+      // They left before the tap's keys came: nobody selected, the ring gone.
+      v = await near(s.id);
+      await finger(v.x, v.y, "pointerdown", "pointerup");
+      t.expect.equal((await state()).v, s.id, "tapped");
+      await t.eval(([x, y]) => { __prehistoricRuntime.gridC[y][x] = 0; }, [v.x, v.y]);
+      await t.step(15);
+      n = await state();
+      t.expect.ok(n.v === 0 && n.selected !== s.id, `not selected, no ring (${JSON.stringify(n)})`);
+    },
+  },
+  {
+    name: "store: a cook's panel up from the kitchen, a tap on the store and a weapon: out and straight to it, no aiming; with nobody chosen the aiming stays (BUG-080)",
+    async run(t) {
+      const s = await start(t, { stock: 300 });
+      const k = await t.eval(([id, x, y]) => { const k = S.buildingNear(4, x + 6, y + 1); const b = T.building(k); S.order(id, b.x + 1, b.y + 1); __prehistoricRuntime.mainArrays.aShort[0][6] = 3; return b; }, [s.id, s.hut.x, s.hut.y]);
+      await t.until((id) => T.villager(id).inside, { arg: s.id, max: 2000, chunk: 5, what: "the cook inside" });
+      const store = await t.eval((id) => T.building(id), s.store);
+      const bar = () => t.eval(() => __prehistoricRuntime.game.barMode);
+      await t.tapTile(k.x + 1, k.y + 1);
+      await t.tap(`.hud-item[data-code="-${s.id}"]`, 4);
+      t.expect.ok(await t.visible(".hud-villager"), "the cook's panel");
+      await t.tapTile(store.x + 1, store.y + 1);
+      await t.until(() => __prehistoricRuntime.game.barMode === 2 && !!document.querySelector('.hud-item[data-code="1"]'), { max: 200, what: "the store's weapons" });
+      await t.tap('.hud-item[data-code="1"]', 1);
+      for (let i = 0; i < 12; i += 1) {
+        await t.step(1);
+        t.expect.ok((await bar()) !== 3 && !(await t.visible(".hud-prompt")), `no aiming, no prompt (frame ${i})`);
+      }
+      await t.until((id) => T.villager(id).held === 1, { arg: s.id, max: 2500, what: "the stone in hand" });
+      // Nobody chosen: the store's weapon still asks for a villager, with its tick.
+      await t.step(5);
+      await t.eval(() => { for (let i = 0; i < 3; i += 1) S.key("SOFT_RIGHT"); S.step(3); });
+      await t.tapTile(store.x + 1, store.y + 1);
+      await t.tap('.hud-item[data-code="1"]', 10);
+      t.expect.equal(await bar(), 3, "aiming");
+      t.expect.ok(await t.visible(".hud-prompt"), "the prompt");
+    },
+  },
+  {
     name: "store: a weapon dragged onto a villager is theirs to fetch, the panel stays; a drop on the ground cancels; none left, no drag",
     async run(t) {
       const s = await start(t, { stock: 300 });

@@ -1,7 +1,7 @@
 import type { Graphics } from "../platform/Graphics";
 import type { LegacyRuntimeState } from "../core/LegacyRuntimeState";
 import { T_BUILDING } from "../core/DataTables";
-import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_MODE, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL, UNIT_SPEED, UNIT_TYPE } from "../core/DenseLayout";
+import { BLD_HP, BLD_KIND, BLD_MAX_HP, BLD_OWNER, BLD_WORK, BLD_X, BLD_Y, UNIT_SELECTION, UNIT_DIRECTION, UNIT_FLAGS, UNIT_MELEE_SKILL, UNIT_MODE, UNIT_OFFSET_X, UNIT_OFFSET_Y, UNIT_RANGED_SKILL, UNIT_SCOUT_SKILL, UNIT_SPEED, UNIT_TYPE } from "../core/DenseLayout";
 import { stepLegacyEntityAction, type LegacyEntityActionState } from "./LegacyEntityAction";
 import { stepLegacySpriteLayerLoop } from "./LegacySpriteLayerLoop";
 import { stepLegacySpriteLayerPredicateA, stepLegacySpriteLayerPredicateB } from "./LegacySpriteLayerPredicates";
@@ -51,6 +51,8 @@ export type Person = {
   at: { x: number; y: number };
   body: Op[];
   overlay: Op[];
+  /** Touch play, not selected: the ring they would have and its place in `body`. */
+  ring?: { at: number; op: Op };
   /** Shown at building record `building` by its detail pass (a worker at their post): drawn over it,
    *  as the original drew it right after the building (BUG-049). */
   building?: number;
@@ -67,7 +69,7 @@ const within = (w: Window, x: number, y: number) => x >= w.column && x < w.colum
  * numbers) in absolute coordinates. As UnitRuntime.stepEntityAction, but recording instead of
  * drawing and with every scratch field (f.an, f.ao, f.ap, f.aC ...) local.
  */
-export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: number, direction: number, kind: number, xFlag = false, touch = false): { body: Op[]; overlay: Op[] } {
+export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: number, direction: number, kind: number, xFlag = false, touch = false): { body: Op[]; overlay: Op[]; ring?: { at: number; op: Op } } {
   const body: Op[] = [];
   const overlay: Op[] = [];
   const data = rt.packedData;
@@ -82,6 +84,11 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
     shortTables: data.shortTables, byteTables: data.byteTables, aQ: g.aQ, vByte: g.loopMode,
   };
   let ao = -1, ap = -1;
+  // Touch play: the ring they would have if selected, and where in the body it goes, for the tap that
+  // is selecting them to show it at once (BUG-085). Selected already: it is in the body as ever.
+  let ring: { at: number; op: Op } | undefined;
+  const mark = rt.denseState[UNIT_SELECTION + id] ?? 0;
+  const selected = (mark !== 0 && mark === g.selectionGroup) || (g.selectionGroup === -1 && g.kByte === id);
   stepLegacyEntityAction(state, {
     onP: () => {
       const loop = {
@@ -93,11 +100,14 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
         onA: () => {
           const a = {
             ay: loop.ay, sFlag: g.cameraSFlag, vByte: g.loopMode, at: state.at, dense: rt.denseState, aq: state.aq,
-            FByte: g.selectionGroup, kByte: g.kByte, ar: state.ar, as: state.as, byteTables: data.byteTables, az: loop.az,
+            FByte: touch ? -1 : g.selectionGroup, kByte: touch ? id : g.kByte, ar: state.ar, as: state.as, byteTables: data.byteTables, az: loop.az,
             cWByte: hover, ax: loop.ax, cACInt: 0, CCounter: g.CCounter, ECounter: g.ECounter,
             BCounter: g.BCounter, DCounter: g.DCounter, gridC: rt.gridC,
           };
-          const result = stepLegacySpriteLayerPredicateA(a, { onComposite: (index, cx, cy) => body.push(index === 599 ? { op: "ellipse", ...RINGS[1622]!, x: cx - x + 3, y: cy - y + 5 } : { op: "composite", index, x: cx - x, y: cy - y }) });
+          const result = stepLegacySpriteLayerPredicateA(a, { onComposite: (index, cx, cy) => {
+            const op: Op = index === 599 ? { op: "ellipse", ...RINGS[1622]!, x: cx - x + 3, y: cy - y + 5 } : { op: "composite", index, x: cx - x, y: cy - y };
+            if (touch && !selected) ring = { at: body.length, op }; else body.push(op);
+          } });
           loop.ax = a.ax;
           return result;
         },
@@ -159,7 +169,7 @@ export function personOps(rt: LegacyRuntimeState, id: number, x: number, y: numb
       });
     },
   });
-  return { body, overlay };
+  return { body, overlay, ring };
 }
 
 /**

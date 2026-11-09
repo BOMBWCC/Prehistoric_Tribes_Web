@@ -1,7 +1,7 @@
 import { OriginalKey, type KeyState, type OriginalKeyName } from "./platform/Input";
 import type { LegacyRuntimeState } from "./core/LegacyRuntimeState";
 import { T_BUILDING } from "./core/DataTables";
-import { UNIT_AGE, UNIT_OFFSET_X, UNIT_OFFSET_Y } from "./core/DenseLayout";
+import { BLD_KIND, BLD_OWNER, UNIT_AGE, UNIT_OFFSET_X, UNIT_OFFSET_Y } from "./core/DenseLayout";
 import type { WideScreen } from "./WideScreen";
 import { stepGameplayZAe } from "./ui/UiRuntime";
 
@@ -83,6 +83,10 @@ export type TouchControls = {
   readonly busy: boolean;
   /** While set, a tap on the map goes here instead (with the villager tapped, or 0). */
   setMapTapHandler(handler: ((villager: number) => void) | null): void;
+  /** Where to read the villager whose panel is up over a building's row (0: none). */
+  setViewedVillager(get: () => number): void;
+  /** Told what a finger on the map is selecting (a villager or a building id; 0, 0: nothing), ahead of the game's steps. */
+  setPreselectHandler(handler: (villager: number, building: number) => void): void;
   /** Closes any open bar, the build cards or a selection (right soft key until w == 0). */
   closeBars(): void;
   /** The start menu's choices (round 4) played into the original's menus from the main menu (Q 0):
@@ -118,6 +122,15 @@ export function attachTouchControls(
   const game = runtime.game;
   const canvas = screen.element;
   let script: Script | null = null;
+  let viewedVillager: () => number = () => 0;
+  let preselectHandler: (villager: number, building: number) => void = () => {};
+  let preselected = false;
+  let preselectIdle = 0; // ticks with no finger and no keys running
+  const preselect = (villager: number, building: number) => {
+    preselected = villager > 0 || building > 0;
+    preselectIdle = 0;
+    preselectHandler(villager, building);
+  };
   // Ticks counted by step(), and the tick of the last touch/mouse input: behaviour that only suits
   // touch (centring the placement footprint) must not touch keyboard play or a replayed key script.
   let tick = 0;
@@ -268,12 +281,61 @@ export function attachTouchControls(
     // A building is selected with one tap too (user, 2026-10-21); from another building's bar, that
     // bar is closed first.
     const cell = unitAt(tx, ty);
+    // With a villager's panel up (a portrait in a building's row), a tap on the store is theirs, as
+    // for one selected on the map: out, selected, the store's weapons for them (BUG-080, user 2026-11-09).
+    const viewed = barOpen && cell < 0 && cell >= -60 && (runtime.denseState[BLD_KIND - cell] ?? 0) === 6 /* the store */ ? viewedVillager() : 0;
+    if (viewed > 0) {
+      run((function* () {
+        yield* selecting(viewed);
+        if (game.selectedId === viewed) yield* selectAt(tx, ty, 0);
+      })());
+      return;
+    }
     if (cell < 0 && cell >= -60 && (game.barMode === 0 || barOpen)) {
       run(selectAt(tx, ty, -cell));
       return;
     }
     // First tap: the cursor jumps to the tile.
     moveCursorTo(tx, ty);
+  };
+
+  /** Selects villager `id`: out of their building first if they are inside. */
+  function* selecting(id: number): Script {
+    if (!tileOf(id)) {
+      // Inside a building: its bar's FIRE, FIRE on the portrait (get out!). The original drops
+      // a selection made while they are inside as soon as they step out, so they are selected
+      // once they are on the map.
+      const slot = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR)).indexOf(-id);
+      if (game.barMode !== 2 || slot < 0) return;
+      jumpInBar(slot);
+      yield;
+      if (game.menuCursor !== slot) return;
+      yield* tapFireAlone();
+      yield* tapFireAlone();
+      for (let i = 0; i < 40 && !tileOf(id); i += 1) yield;
+    }
+    yield* backOut();
+    // As a tap on them: the cursor on their tile, FIRE (read again right before, they walk).
+    for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
+    const tile = tileOf(id);
+    if (!tile) return;
+    moveCursorTo(tile[0], tile[1]);
+    yield* tapKey(OriginalKey.FIRE);
+  }
+
+  /** What a tap at (x, y) will select, by tapMap's rules (BUG-085): an order, placing, a panel's
+   *  tap on a villager select nothing; [villager, building], or null. */
+  const tapWillSelect = (x: number, y: number): [number, number] | null => {
+    if (game.loopMode !== 1 || mapTapHandler || game.barMode === 3 || game.cameraBFlag || game.columnScrollDelta !== 0 || game.rowScrollDelta !== 0) return null;
+    const villager = villagerAt(x, y);
+    if (game.barMode === 1) return villager && villager.id !== game.selectedId ? [villager.id, 0] : null;
+    if (villager) return screen.buildingMenuOpen ? null : [villager.id, 0];
+    const [rawX, rawY] = tileAt(x, y);
+    const cell = unitAt(Math.max(0, Math.min(game.mapWidth - 1, rawX)), Math.max(0, Math.min(rowLimit() - 1, rawY)));
+    if (cell >= 0 || cell < -60 || (runtime.denseState[BLD_OWNER - cell] ?? 0) !== 0) return null;
+    if (game.barMode !== 0 && game.barMode !== 2 && game.barMode !== 4) return null;
+    if ((game.barMode === 2 || game.barMode === 4) && viewedVillager() > 0 && (runtime.denseState[BLD_KIND - cell] ?? 0) === 6) return null; // theirs: BUG-080
+    return [0, -cell];
   };
 
   /** Selects what is on map tile (tx, ty) with FIRE there, as one tap does: once a FIRE sent just
@@ -451,7 +513,11 @@ export function attachTouchControls(
     }
     gesture = { id: event.pointerId, sx: event.clientX, sy: event.clientY, cx: event.clientX, cy: event.clientY, x0: gx, y0: gy, gx, gy, drag: grip !== null, on, at: performance.now(), grip };
     touched();
-    if (on === "map") requestAnimationFrame(frame);
+    if (on === "map") {
+      const will = grip ? null : tapWillSelect(gx, gy);
+      if (will) preselect(will[0], will[1]);
+      requestAnimationFrame(frame);
+    }
   });
 
   canvas.addEventListener("pointermove", (event) => {
@@ -549,6 +615,8 @@ export function attachTouchControls(
    *  the slow scroll while a box is dragged near the screen's edge. */
   function frame(now: number): void {
     if (!gesture || gesture.on !== "map") return;
+    // A drag or a long press is no tap: nothing selected after all.
+    if (preselected && (gesture.drag || box || now - gesture.at >= LONG_MS)) preselect(0, 0);
     if (box) {
       const rect = canvas.getBoundingClientRect();
       if (edgePan(box.x, box.y, rect.bottom)) boxCursor();
@@ -658,30 +726,10 @@ export function attachTouchControls(
     },
     edgePan(clientX: number, clientY: number, bottom: number) { edgePan(clientX, clientY, bottom); },
     selectVillager(id: number) {
-      if (game.loopMode !== 1) return;
-      run((function* () {
-        if (!tileOf(id)) {
-          // Inside a building: its bar's FIRE, FIRE on the portrait (get out!). The original drops
-          // a selection made while they are inside as soon as they step out, so they are selected
-          // once they are on the map.
-          const slot = Array.from(runtime.mainArrays.r.slice(0, game.frameLayoutAR)).indexOf(-id);
-          if (game.barMode !== 2 || slot < 0) return;
-          jumpInBar(slot);
-          yield;
-          if (game.menuCursor !== slot) return;
-          yield* tapFireAlone();
-          yield* tapFireAlone();
-          for (let i = 0; i < 40 && !tileOf(id); i += 1) yield;
-        }
-        yield* backOut();
-        // As a tap on them: the cursor on their tile, FIRE (read again right before, they walk).
-        for (let i = 0; i < 10 && game.nInt > 0; i += 1) yield;
-        const tile = tileOf(id);
-        if (!tile) return;
-        moveCursorTo(tile[0], tile[1]);
-        yield* tapKey(OriginalKey.FIRE);
-      })());
+      if (game.loopMode === 1) run(selecting(id));
     },
+    setViewedVillager(get: () => number) { viewedVillager = get; },
+    setPreselectHandler(handler) { preselectHandler = handler; },
     setMapTapHandler(handler: ((villager: number) => void) | null) { mapTapHandler = handler; },
     closeBars() { run(backOut()); },
     startGame(plan) {
@@ -809,6 +857,9 @@ export function attachTouchControls(
       // wherever the cursor last was, nor the cursor's home (f.C:B/f.D:B), which is the middle of
       // the original's camera, not of the wide view.
       tick += 1;
+      // The tap's keys are done: the game's own selection has taken over, or there is none (a step
+      // later, so the real ring is drawn before this one goes).
+      if (preselected) { preselectIdle = gesture || script ? 0 : preselectIdle + 1; if (preselectIdle > 1) preselect(0, 0); }
       if (game.loopMode === 1 && game.barMode === 3 && lastW !== 3 && tick - touchTick < 16) {
         const [tx, ty] = screen.centreTile();
         moveCursorTo(tx, ty);

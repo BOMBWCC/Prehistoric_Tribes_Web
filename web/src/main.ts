@@ -74,6 +74,7 @@ window.addEventListener("beforeunload", detachKeyboard, { once: true });
 
 // Touch and mouse: taps and drags on the screen (TouchControls) plus the HUD buttons over it.
 const touch = attachTouchControls(screen, runtime, keys);
+touch.setPreselectHandler((villager, building) => pixiMap.preselect(villager, building));
 // The game's keys bring back the original's hand cursor; a tap or click takes it away again.
 window.addEventListener("keydown", (event) => { if (isPlayKey(event)) screen.touchPlay = false; });
 window.addEventListener("pointerdown", () => { screen.touchPlay = true; });

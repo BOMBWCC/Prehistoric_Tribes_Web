@@ -556,4 +556,76 @@ export default [
       t.expect.ok(dark > 30, `the bones' tile has ground under it (brightness ${dark.toFixed(0)})`);
     },
   },
+  {
+    name: "a hurt villager walking into a kitchen: the health bar stays over the figure (BUG-082)",
+    async run(t) {
+      await t.eval(() => { S.enter(11); S.step(3); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const i = await t.eval(async () => {
+        const e = __prehistoricRuntime.denseState, chief = T.ui().chief, hut = T.buildings().find((b) => b.kind === 3);
+        const v = T.villagers().find((v) => v.age >= 14 && !v.inside && v.id !== chief), b = T.building(S.buildingNear(4, hut.x + 6, hut.y + 1));
+        const { UNIT_HP, UNIT_MAX_HP } = await import("/src/core/DenseLayout.ts");
+        e[UNIT_HP + v.id] = Math.max(1, Math.floor((e[UNIT_MAX_HP + v.id] || 20) / 4));
+        S.look(b.x, b.y); S.step(20); __prehistoricRuntime.game.cameraBFlag = false;
+        S.order(v.id, b.x + 1, b.y + 1);
+        return { id: v.id, b };
+      });
+      await t.until((i) => { const v = T.villager(i.id); return Math.max(Math.abs(v.x - i.b.x), Math.abs(v.y - i.b.y)) <= 3; }, { arg: i, max: 3000, chunk: 2, what: "next to the kitchen" });
+      await t.eval((i) => {
+        const map = __prehistoricPixiMap; __prehistoricRuntime.game.cameraBFlag = false;
+        window.__bar = []; const t0 = performance.now();
+        const look = () => {
+          const m = map.movers.get(`u${i.id}`);
+          if (m?.walk && m.picture) { const x = m.sprite.x - m.picture.x, y = m.sprite.y - m.picture.y; const r = map.marks.filter((s) => s.visible && s.tint !== 0xffffff && Math.abs(s.x - x) < 60 && Math.abs(s.y - y) < 60).pop(); if (r) window.__bar.push([r.x - x, r.y - y]); }
+          if (performance.now() - t0 < 5000) requestAnimationFrame(look);
+        };
+        requestAnimationFrame(look);
+        window.__ticking = setInterval(() => S.step(1), 120);
+      }, i);
+      await t.page.waitForTimeout(5200);
+      const bar = await t.eval(() => { clearInterval(window.__ticking); return window.__bar; });
+      t.expect.ok(bar.length >= 5, `frames walking with a bar (${bar.length})`);
+      const spread = (n) => Math.max(...bar.map((b) => b[n])) - Math.min(...bar.map((b) => b[n]));
+      t.expect.ok(spread(0) <= 6 && spread(1) <= 6, `the bar keeps its place over them (x ${spread(0).toFixed(1)}, y ${spread(1).toFixed(1)})`);
+    },
+  },
+  {
+    name: "a builder pouring materials on a kitchen's site: the walk to the spot does not hide the pouring (BUG-079)",
+    async run(t) {
+      await t.eval(() => { S.enter(11); S.step(3); S.stock(300); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      const i = await t.eval(() => { const chief = T.ui().chief, hut = T.buildings().find((b) => b.kind === 3); const v = T.villagers().find((v) => v.age >= 14 && !v.inside && v.id !== chief); const site = S.siteNear(4, hut.x + 8, hut.y + 3); const b = T.building(site); S.look(b.x, b.y); S.step(20); __prehistoricRuntime.game.cameraBFlag = false; S.order(v.id, b.x + 1, b.y + 1); return { id: v.id, b }; });
+      await t.until((i) => { const v = T.villager(i.id); return Math.max(Math.abs(v.x - i.b.x - 2), Math.abs(v.y - i.b.y)) <= 4; }, { arg: i, max: 3000, chunk: 2, what: "near the site" });
+      await t.eval((i) => {
+        const map = __prehistoricPixiMap, e = __prehistoricRuntime.denseState;
+        window.__pour = { frames: 0, walking: 0 }; const t0 = performance.now();
+        const look = () => { if (e[2828 + i.id] === 76 && e[2929 + i.id] < 0) { window.__pour.frames += 1; if (map.movers.get(`u${i.id}`)?.walk) window.__pour.walking += 1; } if (performance.now() - t0 < 12000) requestAnimationFrame(look); };
+        requestAnimationFrame(look);
+        window.__ticking = setInterval(() => S.step(1), 120);
+      }, i);
+      await t.page.waitForTimeout(12200);
+      const pour = await t.eval(() => { clearInterval(window.__ticking); return window.__pour; });
+      t.expect.ok(pour.frames >= 20, `frames pouring (${pour.frames})`);
+      t.expect.ok(pour.walking <= pour.frames * 0.15, `shown pouring, not walking (${pour.walking} of ${pour.frames} covered)`);
+    },
+  },
+  {
+    name: "WebGL map: a fishing spot beside a shore tile stands on water, no patch of grass (BUG-084)",
+    async run(t) {
+      await t.eval(() => { S.reveal = true; S.enter(11); S.step(3); });
+      await t.until(() => window.__prehistoricPixiMap.chunks?.length > 0, { max: 400, chunk: 10, what: "the WebGL map" });
+      // PLOT OF LAND's fish at (62, 27): its left neighbour (tile 38) is half grass.
+      t.expect.deepEqual(await t.eval(() => [__prehistoricRuntime.gridB[27][62] & 0xff, __prehistoricRuntime.gridB[27][61] & 0xff]), [179, 38], "a fish beside a shore tile");
+      await t.eval(() => { S.look(62, 27); S.step(20); __prehistoricRuntime.game.cameraBFlag = false; });
+      await t.page.waitForTimeout(900);
+      const box = await t.eval(() => { const s = __prehistoricScreen; const b = s.element.getBoundingClientRect(); const p = s.tileToCss(62, 27), q = s.tileToCss(63, 28); return { x: b.left + p.x, y: b.top + p.y, width: q.x - p.x, height: q.y - p.y }; });
+      const png = (await t.page.screenshot({ clip: box })).toString("base64");
+      const corners = await t.eval(async (png) => {
+        const image = new Image(); image.src = `data:image/png;base64,${png}`; await image.decode();
+        const c = document.createElement("canvas"); c.width = image.width; c.height = image.height; const g = c.getContext("2d"); g.drawImage(image, 0, 0);
+        return [[2, 2], [image.width - 3, 2], [2, image.height - 3], [image.width - 3, image.height - 3]].map(([x, y]) => Array.from(g.getImageData(x, y, 1, 1).data).slice(0, 3));
+      }, png);
+      for (const [r, g, b] of corners) t.expect.ok(b > g && b > r, `water at the tile's corner (rgb ${r},${g},${b})`);
+    },
+  },
 ];

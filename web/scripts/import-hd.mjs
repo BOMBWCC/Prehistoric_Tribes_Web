@@ -111,9 +111,10 @@ for (const f of list("effects/processed")) {
   manifest.effects.push(key);
 }
 // The round-3 UI's pictures (top bar, menus, panels, command buttons), by their own names.
-for (const dir of ["hud/processed", "panels/processed", "hud/cmd/processed"]) {
+for (const dir of ["hud/processed", "hud/hats/processed", "panels/processed", "hud/cmd/processed"]) {
   if (!fs.existsSync(path.join(design, dir))) continue;
   for (const f of list(dir)) {
+    if (/^pt-(builder|cook|cook-woman)\.png$/.test(f)) continue; // a face + a separate hat since BUG-081
     const name = `${dir.startsWith("hud/cmd") ? "cmd-" : ""}${f}`;
     copy(path.join(design, dir, f), `ui/${name}`);
     manifest.ui.push(name);

@@ -174,7 +174,7 @@ export default [
       }
       t.expect.equal(await t.eval(() => T.ui().selected), s.id, "selected");
       await t.step(5);
-      t.expect.ok(await t.eval(() => [...document.querySelectorAll(".hud-villager img")].some((i) => i.src.includes("pt-builder"))), `the builder's head (${await t.eval(() => [...document.querySelectorAll(".hud-villager img")].map((i) => i.src.split("/").pop()).slice(0, 2).join(" "))})`);
+      t.expect.ok(await t.eval(() => [...document.querySelectorAll(".hud-villager img")].some((i) => i.src.includes("hat-builder"))), `the builder's head (${await t.eval(() => [...document.querySelectorAll(".hud-villager img")].map((i) => i.src.split("/").pop()).slice(0, 2).join(" "))})`);
     },
   },
 ];

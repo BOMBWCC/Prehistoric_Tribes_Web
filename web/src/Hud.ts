@@ -626,20 +626,20 @@ export function attachHud(
   };
   /** Left-to-right group of a bar code: demolish, repair, upgrade, own items, villagers. */
   const group = (code: number) => (code === 17 ? 0 : code === 26 || code === 28 ? 1 : code === 16 || code === 27 ? 2 : code < 0 ? 4 : 3);
-  /** A villager's head in building `kind`'s panel: the chief's horns, a child; whoever works in a
-   *  kitchen the cook's hat (a man's or a woman's), on a site (kinds 12..19) the builder's hard
-   *  hat; else by gender (dense 1515, 0 a man). */
-  const portrait = (id: number, kind: number) => {
+  /** A villager's head in building `kind`'s panel: the chief's horns, a child; else the face by
+   *  gender (dense 1515, 0 a man), and whoever works in a kitchen wears the cook's hat, on a site
+   *  (kinds 12..19) the builder's hard hat. A hat is a whole picture over the face, as big as it (BUG-081). */
+  const portrait = (id: number, kind: number, cls = "") => {
     const e = runtime.denseState;
-    if (id === (runtime.mainArrays.aShort[0]?.[17] ?? 0)) return "pt-chief";
-    if ((e[UNIT_TYPE + id] ?? 0) === 17 || (e[UNIT_AGE + id] ?? 20) < 12) return "pt-child";
-    const man = (e[UNIT_GENDER + id] ?? 0) === 0;
+    if (id === (runtime.mainArrays.aShort[0]?.[17] ?? 0)) return img("pt-chief", cls);
+    if ((e[UNIT_TYPE + id] ?? 0) === 17 || (e[UNIT_AGE + id] ?? 20) < 12) return img("pt-child", cls);
+    const face = (e[UNIT_GENDER + id] ?? 0) === 0 ? "pt-man" : "pt-woman";
     // By the job they keep when out of their building too (BUG-075: a builder off the site showed no
     // helmet): dense 2222 = t41[job], 9 a cook, 12 a builder.
-    const hat = e[2222 + id] ?? 0;
-    if (kind === 4 || hat === 9) return man ? "pt-cook" : "pt-cook-woman";
-    if (kind >= 12 || hat === 12) return "pt-builder";
-    return man ? "pt-man" : "pt-woman";
+    const job = e[2222 + id] ?? 0;
+    const hat = kind === 4 || job === 9 ? "hat-cook" : kind >= 12 || job === 12 ? "hat-builder" : "";
+    if (!hat) return img(face, cls);
+    return `<img${cls ? ` class="${cls}"` : ""} src="${UI}${hat}.webp" style="background:url(${UI}${face}.webp) center/contain no-repeat" alt="">`;
   };
   const panelRow = document.createElement("div");
   panelRow.className = "hud-sheet-row";
@@ -665,6 +665,7 @@ export function attachHud(
   });
   let shownBar = "";
   let insideId = 0; // a villager whose portrait was tapped: their panel shows
+  touch.setViewedVillager(() => insideId);
   const tapBarItem = (index: number, code: number) => {
     if (code < 0) { insideId = -code; return; }
     if (buildingKind() === ARMOURY && code <= 5) { touch.adjustInBar(index, 1); return; }
@@ -706,7 +707,7 @@ export function attachHud(
         entry.dataset.index = String(index);
         entry.dataset.code = String(code);
         entry.setAttribute("aria-label", itemName(code));
-        entry.innerHTML = `${img(code < 0 ? portrait(-code, kind) : PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>${costHtml(code, kind)}`;
+        entry.innerHTML = `${code < 0 ? portrait(-code, kind) : img(PANEL_ICONS[code] ?? "nothing")}<span class="n"></span>${costHtml(code, kind)}`;
         const held = longPress(entry, () => itemName(code), () => drag?.active ?? false);
         if (kind === STORE && code >= 0 && code <= 5) draggable(entry, index, code);
         if (kind === ARMOURY && code >= 0 && code <= 5) {
@@ -813,7 +814,7 @@ export function attachHud(
     const maxHp = Math.max(1, e[UNIT_MAX_HP + id] ?? 1);
     const row = (...items: string[]) => `<span class="hud-row">${items.join("")}</span>`;
     // The name on the first line beside the head, as in the original's unit panel (BUG-054).
-    villagerBox.innerHTML = `${cellImg(portrait(id, -1), "face")}<span class="hud-vinfo"><span class="hud-name">${capitalise(runtime.unitNames[id] ?? "")}</span><span class="hud-cols">
+    villagerBox.innerHTML = `${portrait(id, -1, "face")}<span class="hud-vinfo"><span class="hud-name">${capitalise(runtime.unitNames[id] ?? "")}</span><span class="hud-cols">
       <span class="hud-col">${row(cell(gender?.asset === 619 ? "male" : "female", age))}${row(cell(mood ? `mood-${MOOD_BASE + 6 - mood.asset}` : ""), rest ? cell("zzz", "", rest.asset === 577 ? "lit" : "faint") : "")}${row(cell(weapon ? PANEL_ICONS[weapon.asset - WEAPON_BASE] ?? "empty-hand" : "empty-hand"), cell(carried > 0 ? CARGO_ICONS[e[UNIT_CARRY_KIND + id] ?? 0] ?? "pouch" : "pouch", carried > 0 ? String(carried) : "", carried > 0 ? "" : "faint"))}</span>
       <span class="hud-col bars">${statBar("heart", (e[UNIT_HP + id] ?? 0) / maxHp, String(e[UNIT_HP + id] ?? 0))}${statBar("hunger", (e[UNIT_FOOD + id] ?? 0) / 99)}${statBar("sleep", (e[UNIT_ENERGY + id] ?? 0) / 99)}</span>
       <span class="hud-col skills">${skills.join("")}</span></span></span>`;
@@ -839,7 +840,7 @@ export function attachHud(
       entry.className = "hud-item hud-member";
       entry.setAttribute("aria-label", capitalise(runtime.unitNames[id] ?? ""));
       const held = e[UNIT_HELD_ITEM + id] ?? 9;
-      entry.innerHTML = `${img(portrait(id, -1))}${img(PANEL_ICONS[held] && held < 9 ? PANEL_ICONS[held]! : "empty-hand", "weapon")}`;
+      entry.innerHTML = `${portrait(id, -1)}${img(PANEL_ICONS[held] && held < 9 ? PANEL_ICONS[held]! : "empty-hand", "weapon")}`;
       entry.addEventListener("click", () => { viewing = id; });
       return entry;
     }));
@@ -889,6 +890,7 @@ export function attachHud(
   app.append(actionIcon);
   const ACTION_FRAMES: Record<number, number> = { 35: 5 }; // the move arrows' animation
   const ACTION_SIZE = 0.85; // tiles
+  const MOVE_ARROWS_WIDTH = 104; // pixels: the widest frame of icon 35 (hd/effects/35-0.webp)
   const VILLAGER_H = 24; // game pixels: about a grown villager's height (the rally's icon, BUG-028)
   const ACTION_FLASH_MS = 800;
 
@@ -949,7 +951,9 @@ export function attachHud(
     // villager selected, his job's icon stays on it.
     const onMap = screen.touchPlay && game.loopMode === 1 && game.barMode === 1 && !screen.frozen;
     const recent = performance.now() - lastTouch < ACTION_FLASH_MS;
-    const flash = recent && onMap ? touchAction.icon : 0;
+    // 47 is the original's icon for a second tap on the same spot (a run); since the top bar's icons
+    // came in it is the logs (BUG-024's swap), so a double tap flashed wood (BUG-083): the arrows go on.
+    const flash = recent && onMap ? (touchAction.icon === 47 ? 35 : touchAction.icon) : 0;
     const job = !flash && onMap && screen.villagerSheet ? jobIcon(soloId) : null;
     const icon = flash || job?.icon || 0;
     if (icon) {
@@ -958,7 +962,8 @@ export function attachHud(
       if (!actionIcon.src.endsWith(src)) actionIcon.src = src;
       const at = job ? screen.tileToCss(job.tx, job.ty) : screen.tileToCss(game.cameraColumn + game.cursorColumn, game.cameraRow + game.cursorRow);
       const tile = screen.tileToCss(1, 1).x - screen.tileToCss(0, 0).x;
-      const size = tile * ACTION_SIZE;
+      // The arrows close in: each frame at its own size, not blown up to the box (the last, 32 pixels wide, was a block; BUG-083).
+      const size = tile * ACTION_SIZE * (frames > 1 && actionIcon.naturalWidth ? actionIcon.naturalWidth / MOVE_ARROWS_WIDTH : 1);
       Object.assign(actionIcon.style, { left: `${at.x + tile / 2 - size / 2}px`, top: `${at.y + (tile * 16) / 22 / 2 - size / 2}px`, width: `${size}px`, height: `${size}px` });
     }
     // Not until its picture is in: the browser keeps showing the last one meanwhile (BUG-041: wood on
