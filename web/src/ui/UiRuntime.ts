@@ -1202,6 +1202,15 @@ export function runByteActionQueue(rt: LegacyRuntimeState, type: number, x: numb
 
 /** Raw f.ak() state-machine orchestration; child methods remain callbacks. */
 export function stepStateMachine(rt: LegacyRuntimeState, callbacks: LegacyAkCallbacks = {}): void {
+  // f.ak() top block (bytecode/f-javap.txt offset ~3): when on the map
+  // screen (Q==15) with the menu cursor at the top (m==0), refresh the
+  // soft-key icon table entry for Q=15 to 0 (R set) or 9 (R clear) and set
+  // the one-shot flags[17] trigger. Ported 2026-11-15 (was missing).
+  const game = rt.game;
+  if (game.screen === 15 && game.mByte === 0) {
+    rt.packedBytes[rt.packedOffsets[153] + 116 + 15] = game.R !== 0 ? 0 : 9;
+    game.frameFlags[17] = true;
+  }
   stepLegacyAk(rt.game.stateMachineFields(), {
     ...callbacks,
     // CORRECTION 2026-08-22: stepLegacyAl's own onResetInput callback
